@@ -16,18 +16,18 @@
 </hgroup>
 
 <div class="engine-toggle">
-    <a href="/recommendations?engine=genre"
+    <a href="/recommendations?engine=genre{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
        role="button" {% if engine != 'claude' %}class="active-engine"{% else %}class="outline"{% endif %}>
         Genre/Style Engine
     </a>
-    <a href="/recommendations?engine=claude"
+    <a href="/recommendations?engine=claude{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
        role="button" {% if engine == 'claude' %}class="active-engine secondary"{% else %}class="outline secondary"{% endif %}>
         Claude AI Engine
     </a>
 </div>
 
-{% if engine != 'claude' %}
 <div class="discovery-controls">
+    {% if engine != 'claude' %}
     <div class="discovery-slider-group">
         <span class="discovery-label">Familiar</span>
         <input type="range" id="discovery-slider" class="discovery-slider"
@@ -35,12 +35,33 @@
         <span class="discovery-label">Adventurous</span>
         <span id="discovery-value" class="discovery-value">{{ discovery }}%</span>
     </div>
+    {% endif %}
+    <div class="era-picker-group">
+        <label class="era-picker-label">Era:</label>
+        <select id="era-select" class="era-select">
+            <option value="" {% if not era_from and not era_to %}selected{% endif %}>All Eras</option>
+            <option value="1960-1969" {% if era_from == 1960 and era_to == 1969 %}selected{% endif %}>60s</option>
+            <option value="1970-1979" {% if era_from == 1970 and era_to == 1979 %}selected{% endif %}>70s</option>
+            <option value="1980-1989" {% if era_from == 1980 and era_to == 1989 %}selected{% endif %}>80s</option>
+            <option value="1990-1999" {% if era_from == 1990 and era_to == 1999 %}selected{% endif %}>90s</option>
+            <option value="2000-2009" {% if era_from == 2000 and era_to == 2009 %}selected{% endif %}>2000s</option>
+            <option value="2010-2019" {% if era_from == 2010 and era_to == 2019 %}selected{% endif %}>2010s</option>
+            <option value="2020-2029" {% if era_from == 2020 and era_to == 2029 %}selected{% endif %}>2020s</option>
+            <option value="custom" {% if era_from or era_to %}{% if not (era_from and era_to and (era_to - era_from) == 9 and era_from % 10 == 0) %}selected{% endif %}{% endif %}>Custom...</option>
+        </select>
+        <div id="era-custom-range" class="era-custom-range" style="{% if not (era_from or era_to) or (era_from and era_to and (era_to - era_from) == 9 and era_from % 10 == 0) %}display:none;{% endif %}">
+            <input type="number" id="era-from" class="era-from-input" placeholder="From" min="1900" max="2099"
+                   value="{{ era_from or '' }}">
+            <span class="era-dash">&ndash;</span>
+            <input type="number" id="era-to" class="era-to-input" placeholder="To" min="1900" max="2099"
+                   value="{{ era_to or '' }}">
+        </div>
+    </div>
     <button id="btn-refresh-recs" class="outline refresh-recs-btn" onclick="refreshRecs()">
         <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
         Refresh
     </button>
 </div>
-{% endif %}
 
 {% if recommendations %}
 <div class="rec-list">
@@ -176,14 +197,52 @@ if (slider) {
     });
 }
 
+const eraSelect = document.getElementById('era-select');
+const eraCustomRange = document.getElementById('era-custom-range');
+if (eraSelect) {
+    eraSelect.addEventListener('change', () => {
+        if (eraSelect.value === 'custom') {
+            eraCustomRange.style.display = '';
+        } else {
+            eraCustomRange.style.display = 'none';
+            refreshRecs();
+        }
+    });
+}
+
+// Apply custom era range on Enter or blur
+document.getElementById('era-from')?.addEventListener('change', () => refreshRecs());
+document.getElementById('era-to')?.addEventListener('change', () => refreshRecs());
+
+function getEraParams() {
+    const sel = eraSelect ? eraSelect.value : '';
+    if (!sel) return '';
+    if (sel === 'custom') {
+        const from = document.getElementById('era-from')?.value;
+        const to = document.getElementById('era-to')?.value;
+        let params = '';
+        if (from) params += '&era_from=' + from;
+        if (to) params += '&era_to=' + to;
+        return params;
+    }
+    const [from, to] = sel.split('-');
+    return '&era_from=' + from + '&era_to=' + to;
+}
+
 async function refreshRecs() {
     const btn = document.getElementById('btn-refresh-recs');
     btn.disabled = true;
     btn.textContent = 'Loading...';
     try {
         await fetch('/api/refresh-recommendations');
+        const engine = '{{ engine }}';
         const d = slider ? slider.value : 30;
-        window.location.href = '/recommendations?engine=genre&discovery=' + d;
+        const eraParams = getEraParams();
+        if (engine === 'claude') {
+            window.location.href = '/recommendations?engine=claude' + eraParams;
+        } else {
+            window.location.href = '/recommendations?engine=genre&discovery=' + d + eraParams;
+        }
     } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Refresh';

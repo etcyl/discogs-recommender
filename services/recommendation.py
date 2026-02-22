@@ -3,8 +3,10 @@ from collections import Counter
 
 
 class CollectionAnalyzer:
-    def __init__(self, collection: list[dict]):
+    def __init__(self, collection: list[dict],
+                 recently_recommended: set[str] | None = None):
         self.collection = collection
+        self.recently_recommended = recently_recommended or set()
         self.genre_counts = Counter()
         self.style_counts = Counter()
         self.label_counts = Counter()
@@ -82,6 +84,12 @@ class CollectionAnalyzer:
             if label in self.label_counts:
                 score += 2 * (self.label_counts[label] / max_label)
 
+        # Penalize recently recommended artists (soft filter)
+        for artist in candidate.get("artists", []):
+            if artist.lower() in self.recently_recommended:
+                score *= 0.4  # 60% reduction
+                break
+
         # Apply random jitter scaled by discovery level
         if discovery > 0:
             jitter = discovery / 100  # 0.0 – 1.0
@@ -90,7 +98,9 @@ class CollectionAnalyzer:
         return score
 
     def get_recommendations(self, discogs_service, max_results: int = 20,
-                            discovery: int = 30) -> list[dict]:
+                            discovery: int = 30,
+                            era_from: int | None = None,
+                            era_to: int | None = None) -> list[dict]:
         """Search Discogs for releases matching profile traits, score and rank them.
 
         discovery (0-100): controls how adventurous the results are.
@@ -125,11 +135,21 @@ class CollectionAnalyzer:
         def _rand_page():
             return random.randint(1, 3) if discovery > 20 else 1
 
+        # Build year filter for Discogs API
+        year_param = {}
+        if era_from and era_to:
+            year_param["year"] = f"{era_from}-{era_to}"
+        elif era_from:
+            year_param["year"] = f"{era_from}-"
+        elif era_to:
+            year_param["year"] = f"-{era_to}"
+
         # Search by styles
         for style in styles_to_search:
             try:
                 results = discogs_service.search(
-                    style=style, type="release", per_page=20, page=_rand_page())
+                    style=style, type="release", per_page=20, page=_rand_page(),
+                    **year_param)
                 _add_candidates(results)
             except Exception:
                 continue
@@ -138,7 +158,8 @@ class CollectionAnalyzer:
         for artist in artists_to_search:
             try:
                 results = discogs_service.search(
-                    artist=artist, type="master", per_page=20, page=_rand_page())
+                    artist=artist, type="master", per_page=20, page=_rand_page(),
+                    **year_param)
                 _add_candidates(results)
             except Exception:
                 continue
@@ -147,7 +168,8 @@ class CollectionAnalyzer:
         for label in labels_to_search:
             try:
                 results = discogs_service.search(
-                    label=label, type="release", per_page=20, page=_rand_page())
+                    label=label, type="release", per_page=20, page=_rand_page(),
+                    **year_param)
                 _add_candidates(results)
             except Exception:
                 continue
@@ -159,7 +181,8 @@ class CollectionAnalyzer:
             for genre in genres_to_search[:5]:
                 try:
                     results = discogs_service.search(
-                        genre=genre, type="release", per_page=20, page=_rand_page())
+                        genre=genre, type="release", per_page=20, page=_rand_page(),
+                        **year_param)
                     _add_candidates(results)
                 except Exception:
                     continue
@@ -169,6 +192,18 @@ class CollectionAnalyzer:
         for c in candidates:
             s = self.score_release(c, discovery=discovery)
             if s > 0:
+                # Era filter: reject candidates outside the year range
+                if era_from or era_to:
+                    try:
+                        yr = int(c.get("year", 0))
+                    except (ValueError, TypeError):
+                        yr = 0
+                    if yr == 0:
+                        continue  # skip releases with no year when era is set
+                    if era_from and yr < era_from:
+                        continue
+                    if era_to and yr > era_to:
+                        continue
                 c["score"] = round(s, 2)
                 scored.append(c)
 

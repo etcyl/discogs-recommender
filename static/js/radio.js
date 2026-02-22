@@ -301,6 +301,24 @@ function addChannelToSidebar(channel) {
                 <span>Adventurous</span>
             </div>
         </div>
+        <div class="channel-era" data-channel-id="${channel.id}">
+            <select class="channel-era-select" data-era-from="" data-era-to="">
+                <option value="" selected>All Eras</option>
+                <option value="1960-1969">60s</option>
+                <option value="1970-1979">70s</option>
+                <option value="1980-1989">80s</option>
+                <option value="1990-1999">90s</option>
+                <option value="2000-2009">2000s</option>
+                <option value="2010-2019">2010s</option>
+                <option value="2020-2029">2020s</option>
+                <option value="custom">Custom...</option>
+            </select>
+            <div class="era-custom-range" style="display:none;">
+                <input type="number" class="era-from-input" placeholder="From" min="1900" max="2099">
+                <span class="era-dash">&ndash;</span>
+                <input type="number" class="era-to-input" placeholder="To" min="1900" max="2099">
+            </div>
+        </div>
     `;
     list.appendChild(item);
 }
@@ -634,8 +652,9 @@ document.querySelectorAll('input[name="channel-type"]').forEach(r => {
 });
 
 document.getElementById('channel-list')?.addEventListener('click', (e) => {
-    // Ignore clicks on discovery slider area
+    // Ignore clicks on discovery slider or era picker areas
     if (e.target.closest('.channel-discovery')) return;
+    if (e.target.closest('.channel-era')) return;
     const menuBtn = e.target.closest('.channel-menu-btn');
     if (menuBtn) {
         e.stopPropagation();
@@ -668,6 +687,79 @@ document.getElementById('channel-list')?.addEventListener('input', (e) => {
             });
         } catch (err) {}
     }, 400);
+});
+
+// ---- Era Select ----
+// Set initial selected value for all era selects on page load
+document.querySelectorAll('.channel-era-select').forEach(sel => {
+    const eraFrom = sel.dataset.eraFrom;
+    const eraTo = sel.dataset.eraTo;
+    if (eraFrom && eraTo) {
+        const preset = `${eraFrom}-${eraTo}`;
+        const option = sel.querySelector(`option[value="${preset}"]`);
+        if (option) {
+            sel.value = preset;
+        } else {
+            sel.value = 'custom';
+            const customRange = sel.closest('.channel-era')?.querySelector('.era-custom-range');
+            if (customRange) customRange.style.display = '';
+        }
+    }
+});
+
+let eraDebounce = null;
+async function saveChannelEra(channelId, eraFrom, eraTo) {
+    clearTimeout(eraDebounce);
+    eraDebounce = setTimeout(async () => {
+        try {
+            await fetch(`/api/radio/channels/${encodeURIComponent(channelId)}/era`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ era_from: eraFrom, era_to: eraTo }),
+            });
+            // Auto-refresh if this is the active channel
+            if (channelId === activeChannelId) {
+                await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(channelId)}`);
+                loadPlaylistSSE();
+                showLoading(true);
+                resetLoadingUI();
+            }
+        } catch (err) {}
+    }, 500);
+}
+
+document.getElementById('channel-list')?.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('channel-era-select')) return;
+    const wrapper = e.target.closest('.channel-era');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const customRange = wrapper.querySelector('.era-custom-range');
+
+    if (e.target.value === 'custom') {
+        customRange.style.display = '';
+        return; // wait for custom inputs
+    }
+    customRange.style.display = 'none';
+
+    if (!e.target.value) {
+        saveChannelEra(channelId, null, null);
+    } else {
+        const [from, to] = e.target.value.split('-').map(Number);
+        saveChannelEra(channelId, from, to);
+    }
+});
+
+// Handle custom era range inputs
+document.getElementById('channel-list')?.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('era-from-input') && !e.target.classList.contains('era-to-input')) return;
+    const wrapper = e.target.closest('.channel-era');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const fromInput = wrapper.querySelector('.era-from-input');
+    const toInput = wrapper.querySelector('.era-to-input');
+    const eraFrom = fromInput.value ? parseInt(fromInput.value) : null;
+    const eraTo = toInput.value ? parseInt(toInput.value) : null;
+    saveChannelEra(channelId, eraFrom, eraTo);
 });
 
 document.getElementById('btn-rename-channel')?.addEventListener('click', renameChannel);

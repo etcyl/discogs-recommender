@@ -75,6 +75,11 @@ class ChannelDiscoveryRequest(BaseModel):
     discovery: int = Field(..., ge=0, le=100)
 
 
+class ChannelEraRequest(BaseModel):
+    era_from: int | None = Field(None, ge=1900, le=2099)
+    era_to: int | None = Field(None, ge=1900, le=2099)
+
+
 class SpotifyPreviewRequest(BaseModel):
     url: str = Field(..., min_length=10, max_length=500)
 
@@ -180,7 +185,9 @@ async def collection(request: Request, page: int = Query(1, ge=1)):
 @app.get("/recommendations", response_class=HTMLResponse)
 async def recommendations(request: Request,
                           engine: str = Query("genre"),
-                          discovery: int = Query(30, ge=0, le=100)):
+                          discovery: int = Query(30, ge=0, le=100),
+                          era_from: int | None = Query(None, ge=1900, le=2099),
+                          era_to: int | None = Query(None, ge=1900, le=2099)):
     """Get recommendations via genre engine or Claude AI."""
     # Validate engine parameter (CWE-20)
     if engine not in ("genre", "claude"):
@@ -194,27 +201,41 @@ async def recommendations(request: Request,
                 "recommendations": [],
                 "engine": engine,
                 "discovery": discovery,
+                "era_from": era_from,
+                "era_to": era_to,
                 "profile": None,
                 "error": "Your collection is empty. Add some releases on Discogs first!",
             })
 
-        analyzer = _get_analyzer(collection)
+        recently_recommended = thumbs.get_recently_recommended_artists()
+        analyzer = CollectionAnalyzer(collection, recently_recommended=recently_recommended)
         profile = analyzer.get_profile()
 
+        era_suffix = f":{era_from or ''}:{era_to or ''}"
+
         if engine == "claude":
-            cache_key = f"claude_rec:{settings.discogs_username}"
+            cache_key = f"claude_rec:{settings.discogs_username}{era_suffix}"
             recs = cache.get(cache_key)
             if not recs:
-                recs = await asyncio.to_thread(claude.get_recommendations, profile, collection)
+                play_history_summary = thumbs.get_play_history_summary()
+                rec_history_summary = thumbs.get_rec_history_summary()
+                recs = await asyncio.to_thread(
+                    claude.get_recommendations, profile, collection,
+                    play_history_summary=play_history_summary,
+                    rec_history_summary=rec_history_summary,
+                    era_from=era_from, era_to=era_to)
                 recs = await asyncio.to_thread(claude.enrich_with_discogs, recs, discogs)
-                cache.set(cache_key, recs, ttl=1800)
+                thumbs.save_recommendations(recs, source="claude")
+                cache.set(cache_key, recs, ttl=3600)
         else:
-            cache_key = f"genre_rec:{settings.discogs_username}:{discovery}"
+            cache_key = f"genre_rec:{settings.discogs_username}:{discovery}{era_suffix}"
             recs = cache.get(cache_key)
             if not recs:
                 recs = await asyncio.to_thread(
-                    analyzer.get_recommendations, discogs, discovery=discovery)
-                cache.set(cache_key, recs, ttl=1800)
+                    analyzer.get_recommendations, discogs, discovery=discovery,
+                    era_from=era_from, era_to=era_to)
+                thumbs.save_recommendations(recs, source="genre")
+                cache.set(cache_key, recs, ttl=3600)
 
         error = None
     except Exception as e:
@@ -227,6 +248,8 @@ async def recommendations(request: Request,
         "recommendations": recs,
         "engine": engine,
         "discovery": discovery,
+        "era_from": era_from,
+        "era_to": era_to,
         "profile": profile,
         "error": error,
     })
@@ -332,13 +355,16 @@ async def radio_playlist(channel_id: str = Query("my-collection")):
         profile = analyzer.get_profile()
         thumbs_summary = thumbs.get_thumbs_summary()
         dislikes_summary = thumbs.get_dislikes_summary()
+        play_history_summary = thumbs.get_play_history_summary()
 
         playlist = await asyncio.to_thread(
-            radio.generate_playlist, profile, collection, thumbs_summary, dislikes_summary)
+            radio.generate_playlist, profile, collection, thumbs_summary,
+            dislikes_summary, play_history_summary)
         playlist = await asyncio.to_thread(radio.resolve_youtube_ids, playlist)
 
         if playlist:
-            cache.set(cache_key, playlist, ttl=7200)
+            thumbs.save_recommendations(playlist, source="radio")
+            cache.set(cache_key, playlist, ttl=14400)
 
         return {"playlist": playlist, "cached": False}
     except Exception as e:
@@ -383,18 +409,24 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                 profile = analyzer.get_profile()
                 thumbs_summary = thumbs.get_thumbs_summary()
                 dislikes_summary = thumbs.get_dislikes_summary()
+                play_history_summary = thumbs.get_play_history_summary()
                 discovery = channel.get("discovery", 30)
+                era_from = channel.get("era_from")
+                era_to = channel.get("era_to")
                 theme = channel.get("source_data", {}).get("theme", "")
 
                 if theme:
                     yield _sse("progress", {"message": f"Claude is curating \"{theme}\" songs...", "percent": 25})
                     playlist = await asyncio.to_thread(
                         radio.generate_themed_playlist, profile, collection_data,
-                        theme, thumbs_summary, dislikes_summary, discovery)
+                        theme, thumbs_summary, dislikes_summary, play_history_summary,
+                        discovery, era_from=era_from, era_to=era_to)
                 else:
                     yield _sse("progress", {"message": "Claude is curating 40 songs for you...", "percent": 25})
                     playlist = await asyncio.to_thread(
-                        radio.generate_playlist, profile, collection_data, thumbs_summary, dislikes_summary, discovery)
+                        radio.generate_playlist, profile, collection_data, thumbs_summary,
+                        dislikes_summary, play_history_summary, discovery,
+                        era_from=era_from, era_to=era_to)
 
                 if not playlist:
                     yield _sse("error", {"message": "Claude returned no songs."})
@@ -434,15 +466,20 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                 else:
                     mode_label = "similar songs" if mode == "similar_songs" else "new discoveries"
                     discovery = channel.get("discovery", 30)
+                    era_from = channel.get("era_from")
+                    era_to = channel.get("era_to")
                     yield _sse("progress", {
                         "message": f"Claude is finding {mode_label}...",
                         "percent": 25,
                     })
                     thumbs_summary = thumbs.get_thumbs_summary()
                     dislikes_summary = thumbs.get_dislikes_summary()
+                    play_history_summary = thumbs.get_play_history_summary()
                     playlist = await asyncio.to_thread(
                         radio.generate_playlist_from_tracks,
-                        tracks, mode, thumbs_summary, dislikes_summary, discovery)
+                        tracks, mode, thumbs_summary, dislikes_summary,
+                        play_history_summary, discovery,
+                        era_from=era_from, era_to=era_to)
 
                 if not playlist:
                     yield _sse("error", {"message": "No songs generated."})
@@ -468,7 +505,8 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                 resolved.extend(chunk_resolved)
 
             if resolved:
-                cache.set(cache_key, resolved, ttl=7200)
+                thumbs.save_recommendations(resolved, source="radio")
+                cache.set(cache_key, resolved, ttl=14400)
 
             yield _sse("progress", {"message": "Ready!", "percent": 100})
             yield _sse("complete", {"playlist": resolved, "cached": False})
@@ -696,6 +734,23 @@ async def update_channel_discovery_endpoint(channel_id: str, request: Request):
     try:
         channel = channel_service.update_channel_discovery(channel_id, data.discovery)
         # Invalidate playlist cache so next load uses new discovery level
+        cache.invalidate(f"radio_playlist:{channel_id}")
+        return {"status": "ok", "channel": channel}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.put("/api/radio/channels/{channel_id}/era")
+async def update_channel_era_endpoint(channel_id: str, request: Request):
+    """Update a channel's era filter."""
+    try:
+        body = await request.json()
+        data = ChannelEraRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    try:
+        channel = channel_service.update_channel_era(channel_id, data.era_from, data.era_to)
         cache.invalidate(f"radio_playlist:{channel_id}")
         return {"status": "ok", "channel": channel}
     except ValueError as e:

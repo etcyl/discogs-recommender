@@ -288,3 +288,49 @@ class TestGetRecommendations:
         # Should not raise, just return empty or partial results
         result = analyzer.get_recommendations(mock_discogs, max_results=5)
         assert isinstance(result, list)
+
+
+class TestRecentlyRecommendedPenalty:
+    """Tests for freshness scoring penalty."""
+
+    def test_recently_recommended_artist_penalized(self, sample_collection):
+        recently = {"radiohead"}
+        analyzer = CollectionAnalyzer(sample_collection, recently_recommended=recently)
+        candidate = {
+            "id": 99999, "artists": ["Radiohead"], "title": "New",
+            "genres": ["Rock"], "styles": ["Art Rock"], "labels": ["Parlophone"],
+        }
+        score_fresh = CollectionAnalyzer(sample_collection).score_release(candidate, discovery=0)
+        score_penalized = analyzer.score_release(candidate, discovery=0)
+        assert score_penalized < score_fresh
+        # 60% penalty: penalized should be ~40% of fresh
+        assert abs(score_penalized - score_fresh * 0.4) < 0.01
+
+    def test_non_recommended_artist_unaffected(self, sample_collection):
+        recently = {"some other artist"}
+        analyzer = CollectionAnalyzer(sample_collection, recently_recommended=recently)
+        candidate = {
+            "id": 99999, "artists": ["Radiohead"], "title": "New",
+            "genres": ["Rock"], "styles": ["Art Rock"], "labels": [],
+        }
+        score_fresh = CollectionAnalyzer(sample_collection).score_release(candidate, discovery=0)
+        score_with_history = analyzer.score_release(candidate, discovery=0)
+        assert score_fresh == score_with_history
+
+    def test_empty_recently_recommended(self, sample_collection):
+        analyzer = CollectionAnalyzer(sample_collection, recently_recommended=set())
+        candidate = {
+            "id": 99999, "artists": ["Radiohead"], "title": "New",
+            "genres": [], "styles": [], "labels": [],
+        }
+        score = analyzer.score_release(candidate, discovery=0)
+        assert score > 0
+
+    def test_none_recently_recommended(self, sample_collection):
+        analyzer = CollectionAnalyzer(sample_collection, recently_recommended=None)
+        candidate = {
+            "id": 99999, "artists": ["Radiohead"], "title": "New",
+            "genres": [], "styles": [], "labels": [],
+        }
+        score = analyzer.score_release(candidate, discovery=0)
+        assert score > 0

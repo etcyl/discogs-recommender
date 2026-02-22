@@ -1,6 +1,9 @@
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import anthropic
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeRecommender:
@@ -8,19 +11,38 @@ class ClaudeRecommender:
         self.client = anthropic.Anthropic(api_key=api_key)
 
     def get_recommendations(self, profile: dict, collection: list[dict],
-                            preferences: str = "") -> list[dict]:
+                            preferences: str = "",
+                            play_history_summary: str = "",
+                            rec_history_summary: str = "",
+                            era_from: int | None = None,
+                            era_to: int | None = None) -> list[dict]:
         """Ask Claude for music recommendations based on collection analysis."""
         summary = self._build_summary(profile, collection)
 
         pref_line = f"\nUSER PREFERENCES: {preferences}" if preferences else ""
 
-        prompt = f"""You are a knowledgeable music curator and record collector.
-Based on the following Discogs collection analysis, recommend 10-15 albums
-that this collector would likely enjoy but probably does not own yet.
+        era_line = ""
+        if era_from and era_to:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released between {era_from} and {era_to}. Every album MUST have a year in this range.\n"
+        elif era_from:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released from {era_from} onward.\n"
+        elif era_to:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released up to {era_to}.\n"
 
-COLLECTION ANALYSIS:
-{summary}
-{pref_line}
+        history_block = ""
+        if play_history_summary:
+            history_block += f"""
+RECENTLY PLAYED (the listener has heard these recently — AVOID recommending these same albums/artists):
+{play_history_summary}
+"""
+        if rec_history_summary:
+            history_block += f"""
+PREVIOUSLY RECOMMENDED (you already suggested these — recommend DIFFERENT albums and artists this time):
+{rec_history_summary}
+"""
+
+        system_text = """You are a knowledgeable music curator and record collector.
+You recommend albums that collectors would enjoy but probably do not own yet.
 
 For each recommendation, provide:
 1. Artist - Album Title
@@ -41,15 +63,32 @@ Return your response as a JSON array with objects containing these exact keys:
 "artist", "album", "year", "reason", "genres", "styles", "tracks"
 
 The "tracks" field should be an array of objects with keys: "title", "reason"
-Example: "tracks": [{{"title": "Song Name", "reason": "Heavy shoegaze textures like MBV"}}]
+Example: "tracks": [{"title": "Song Name", "reason": "Heavy shoegaze textures like MBV"}]
 
 Return ONLY the JSON array, no other text."""
 
+        user_text = f"""Recommend 10-15 albums based on this collection analysis.
+
+COLLECTION ANALYSIS:
+{summary}
+{pref_line}
+{era_line}
+{history_block}"""
+
         message = self.client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=4000,
-            messages=[{"role": "user", "content": prompt}],
+            max_tokens=3000,
+            system=[{
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": user_text}],
         )
+
+        u = message.usage
+        cached = getattr(u, "cache_read_input_tokens", 0) or 0
+        logger.info("Claude recs — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
 
         text = message.content[0].text
         try:

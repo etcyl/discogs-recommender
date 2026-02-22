@@ -22,6 +22,8 @@ DEFAULT_CHANNEL = {
     "source_data": {},
     "mode": "similar_songs",
     "discovery": 30,
+    "era_from": None,
+    "era_to": None,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -41,10 +43,16 @@ def load_channels() -> list[dict]:
     if not any(c.get("id") == "my-collection" for c in channels):
         channels.insert(0, DEFAULT_CHANNEL.copy())
         dirty = True
-    # Migrate: add discovery field if missing
+    # Migrate: add missing fields
     for ch in channels:
         if "discovery" not in ch:
             ch["discovery"] = 30
+            dirty = True
+        if "era_from" not in ch:
+            ch["era_from"] = None
+            dirty = True
+        if "era_to" not in ch:
+            ch["era_to"] = None
             dirty = True
     if dirty:
         _atomic_write_json(CHANNELS_FILE, channels)
@@ -60,7 +68,9 @@ def get_channel(channel_id: str) -> Optional[dict]:
 
 
 def create_channel(name: str, source_type: str, source_data: dict,
-                   mode: str, discovery: int = 30) -> dict:
+                   mode: str, discovery: int = 30,
+                   era_from: Optional[int] = None,
+                   era_to: Optional[int] = None) -> dict:
     name = _sanitize_name(name)
     if not name:
         raise ValueError("Channel name is required")
@@ -81,6 +91,8 @@ def create_channel(name: str, source_type: str, source_data: dict,
         "source_data": source_data,
         "mode": mode,
         "discovery": discovery,
+        "era_from": era_from,
+        "era_to": era_to,
         "created_at": datetime.now().isoformat(),
         "is_default": False,
     }
@@ -111,6 +123,18 @@ def update_channel_discovery(channel_id: str, discovery: int) -> dict:
     for ch in channels:
         if ch["id"] == channel_id:
             ch["discovery"] = discovery
+            _atomic_write_json(CHANNELS_FILE, channels)
+            return ch
+    raise ValueError(f"Channel not found: {channel_id}")
+
+
+def update_channel_era(channel_id: str, era_from: Optional[int],
+                       era_to: Optional[int]) -> dict:
+    channels = load_channels()
+    for ch in channels:
+        if ch["id"] == channel_id:
+            ch["era_from"] = era_from
+            ch["era_to"] = era_to
             _atomic_write_json(CHANNELS_FILE, channels)
             return ch
     raise ValueError(f"Channel not found: {channel_id}")

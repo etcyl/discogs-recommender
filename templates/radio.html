@@ -38,6 +38,28 @@
                         <span>Adventurous</span>
                     </div>
                 </div>
+                <div class="channel-era" data-channel-id="{{ ch.id }}">
+                    <select class="channel-era-select"
+                            data-era-from="{{ ch.era_from or '' }}"
+                            data-era-to="{{ ch.era_to or '' }}">
+                        <option value="">All Eras</option>
+                        <option value="1960-1969">60s</option>
+                        <option value="1970-1979">70s</option>
+                        <option value="1980-1989">80s</option>
+                        <option value="1990-1999">90s</option>
+                        <option value="2000-2009">2000s</option>
+                        <option value="2010-2019">2010s</option>
+                        <option value="2020-2029">2020s</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                    <div class="era-custom-range" style="display:none;">
+                        <input type="number" class="era-from-input" placeholder="From" min="1900" max="2099"
+                               value="{{ ch.era_from or '' }}">
+                        <span class="era-dash">&ndash;</span>
+                        <input type="number" class="era-to-input" placeholder="To" min="1900" max="2099"
+                               value="{{ ch.era_to or '' }}">
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>

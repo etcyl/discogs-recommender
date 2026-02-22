@@ -1,19 +1,21 @@
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 THUMBS_FILE = DATA_DIR / "thumbs.json"
 DISLIKES_FILE = DATA_DIR / "dislikes.json"
 HISTORY_FILE = DATA_DIR / "history.json"
+REC_HISTORY_FILE = DATA_DIR / "rec_history.json"
 
 MAX_FIELD_LENGTH = 500
 MAX_LIST_ITEMS = 20
 MAX_THUMBS_ENTRIES = 500
 MAX_DISLIKES_ENTRIES = 500
 MAX_HISTORY_ENTRIES = 2000
+MAX_REC_HISTORY_ENTRIES = 1000
 
 
 def _sanitize_string(value: str, max_length: int = MAX_FIELD_LENGTH) -> str:
@@ -218,6 +220,123 @@ def save_play(artist: str, title: str, album: str = "",
     history.append(entry)
     _atomic_write_json(HISTORY_FILE, history)
     return entry
+
+
+def get_play_history_summary(max_entries: int = 100,
+                             recent_days: int = 30) -> str:
+    """Format recent play history for Claude prompt, deduped by artist+title."""
+    max_entries = min(max(1, max_entries), MAX_HISTORY_ENTRIES)
+    history = load_history()
+    if not history:
+        return ""
+
+    cutoff = datetime.now() - timedelta(days=recent_days)
+    recent = []
+    for h in reversed(history):  # newest first
+        try:
+            played_at = datetime.fromisoformat(h.get("played_at", ""))
+            if played_at < cutoff:
+                break
+        except (ValueError, TypeError):
+            continue
+        recent.append(h)
+
+    if not recent:
+        return ""
+
+    seen = set()
+    lines = []
+    for h in recent:
+        key = f"{h.get('artist', '').lower()}|{h.get('title', '').lower()}"
+        if key not in seen:
+            seen.add(key)
+            lines.append(
+                f"  - {h.get('artist', '?')} - {h.get('title', '?')} [{h.get('album', '')}]")
+        if len(lines) >= max_entries:
+            break
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Recommendation History
+# ---------------------------------------------------------------------------
+
+def load_rec_history() -> list[dict]:
+    """Load recommendation history from disk."""
+    return _load_json_file(REC_HISTORY_FILE)
+
+
+def save_recommendations(items: list[dict], source: str = "genre") -> None:
+    """Record a batch of recommendations that were shown to the user."""
+    if not items:
+        return
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    rec_history = load_rec_history()
+
+    now = datetime.now().isoformat()
+    for item in items:
+        artist = _sanitize_string(item.get("artist", ""))
+        title = _sanitize_string(item.get("title", "") or item.get("album", ""))
+        album = _sanitize_string(item.get("album", ""))
+        if not artist:
+            continue
+        rec_history.append({
+            "artist": artist,
+            "title": title,
+            "album": album,
+            "source": source,
+            "recommended_at": now,
+        })
+
+    if len(rec_history) > MAX_REC_HISTORY_ENTRIES:
+        rec_history = rec_history[-MAX_REC_HISTORY_ENTRIES:]
+
+    _atomic_write_json(REC_HISTORY_FILE, rec_history)
+
+
+def get_recently_recommended_artists(days: int = 14) -> set[str]:
+    """Return set of lowercased artist names recommended in the last N days."""
+    rec_history = load_rec_history()
+    if not rec_history:
+        return set()
+
+    cutoff = datetime.now() - timedelta(days=days)
+    artists = set()
+    for r in reversed(rec_history):
+        try:
+            rec_at = datetime.fromisoformat(r.get("recommended_at", ""))
+            if rec_at < cutoff:
+                break
+        except (ValueError, TypeError):
+            continue
+        artist = r.get("artist", "").lower().strip()
+        if artist:
+            artists.add(artist)
+    return artists
+
+
+def get_rec_history_summary(max_entries: int = 50) -> str:
+    """Format recent recommendation history for Claude prompt."""
+    max_entries = min(max(1, max_entries), MAX_REC_HISTORY_ENTRIES)
+    rec_history = load_rec_history()
+    if not rec_history:
+        return ""
+
+    seen = set()
+    lines = []
+    for r in reversed(rec_history[-max_entries * 2:]):
+        key = f"{r.get('artist', '').lower()}|{r.get('album', '').lower()}"
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(
+            f"  - {r.get('artist', '?')} - {r.get('album', r.get('title', '?'))}")
+        if len(lines) >= max_entries:
+            break
+
+    return "\n".join(lines)
 
 
 def _atomic_write_json(filepath: Path, data) -> None:

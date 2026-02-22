@@ -15,8 +15,14 @@ def isolate_thumbs(tmp_path):
     test_data_dir = tmp_path / "data"
     test_data_dir.mkdir()
     test_thumbs_file = test_data_dir / "thumbs.json"
+    test_dislikes_file = test_data_dir / "dislikes.json"
+    test_history_file = test_data_dir / "history.json"
+    test_rec_history_file = test_data_dir / "rec_history.json"
     with patch.object(thumbs, "DATA_DIR", test_data_dir), \
-         patch.object(thumbs, "THUMBS_FILE", test_thumbs_file):
+         patch.object(thumbs, "THUMBS_FILE", test_thumbs_file), \
+         patch.object(thumbs, "DISLIKES_FILE", test_dislikes_file), \
+         patch.object(thumbs, "HISTORY_FILE", test_history_file), \
+         patch.object(thumbs, "REC_HISTORY_FILE", test_rec_history_file):
         yield test_thumbs_file
 
 
@@ -206,3 +212,81 @@ class TestAtomicWrite:
         thumbs._atomic_write_json(isolate_thumbs, [2])
         data = json.loads(isolate_thumbs.read_text())
         assert data == [2]
+
+
+class TestPlayHistorySummary:
+    """Tests for get_play_history_summary()."""
+
+    def test_empty_history(self):
+        result = thumbs.get_play_history_summary()
+        assert result == ""
+
+    def test_deduplicates_entries(self):
+        thumbs.save_play(artist="Neu!", title="Hallogallo", album="Neu!")
+        thumbs.save_play(artist="Neu!", title="Hallogallo", album="Neu!")
+        result = thumbs.get_play_history_summary()
+        # Should produce exactly one line despite two plays
+        assert result.count("\n") == 0  # single line = no newlines
+
+    def test_format(self):
+        thumbs.save_play(artist="Can", title="Vitamin C", album="Ege Bamyasi")
+        result = thumbs.get_play_history_summary()
+        assert "Can - Vitamin C [Ege Bamyasi]" in result
+
+    def test_max_entries_respected(self):
+        for i in range(20):
+            thumbs.save_play(artist=f"Artist{i}", title=f"Song{i}")
+        result = thumbs.get_play_history_summary(max_entries=5)
+        assert result.count("\n") <= 4  # 5 lines = 4 newlines
+
+
+class TestRecHistory:
+    """Tests for recommendation history tracking."""
+
+    def test_save_and_load(self):
+        items = [{"artist": "Radiohead", "album": "In Rainbows"}]
+        thumbs.save_recommendations(items, source="claude")
+        loaded = thumbs.load_rec_history()
+        assert len(loaded) == 1
+        assert loaded[0]["artist"] == "Radiohead"
+        assert loaded[0]["source"] == "claude"
+
+    def test_recently_recommended_artists(self):
+        items = [
+            {"artist": "Radiohead", "album": "A"},
+            {"artist": "Portishead", "album": "B"},
+        ]
+        thumbs.save_recommendations(items, source="genre")
+        artists = thumbs.get_recently_recommended_artists(days=1)
+        assert "radiohead" in artists
+        assert "portishead" in artists
+
+    def test_max_entries_enforced(self):
+        original_max = thumbs.MAX_REC_HISTORY_ENTRIES
+        try:
+            thumbs.MAX_REC_HISTORY_ENTRIES = 5
+            for i in range(10):
+                thumbs.save_recommendations(
+                    [{"artist": f"A{i}", "album": f"B{i}"}], source="genre")
+            loaded = thumbs.load_rec_history()
+            assert len(loaded) <= 5
+        finally:
+            thumbs.MAX_REC_HISTORY_ENTRIES = original_max
+
+    def test_empty_items_noop(self):
+        thumbs.save_recommendations([], source="genre")
+        assert thumbs.load_rec_history() == []
+
+    def test_rec_history_summary_format(self):
+        items = [{"artist": "MBV", "album": "Loveless"}]
+        thumbs.save_recommendations(items, source="claude")
+        result = thumbs.get_rec_history_summary()
+        assert "MBV - Loveless" in result
+
+    def test_rec_history_summary_deduplicates(self):
+        thumbs.save_recommendations(
+            [{"artist": "MBV", "album": "Loveless"}], source="claude")
+        thumbs.save_recommendations(
+            [{"artist": "MBV", "album": "Loveless"}], source="genre")
+        result = thumbs.get_rec_history_summary()
+        assert result.count("MBV") == 1

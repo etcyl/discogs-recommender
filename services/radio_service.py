@@ -1,9 +1,12 @@
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 import anthropic
 from youtubesearchpython import VideosSearch
 
 from services.cache import cache
+
+logger = logging.getLogger(__name__)
 
 
 class RadioService:
@@ -41,13 +44,27 @@ class RadioService:
                 "- Only keep a thin thread connecting back to their taste."
             )
 
+    def _era_guidance(self, era_from: int | None, era_to: int | None) -> str:
+        """Return prompt block constraining songs to a year range."""
+        if not era_from and not era_to:
+            return ""
+        if era_from and era_to:
+            return f"\nERA CONSTRAINT: ONLY recommend songs released between {era_from} and {era_to}. Every song MUST have a year in this range.\n"
+        if era_from:
+            return f"\nERA CONSTRAINT: ONLY recommend songs released from {era_from} onward. Every song MUST be from {era_from} or later.\n"
+        return f"\nERA CONSTRAINT: ONLY recommend songs released up to {era_to}. Every song MUST be from {era_to} or earlier.\n"
+
     def generate_playlist(self, profile: dict, collection: list[dict],
                           thumbs_summary: str = "",
                           dislikes_summary: str = "",
-                          discovery: int = 30) -> list[dict]:
+                          play_history_summary: str = "",
+                          discovery: int = 30,
+                          era_from: int | None = None,
+                          era_to: int | None = None) -> list[dict]:
         """Ask Claude to generate a 40-song radio playlist (big batch to minimize API calls)."""
         summary = self._build_profile_summary(profile, collection)
         discovery_guide = self._discovery_guidance(discovery)
+        era_guide = self._era_guidance(era_from, era_to)
 
         dislikes_block = ""
         if dislikes_summary:
@@ -56,21 +73,16 @@ PREVIOUSLY DISLIKED SONGS (listener skipped/disliked these — AVOID these and s
 {dislikes_summary}
 """
 
-        prompt = f"""You are an expert music curator with encyclopedic knowledge — deeper than
+        history_block = ""
+        if play_history_summary:
+            history_block = f"""
+RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat any of these):
+{play_history_summary}
+"""
+
+        system_text = """You are an expert music curator with encyclopedic knowledge — deeper than
 Spotify, Last.fm, or Pandora. Your recommendations should surprise and delight,
-not just serve safe, obvious picks.
-
-Based on this listener's Discogs collection, create a radio playlist of 40 SONGS
-they would love. Go beyond surface-level genre matching:
-
-COLLECTION PROFILE:
-{summary}
-
-PREVIOUSLY LIKED SONGS (from radio thumbs-up):
-{thumbs_summary or "None yet — this is their first session."}
-{dislikes_block}
-DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
-{discovery_guide}
+not just serve safe, obvious picks. Go beyond surface-level genre matching.
 
 CURATION PHILOSOPHY:
 - Dig deep: obscure B-sides, overlooked album tracks, international gems, reissued rarities
@@ -82,23 +94,45 @@ CURATION PHILOSOPHY:
 - NEVER repeat a song from the thumbs-up history or the disliked list
 - Avoid overly obvious hits — dig for the deeper cuts
 
-For EACH song, also include a "similar_to" field: an array of 1-3 specific
+For EACH song, include a "similar_to" field: an array of 1-3 specific
 artist+album combos FROM THE LISTENER'S COLLECTION that this song connects to,
-and briefly why. This helps the listener understand the recommendation.
+and briefly why.
 
 Return a JSON array of exactly 40 objects with these keys:
 "artist", "title", "album", "year", "reason", "similar_to"
 
 The "reason" should be 1 sentence explaining the specific connection to their taste.
-The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK Computer", "why": "shared producer Nigel Godrich"}}]
+The "similar_to" should be an array like: [{"artist": "Radiohead", "album": "OK Computer", "why": "shared producer Nigel Godrich"}]
 
 Return ONLY the JSON array, no other text."""
+
+        user_text = f"""Create a radio playlist of 40 SONGS based on this listener's Discogs collection.
+
+COLLECTION PROFILE:
+{summary}
+
+PREVIOUSLY LIKED SONGS (from radio thumbs-up):
+{thumbs_summary or "None yet — this is their first session."}
+{dislikes_block}
+{history_block}
+DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
+{discovery_guide}
+{era_guide}"""
 
         message = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=8000,
-            messages=[{"role": "user", "content": prompt}],
+            system=[{
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": user_text}],
         )
+
+        u = message.usage
+        cached = getattr(u, "cache_read_input_tokens", 0) or 0
+        logger.info("Radio playlist — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
 
         text = message.content[0].text
         try:
@@ -173,10 +207,14 @@ Return ONLY the JSON array, no other text."""
                                       mode: str = "similar_songs",
                                       thumbs_summary: str = "",
                                       dislikes_summary: str = "",
-                                      discovery: int = 30) -> list[dict]:
+                                      play_history_summary: str = "",
+                                      discovery: int = 30,
+                                      era_from: int | None = None,
+                                      era_to: int | None = None) -> list[dict]:
         """Generate a 40-song playlist based on Spotify playlist tracks."""
         track_listing = self._build_track_listing(tracks)
         discovery_guide = self._discovery_guidance(discovery)
+        era_guide = self._era_guidance(era_from, era_to)
 
         if mode == "new_discoveries":
             philosophy = """CURATION PHILOSOPHY — NEW DISCOVERIES MODE:
@@ -203,18 +241,14 @@ PREVIOUSLY DISLIKED SONGS (AVOID these and similar):
 {dislikes_summary}
 """
 
-        prompt = f"""You are an expert music curator with encyclopedic knowledge.
+        history_block = ""
+        if play_history_summary:
+            history_block = f"""
+RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat any of these):
+{play_history_summary}
+"""
 
-Based on this Spotify playlist, create a radio playlist of 40 SONGS the listener would love.
-
-PLAYLIST TRACKS:
-{track_listing}
-
-PREVIOUSLY LIKED SONGS (from radio thumbs-up):
-{thumbs_summary or "None yet."}
-{dislikes_block}
-DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
-{discovery_guide}
+        system_text = f"""You are an expert music curator with encyclopedic knowledge.
 
 {philosophy}
 RULES:
@@ -230,11 +264,33 @@ The "similar_to" should be an array like: [{{"artist": "Tame Impala", "album": "
 
 Return ONLY the JSON array, no other text."""
 
+        user_text = f"""Create a radio playlist of 40 SONGS based on this Spotify playlist.
+
+PLAYLIST TRACKS:
+{track_listing}
+
+PREVIOUSLY LIKED SONGS (from radio thumbs-up):
+{thumbs_summary or "None yet."}
+{dislikes_block}
+{history_block}
+DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
+{discovery_guide}
+{era_guide}"""
+
         message = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=8000,
-            messages=[{"role": "user", "content": prompt}],
+            system=[{
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": user_text}],
         )
+
+        u = message.usage
+        cached = getattr(u, "cache_read_input_tokens", 0) or 0
+        logger.info("Radio from-tracks — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
 
         text = message.content[0].text
         try:
@@ -253,10 +309,14 @@ Return ONLY the JSON array, no other text."""
                                     theme: str,
                                     thumbs_summary: str = "",
                                     dislikes_summary: str = "",
-                                    discovery: int = 30) -> list[dict]:
+                                    play_history_summary: str = "",
+                                    discovery: int = 30,
+                                    era_from: int | None = None,
+                                    era_to: int | None = None) -> list[dict]:
         """Generate a 40-song playlist themed around a user-defined mood/genre/vibe."""
         summary = self._build_profile_summary(profile, collection)
         discovery_guide = self._discovery_guidance(discovery)
+        era_guide = self._era_guidance(era_from, era_to)
 
         dislikes_block = ""
         if dislikes_summary:
@@ -265,23 +325,17 @@ PREVIOUSLY DISLIKED SONGS (AVOID these and similar):
 {dislikes_summary}
 """
 
-        prompt = f"""You are an expert music curator with encyclopedic knowledge.
+        history_block = ""
+        if play_history_summary:
+            history_block = f"""
+RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat any of these):
+{play_history_summary}
+"""
 
-Based on this listener's Discogs collection, create a themed radio playlist of 40 SONGS.
+        system_text = f"""You are an expert music curator with encyclopedic knowledge.
 
-COLLECTION PROFILE:
-{summary}
-
-THEME/MOOD: "{theme}"
-The listener wants a station focused on this theme. Interpret it broadly — it could be
-a genre, mood, era, activity, scenario, or vibe. Select songs that fit this theme
-while also connecting to the listener's taste.
-
-PREVIOUSLY LIKED SONGS (from radio thumbs-up):
-{thumbs_summary or "None yet."}
-{dislikes_block}
-DISCOVERY LEVEL: {discovery}/100
-{discovery_guide}
+Create a themed radio playlist of 40 SONGS focused on the theme: "{theme}"
+Interpret the theme broadly — it could be a genre, mood, era, activity, scenario, or vibe.
 
 CURATION PHILOSOPHY:
 - Every song should fit the theme "{theme}"
@@ -301,11 +355,33 @@ The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK
 
 Return ONLY the JSON array, no other text."""
 
+        user_text = f"""Create a themed radio playlist based on this listener's collection.
+
+COLLECTION PROFILE:
+{summary}
+
+PREVIOUSLY LIKED SONGS (from radio thumbs-up):
+{thumbs_summary or "None yet."}
+{dislikes_block}
+{history_block}
+DISCOVERY LEVEL: {discovery}/100
+{discovery_guide}
+{era_guide}"""
+
         message = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=8000,
-            messages=[{"role": "user", "content": prompt}],
+            system=[{
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": user_text}],
         )
+
+        u = message.usage
+        cached = getattr(u, "cache_read_input_tokens", 0) or 0
+        logger.info("Radio themed — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
 
         text = message.content[0].text
         try:
