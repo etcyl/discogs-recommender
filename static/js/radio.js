@@ -66,10 +66,14 @@ function onPlayerStateChange(event) {
         showPauseIcon();
         startProgressUpdates();
         startVisualizer();
+        startSilentAudio();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         showPlayIcon();
         stopProgressUpdates();
+        stopSilentAudio();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     }
 }
 
@@ -176,11 +180,28 @@ function switchChannel(channelId) {
 // ---- Channel CRUD ----
 function openNewChannelDialog() {
     const dialog = document.getElementById('new-channel-dialog');
-    document.getElementById('spotify-url-input').value = '';
     document.getElementById('channel-name-input').value = '';
-    document.getElementById('playlist-preview').style.display = 'none';
-    document.querySelector('input[name="channel-mode"][value="similar_songs"]').checked = true;
+    const themeInput = document.getElementById('theme-input');
+    if (themeInput) themeInput.value = '';
+    const spotifyInput = document.getElementById('spotify-url-input');
+    if (spotifyInput) spotifyInput.value = '';
+    const preview = document.getElementById('playlist-preview');
+    if (preview) preview.style.display = 'none';
+    const modeRadio = document.querySelector('input[name="channel-mode"][value="similar_songs"]');
+    if (modeRadio) modeRadio.checked = true;
+    // Default to themed
+    const typeRadio = document.querySelector('input[name="channel-type"][value="themed"]');
+    if (typeRadio) typeRadio.checked = true;
+    toggleChannelTypeFields();
     dialog.showModal();
+}
+
+function toggleChannelTypeFields() {
+    const selectedType = document.querySelector('input[name="channel-type"]:checked')?.value || 'themed';
+    const themedFields = document.getElementById('themed-fields');
+    const spotifyFields = document.getElementById('spotify-fields');
+    if (themedFields) themedFields.style.display = selectedType === 'themed' ? '' : 'none';
+    if (spotifyFields) spotifyFields.style.display = selectedType === 'spotify' ? '' : 'none';
 }
 
 async function previewSpotifyPlaylist() {
@@ -217,11 +238,21 @@ async function previewSpotifyPlaylist() {
 
 async function createChannel(e) {
     e.preventDefault();
-    const url = document.getElementById('spotify-url-input').value.trim();
+    const channelType = document.querySelector('input[name="channel-type"]:checked')?.value || 'themed';
     const name = document.getElementById('channel-name-input').value.trim();
-    const mode = document.querySelector('input[name="channel-mode"]:checked')?.value || 'similar_songs';
+    if (!name) return;
 
-    if (!url || !name) return;
+    let body;
+    if (channelType === 'themed') {
+        const theme = document.getElementById('theme-input')?.value.trim();
+        if (!theme) { alert('Please enter a theme or mood.'); return; }
+        body = { name, theme, mode: 'themed' };
+    } else {
+        const url = document.getElementById('spotify-url-input')?.value.trim();
+        const mode = document.querySelector('input[name="channel-mode"]:checked')?.value || 'similar_songs';
+        if (!url) { alert('Please enter a Spotify URL.'); return; }
+        body = { name, spotify_url: url, mode };
+    }
 
     const btn = document.getElementById('btn-create-channel');
     btn.disabled = true;
@@ -231,7 +262,7 @@ async function createChannel(e) {
         const resp = await fetch('/api/radio/channels', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, spotify_url: url, mode }),
+            body: JSON.stringify(body),
         });
         const data = await resp.json();
         if (!resp.ok) {
@@ -262,6 +293,14 @@ function addChannelToSidebar(channel) {
         </span>
         <span class="channel-name">${channel.name}</span>
         <button class="channel-menu-btn" data-channel-id="${channel.id}" title="Channel options">&hellip;</button>
+        <div class="channel-discovery" data-channel-id="${channel.id}">
+            <input type="range" class="channel-discovery-slider" min="0" max="100" step="5"
+                   value="${channel.discovery || 30}" title="Discovery: ${channel.discovery || 30}%">
+            <div class="channel-discovery-labels">
+                <span>Familiar</span>
+                <span>Adventurous</span>
+            </div>
+        </div>
     `;
     list.appendChild(item);
 }
@@ -340,6 +379,7 @@ function loadTrack(track) {
 
     player.loadVideoById(track.videoId);
     updateTrackInfo(track);
+    updateMediaSession(track);
     renderQueue();
     resetThumbButton(track);
     saveToHistory(track);
@@ -589,8 +629,13 @@ document.getElementById('spotify-url-input')?.addEventListener('blur', previewSp
 document.getElementById('btn-cancel-channel')?.addEventListener('click', () => {
     document.getElementById('new-channel-dialog').close();
 });
+document.querySelectorAll('input[name="channel-type"]').forEach(r => {
+    r.addEventListener('change', toggleChannelTypeFields);
+});
 
 document.getElementById('channel-list')?.addEventListener('click', (e) => {
+    // Ignore clicks on discovery slider area
+    if (e.target.closest('.channel-discovery')) return;
     const menuBtn = e.target.closest('.channel-menu-btn');
     if (menuBtn) {
         e.stopPropagation();
@@ -601,6 +646,28 @@ document.getElementById('channel-list')?.addEventListener('click', (e) => {
     if (item) {
         switchChannel(item.dataset.channelId);
     }
+});
+
+// ---- Discovery Slider ----
+let discoveryDebounce = null;
+document.getElementById('channel-list')?.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('channel-discovery-slider')) return;
+    const wrapper = e.target.closest('.channel-discovery');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const value = parseInt(e.target.value);
+    e.target.title = `Discovery: ${value}%`;
+
+    clearTimeout(discoveryDebounce);
+    discoveryDebounce = setTimeout(async () => {
+        try {
+            await fetch(`/api/radio/channels/${encodeURIComponent(channelId)}/discovery`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discovery: value }),
+            });
+        } catch (err) {}
+    }, 400);
 });
 
 document.getElementById('btn-rename-channel')?.addEventListener('click', renameChannel);
@@ -698,3 +765,65 @@ function animateVisualizer() {
 }
 
 window.addEventListener('resize', resizeVizCanvas);
+
+// ---- Media Session API (hardware media keys) ----
+// We use the Web Audio API to generate a near-silent tone. This is more reliable
+// than a data-URI WAV because it creates a real, ongoing audio context that Chrome
+// recognises for Media Session purposes.
+let silentAudioCtx = null;
+let silentOscillator = null;
+let silentGain = null;
+let silentMediaDest = null;
+let silentAudioEl = null;
+
+function initSilentAudio() {
+    if (silentAudioCtx) return;
+    try {
+        silentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        silentMediaDest = silentAudioCtx.createMediaStreamDestination();
+        silentOscillator = silentAudioCtx.createOscillator();
+        silentGain = silentAudioCtx.createGain();
+        silentGain.gain.value = 0.001; // nearly inaudible
+        silentOscillator.connect(silentGain);
+        silentGain.connect(silentMediaDest);
+        silentOscillator.start();
+
+        silentAudioEl = document.createElement('audio');
+        silentAudioEl.srcObject = silentMediaDest.stream;
+        silentAudioEl.loop = true;
+    } catch (e) {
+        console.warn('Could not init silent audio for media keys:', e);
+    }
+}
+
+function startSilentAudio() {
+    initSilentAudio();
+    if (silentAudioCtx && silentAudioCtx.state === 'suspended') {
+        silentAudioCtx.resume().catch(() => {});
+    }
+    if (silentAudioEl) {
+        silentAudioEl.play().catch(() => {});
+    }
+}
+
+function stopSilentAudio() {
+    // Don't pause — keep it alive so media keys stay registered
+}
+
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => { if (player && !isPlaying) player.playVideo(); });
+    navigator.mediaSession.setActionHandler('pause', () => { if (player && isPlaying) player.pauseVideo(); });
+    navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+    navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+}
+
+function updateMediaSession(track) {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || '',
+        artist: track.artist || '',
+        album: track.album || '',
+        artwork: track.thumbnail ? [{ src: track.thumbnail, sizes: '480x360', type: 'image/jpeg' }] : [],
+    });
+    navigator.mediaSession.playbackState = 'playing';
+}

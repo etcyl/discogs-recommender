@@ -10,11 +10,44 @@ class RadioService:
     def __init__(self, api_key: str):
         self.client = anthropic.Anthropic(api_key=api_key)
 
+    def _discovery_guidance(self, discovery: int) -> str:
+        """Return prompt guidance based on the discovery slider level (0-100)."""
+        if discovery <= 20:
+            return (
+                "- STICK CLOSELY to the listener's collection — familiar artists, labels, and styles.\n"
+                "- At least 80% of songs should be by artists IN or very closely related to their collection.\n"
+                "- Prioritize comfort and recognition over surprise.\n"
+                "- Deep cuts from artists they already own are perfect."
+            )
+        elif discovery <= 45:
+            return (
+                "- Balance familiar territory with moderate discoveries.\n"
+                "- About 60% familiar artists/styles, 40% adjacent discoveries.\n"
+                "- Dig deep within their preferred genres but introduce nearby scenes."
+            )
+        elif discovery <= 70:
+            return (
+                "- Push beyond their comfort zone while keeping a thread of connection.\n"
+                "- About 40% familiar, 60% new territory.\n"
+                "- Cross genres, eras, and scenes — find unexpected connections.\n"
+                "- Introduce artists from different countries and movements."
+            )
+        else:
+            return (
+                "- PUSH BOUNDARIES — deep cuts, unexpected genres, artists they've NEVER heard of.\n"
+                "- At least 70% should be artists NOT in their collection or obvious sphere.\n"
+                "- Cross-cultural, cross-era, cross-genre — surprise them completely.\n"
+                "- Think: 'You had no idea you'd love this.' Obscure is good.\n"
+                "- Only keep a thin thread connecting back to their taste."
+            )
+
     def generate_playlist(self, profile: dict, collection: list[dict],
                           thumbs_summary: str = "",
-                          dislikes_summary: str = "") -> list[dict]:
+                          dislikes_summary: str = "",
+                          discovery: int = 30) -> list[dict]:
         """Ask Claude to generate a 40-song radio playlist (big batch to minimize API calls)."""
         summary = self._build_profile_summary(profile, collection)
+        discovery_guide = self._discovery_guidance(discovery)
 
         dislikes_block = ""
         if dislikes_summary:
@@ -36,12 +69,14 @@ COLLECTION PROFILE:
 PREVIOUSLY LIKED SONGS (from radio thumbs-up):
 {thumbs_summary or "None yet — this is their first session."}
 {dislikes_block}
+DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
+{discovery_guide}
+
 CURATION PHILOSOPHY:
 - Dig deep: obscure B-sides, overlooked album tracks, international gems, reissued rarities
 - Map musical DNA: if they like Artist A, find artists who share producers, session musicians,
   label mates, or scene connections — not just "similar sounding" acts
 - Create flow: sequence songs so each transition feels intentional (tempo, mood, key)
-- Balance 60% familiar territory with 40% genuine discoveries they've never heard
 - Pull from any era or country — a 1972 Japanese psych track can follow a 2023 post-punk single
 - If they have thumbs-up history, lean INTO those preferences but still push boundaries
 - NEVER repeat a song from the thumbs-up history or the disliked list
@@ -137,9 +172,11 @@ Return ONLY the JSON array, no other text."""
     def generate_playlist_from_tracks(self, tracks: list[dict],
                                       mode: str = "similar_songs",
                                       thumbs_summary: str = "",
-                                      dislikes_summary: str = "") -> list[dict]:
+                                      dislikes_summary: str = "",
+                                      discovery: int = 30) -> list[dict]:
         """Generate a 40-song playlist based on Spotify playlist tracks."""
         track_listing = self._build_track_listing(tracks)
+        discovery_guide = self._discovery_guidance(discovery)
 
         if mode == "new_discoveries":
             philosophy = """CURATION PHILOSOPHY — NEW DISCOVERIES MODE:
@@ -176,6 +213,9 @@ PLAYLIST TRACKS:
 PREVIOUSLY LIKED SONGS (from radio thumbs-up):
 {thumbs_summary or "None yet."}
 {dislikes_block}
+DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
+{discovery_guide}
+
 {philosophy}
 RULES:
 - Do NOT repeat any song from the input playlist.
@@ -187,6 +227,77 @@ Return a JSON array of exactly 40 objects with these keys:
 "artist", "title", "album", "year", "reason", "similar_to"
 
 The "similar_to" should be an array like: [{{"artist": "Tame Impala", "album": "Currents", "why": "same dreamy psychedelic production"}}]
+
+Return ONLY the JSON array, no other text."""
+
+        message = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        text = message.content[0].text
+        try:
+            playlist = json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("[")
+            end = text.rfind("]") + 1
+            if start >= 0 and end > start:
+                playlist = json.loads(text[start:end])
+            else:
+                playlist = []
+
+        return playlist
+
+    def generate_themed_playlist(self, profile: dict, collection: list[dict],
+                                    theme: str,
+                                    thumbs_summary: str = "",
+                                    dislikes_summary: str = "",
+                                    discovery: int = 30) -> list[dict]:
+        """Generate a 40-song playlist themed around a user-defined mood/genre/vibe."""
+        summary = self._build_profile_summary(profile, collection)
+        discovery_guide = self._discovery_guidance(discovery)
+
+        dislikes_block = ""
+        if dislikes_summary:
+            dislikes_block = f"""
+PREVIOUSLY DISLIKED SONGS (AVOID these and similar):
+{dislikes_summary}
+"""
+
+        prompt = f"""You are an expert music curator with encyclopedic knowledge.
+
+Based on this listener's Discogs collection, create a themed radio playlist of 40 SONGS.
+
+COLLECTION PROFILE:
+{summary}
+
+THEME/MOOD: "{theme}"
+The listener wants a station focused on this theme. Interpret it broadly — it could be
+a genre, mood, era, activity, scenario, or vibe. Select songs that fit this theme
+while also connecting to the listener's taste.
+
+PREVIOUSLY LIKED SONGS (from radio thumbs-up):
+{thumbs_summary or "None yet."}
+{dislikes_block}
+DISCOVERY LEVEL: {discovery}/100
+{discovery_guide}
+
+CURATION PHILOSOPHY:
+- Every song should fit the theme "{theme}"
+- Still connect to the listener's taste — use their collection as a taste anchor
+- Dig deep: obscure B-sides, overlooked album tracks, international gems
+- Create flow: sequence songs so each transition feels intentional
+- NEVER repeat a song from the disliked list
+- Avoid overly obvious hits — dig for the deeper cuts
+
+For EACH song, include a "similar_to" field: an array of 1-3 specific
+artist+album combos FROM THE LISTENER'S COLLECTION that this song connects to.
+
+Return a JSON array of exactly 40 objects with these keys:
+"artist", "title", "album", "year", "reason", "similar_to"
+
+The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK Computer", "why": "shared producer Nigel Godrich"}}]
 
 Return ONLY the JSON array, no other text."""
 

@@ -62,12 +62,17 @@ class ThumbRequest(BaseModel):
 
 class ChannelCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    spotify_url: str = Field(..., min_length=10, max_length=500)
-    mode: str = Field(..., pattern=r"^(play_playlist|similar_songs|new_discoveries)$")
+    spotify_url: str = Field("", max_length=500)
+    theme: str = Field("", max_length=300)
+    mode: str = Field(..., pattern=r"^(play_playlist|similar_songs|new_discoveries|themed)$")
 
 
 class ChannelRenameRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
+
+
+class ChannelDiscoveryRequest(BaseModel):
+    discovery: int = Field(..., ge=0, le=100)
 
 
 class SpotifyPreviewRequest(BaseModel):
@@ -128,7 +133,7 @@ def _get_analyzer(collection: list[dict]) -> CollectionAnalyzer:
 async def home(request: Request):
     """Dashboard with collection profile summary."""
     try:
-        collection = _get_cached_collection()
+        collection = await asyncio.to_thread(_get_cached_collection)
         analyzer = _get_analyzer(collection)
         profile = analyzer.get_profile()
         error = None
@@ -149,7 +154,7 @@ async def home(request: Request):
 async def collection(request: Request, page: int = Query(1, ge=1)):
     """Browse collection with pagination."""
     try:
-        all_releases = _get_cached_collection()
+        all_releases = await asyncio.to_thread(_get_cached_collection)
         per_page = 24
         total_pages = max(1, (len(all_releases) + per_page - 1) // per_page)
         page = min(page, total_pages)
@@ -182,7 +187,7 @@ async def recommendations(request: Request,
         engine = "genre"
 
     try:
-        collection = _get_cached_collection()
+        collection = await asyncio.to_thread(_get_cached_collection)
         if not collection:
             return templates.TemplateResponse("recommendations.html", {
                 "request": request,
@@ -318,7 +323,7 @@ async def radio_playlist(channel_id: str = Query("my-collection")):
         return {"playlist": playlist, "cached": True}
 
     try:
-        collection = _get_cached_collection()
+        collection = await asyncio.to_thread(_get_cached_collection)
         if not collection:
             return JSONResponse(status_code=400,
                                 content={"error": "Collection is empty."})
@@ -367,7 +372,6 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
             source_type = channel.get("source_type", "discogs")
 
             if source_type == "discogs":
-                # Existing Discogs flow — unchanged
                 yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
                 collection_data = await asyncio.to_thread(_get_cached_collection)
                 if not collection_data:
@@ -379,10 +383,18 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                 profile = analyzer.get_profile()
                 thumbs_summary = thumbs.get_thumbs_summary()
                 dislikes_summary = thumbs.get_dislikes_summary()
+                discovery = channel.get("discovery", 30)
+                theme = channel.get("source_data", {}).get("theme", "")
 
-                yield _sse("progress", {"message": "Claude is curating 40 songs for you...", "percent": 25})
-                playlist = await asyncio.to_thread(
-                    radio.generate_playlist, profile, collection_data, thumbs_summary, dislikes_summary)
+                if theme:
+                    yield _sse("progress", {"message": f"Claude is curating \"{theme}\" songs...", "percent": 25})
+                    playlist = await asyncio.to_thread(
+                        radio.generate_themed_playlist, profile, collection_data,
+                        theme, thumbs_summary, dislikes_summary, discovery)
+                else:
+                    yield _sse("progress", {"message": "Claude is curating 40 songs for you...", "percent": 25})
+                    playlist = await asyncio.to_thread(
+                        radio.generate_playlist, profile, collection_data, thumbs_summary, dislikes_summary, discovery)
 
                 if not playlist:
                     yield _sse("error", {"message": "Claude returned no songs."})
@@ -421,6 +433,7 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                     ]
                 else:
                     mode_label = "similar songs" if mode == "similar_songs" else "new discoveries"
+                    discovery = channel.get("discovery", 30)
                     yield _sse("progress", {
                         "message": f"Claude is finding {mode_label}...",
                         "percent": 25,
@@ -429,7 +442,7 @@ async def radio_playlist_stream(channel_id: str = Query("my-collection")):
                     dislikes_summary = thumbs.get_dislikes_summary()
                     playlist = await asyncio.to_thread(
                         radio.generate_playlist_from_tracks,
-                        tracks, mode, thumbs_summary, dislikes_summary)
+                        tracks, mode, thumbs_summary, dislikes_summary, discovery)
 
                 if not playlist:
                     yield _sse("error", {"message": "No songs generated."})
@@ -587,15 +600,34 @@ async def list_channels():
 
 @app.post("/api/radio/channels")
 async def create_channel(request: Request):
-    """Create a new channel from a Spotify playlist URL."""
-    if not spotify:
-        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
-
+    """Create a new channel from a Spotify playlist URL or a themed collection channel."""
     try:
         body = await request.json()
         data = ChannelCreateRequest(**body)
     except Exception:
         return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    # Themed collection channel (no Spotify needed)
+    if data.mode == "themed":
+        if not data.theme or not data.theme.strip():
+            return JSONResponse(status_code=400, content={"error": "Theme is required for themed channels"})
+        try:
+            channel = channel_service.create_channel(
+                name=data.name,
+                source_type="discogs",
+                source_data={"theme": data.theme.strip()},
+                mode="themed",
+            )
+            return {"status": "ok", "channel": channel}
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"error": str(e)})
+
+    # Spotify channel
+    if not spotify:
+        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
+
+    if not data.spotify_url:
+        return JSONResponse(status_code=400, content={"error": "Spotify URL is required"})
 
     from services.spotify_service import SpotifyService
     playlist_id = SpotifyService.parse_playlist_url(data.spotify_url)
@@ -648,6 +680,24 @@ async def delete_channel_endpoint(channel_id: str):
         # Also clear the channel's cached playlist
         cache.invalidate(f"radio_playlist:{channel_id}")
         return {"status": "ok"}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.put("/api/radio/channels/{channel_id}/discovery")
+async def update_channel_discovery_endpoint(channel_id: str, request: Request):
+    """Update a channel's discovery level."""
+    try:
+        body = await request.json()
+        data = ChannelDiscoveryRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    try:
+        channel = channel_service.update_channel_discovery(channel_id, data.discovery)
+        # Invalidate playlist cache so next load uses new discovery level
+        cache.invalidate(f"radio_playlist:{channel_id}")
+        return {"status": "ok", "channel": channel}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 

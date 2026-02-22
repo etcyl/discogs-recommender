@@ -13,7 +13,7 @@ MAX_CHANNELS = 20
 MAX_NAME_LENGTH = 100
 
 VALID_SOURCE_TYPES = {"discogs", "spotify"}
-VALID_MODES = {"play_playlist", "similar_songs", "new_discoveries"}
+VALID_MODES = {"play_playlist", "similar_songs", "new_discoveries", "themed"}
 
 DEFAULT_CHANNEL = {
     "id": "my-collection",
@@ -21,6 +21,7 @@ DEFAULT_CHANNEL = {
     "source_type": "discogs",
     "source_data": {},
     "mode": "similar_songs",
+    "discovery": 30,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -36,8 +37,16 @@ def _sanitize_name(name: str) -> str:
 def load_channels() -> list[dict]:
     """Load channels from disk. Ensures default channel always exists."""
     channels = _load_json_file(CHANNELS_FILE)
+    dirty = False
     if not any(c.get("id") == "my-collection" for c in channels):
         channels.insert(0, DEFAULT_CHANNEL.copy())
+        dirty = True
+    # Migrate: add discovery field if missing
+    for ch in channels:
+        if "discovery" not in ch:
+            ch["discovery"] = 30
+            dirty = True
+    if dirty:
         _atomic_write_json(CHANNELS_FILE, channels)
     return channels
 
@@ -51,7 +60,7 @@ def get_channel(channel_id: str) -> Optional[dict]:
 
 
 def create_channel(name: str, source_type: str, source_data: dict,
-                   mode: str) -> dict:
+                   mode: str, discovery: int = 30) -> dict:
     name = _sanitize_name(name)
     if not name:
         raise ValueError("Channel name is required")
@@ -59,6 +68,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
         raise ValueError(f"Invalid source_type: {source_type}")
     if mode not in VALID_MODES:
         raise ValueError(f"Invalid mode: {mode}")
+    discovery = max(0, min(100, int(discovery)))
 
     channels = load_channels()
     if len(channels) >= MAX_CHANNELS:
@@ -70,6 +80,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
         "source_type": source_type,
         "source_data": source_data,
         "mode": mode,
+        "discovery": discovery,
         "created_at": datetime.now().isoformat(),
         "is_default": False,
     }
@@ -89,6 +100,17 @@ def rename_channel(channel_id: str, new_name: str) -> dict:
     for ch in channels:
         if ch["id"] == channel_id:
             ch["name"] = new_name
+            _atomic_write_json(CHANNELS_FILE, channels)
+            return ch
+    raise ValueError(f"Channel not found: {channel_id}")
+
+
+def update_channel_discovery(channel_id: str, discovery: int) -> dict:
+    discovery = max(0, min(100, int(discovery)))
+    channels = load_channels()
+    for ch in channels:
+        if ch["id"] == channel_id:
+            ch["discovery"] = discovery
             _atomic_write_json(CHANNELS_FILE, channels)
             return ch
     raise ValueError(f"Channel not found: {channel_id}")

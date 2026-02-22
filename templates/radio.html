@@ -30,13 +30,19 @@
                 {% if not ch.is_default %}
                 <button class="channel-menu-btn" data-channel-id="{{ ch.id }}" title="Channel options">&hellip;</button>
                 {% endif %}
+                <div class="channel-discovery" data-channel-id="{{ ch.id }}">
+                    <input type="range" class="channel-discovery-slider" min="0" max="100" step="5"
+                           value="{{ ch.discovery | default(30) }}" title="Discovery: {{ ch.discovery | default(30) }}%">
+                    <div class="channel-discovery-labels">
+                        <span>Familiar</span>
+                        <span>Adventurous</span>
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
 
-        {% if spotify_enabled %}
         <button id="btn-new-channel" class="new-channel-btn">+ New Channel</button>
-        {% endif %}
     </aside>
 
     <!-- Mobile sidebar toggle -->
@@ -159,26 +165,41 @@
     <form id="new-channel-form" method="dialog">
         <h3>Create Radio Channel</h3>
 
-        <label for="spotify-url-input">Spotify Playlist URL</label>
-        <input type="url" id="spotify-url-input" placeholder="https://open.spotify.com/playlist/..." required>
+        <fieldset>
+            <legend>Channel Type</legend>
+            <label><input type="radio" name="channel-type" value="themed" checked> Themed (mood, genre, vibe)</label>
+            {% if spotify_enabled %}
+            <label><input type="radio" name="channel-type" value="spotify"> Spotify Playlist</label>
+            {% endif %}
+        </fieldset>
 
-        <div id="playlist-preview" class="playlist-preview" style="display:none;">
-            <img id="preview-image" src="" class="preview-img" alt="Playlist cover">
-            <div class="preview-info">
-                <strong id="preview-name"></strong>
-                <span id="preview-count"></span>
+        <div id="themed-fields">
+            <label for="theme-input">Theme / Mood / Vibe</label>
+            <input type="text" id="theme-input" placeholder="e.g. late night jazz, 80s synthwave, rainy day chill..." maxlength="300">
+        </div>
+
+        <div id="spotify-fields" style="display:none;">
+            <label for="spotify-url-input">Spotify Playlist URL</label>
+            <input type="url" id="spotify-url-input" placeholder="https://open.spotify.com/playlist/...">
+
+            <div id="playlist-preview" class="playlist-preview" style="display:none;">
+                <img id="preview-image" src="" class="preview-img" alt="Playlist cover">
+                <div class="preview-info">
+                    <strong id="preview-name"></strong>
+                    <span id="preview-count"></span>
+                </div>
             </div>
+
+            <fieldset>
+                <legend>Mode</legend>
+                <label><input type="radio" name="channel-mode" value="play_playlist"> Play Playlist (exact songs)</label>
+                <label><input type="radio" name="channel-mode" value="similar_songs" checked> Similar Songs (AI picks)</label>
+                <label><input type="radio" name="channel-mode" value="new_discoveries"> New Discoveries (expand horizons)</label>
+            </fieldset>
         </div>
 
         <label for="channel-name-input">Channel Name</label>
         <input type="text" id="channel-name-input" maxlength="100" required>
-
-        <fieldset>
-            <legend>Mode</legend>
-            <label><input type="radio" name="channel-mode" value="play_playlist"> Play Playlist (exact songs)</label>
-            <label><input type="radio" name="channel-mode" value="similar_songs" checked> Similar Songs (AI picks)</label>
-            <label><input type="radio" name="channel-mode" value="new_discoveries"> New Discoveries (expand horizons)</label>
-        </fieldset>
 
         <div class="dialog-actions">
             <button type="button" id="btn-cancel-channel" class="outline">Cancel</button>
