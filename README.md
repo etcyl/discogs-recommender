@@ -12,6 +12,18 @@ A web app that analyzes your Discogs vinyl/CD collection and recommends new albu
 - **Discogs Search** -- Multi-field search across releases, artists, genres, styles, and labels
 - **Release Details** -- Full metadata, tracklist, and marketplace info for any release
 
+## Screenshots
+
+### Radio Player
+AI-curated playlist with YouTube playback, audio visualizer, and collection-based recommendations.
+
+![Radio Player](docs/radio-player.png)
+
+### Collection Browser
+Paginated grid view of your Discogs releases with cover art, genres, and styles.
+
+![Collection Browser](docs/collection-browser.png)
+
 ## Architecture
 
 ```

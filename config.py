@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     discogs_token: str
     discogs_username: str
     anthropic_api_key: str
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
     app_name: str = "DiscogsRecommender/1.0"
     cache_ttl_seconds: int = 3600
     max_thumbs_entries: int = 500

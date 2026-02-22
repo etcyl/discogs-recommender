@@ -432,6 +432,259 @@ progress {
 }
 
 /* ====================================================================
+   CHANNEL SIDEBAR
+   ==================================================================== */
+
+.radio-page-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+    min-height: 60vh;
+}
+
+.radio-main {
+    min-width: 0;
+}
+
+.channel-sidebar {
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1.25rem 0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.5;
+    margin: 0;
+}
+
+.sidebar-close-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.channel-list {
+    flex: 1;
+    padding: 0.5rem 0;
+}
+
+.channel-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+}
+
+.channel-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.channel-item.channel-active {
+    background: rgba(232, 160, 62, 0.1);
+    border-left-color: var(--accent-color);
+}
+
+.channel-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+}
+
+.channel-active .channel-icon {
+    opacity: 1;
+    color: var(--accent-color);
+}
+
+.channel-name {
+    flex: 1;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.channel-active .channel-name {
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+.channel-menu-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    font-size: 1rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+
+.channel-item:hover .channel-menu-btn {
+    opacity: 1;
+}
+
+.new-channel-btn {
+    margin: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.new-channel-btn:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(232, 160, 62, 0.08);
+}
+
+.sidebar-toggle-btn {
+    display: none;
+}
+
+/* ---- Channel Dialogs ---- */
+.channel-dialog {
+    background: var(--card-background-color, #1a1a2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    color: inherit;
+}
+
+.channel-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.channel-dialog h3 {
+    margin-top: 0;
+}
+
+.channel-dialog fieldset {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.channel-dialog fieldset legend {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    padding: 0 0.5rem;
+}
+
+.channel-dialog fieldset label {
+    display: block;
+    padding: 0.3rem 0;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.playlist-preview {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    margin: 0.5rem 0 1rem;
+}
+
+.preview-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.preview-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.preview-info span {
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.channel-menu-dialog {
+    background: var(--card-background-color, #1a1a2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 0.5rem;
+    min-width: 160px;
+    color: inherit;
+}
+
+.channel-menu-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.menu-action-btn {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 0.6rem 1rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+}
+
+.menu-action-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-action-btn.danger {
+    color: #f44336;
+}
+
+.menu-action-btn.outline {
+    opacity: 0.5;
+}
+
+/* ====================================================================
    RADIO MODE
    ==================================================================== */
 
@@ -1139,6 +1392,46 @@ progress {
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
+    .radio-page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .channel-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 100;
+        background: var(--background-color, #11111b);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .channel-sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-close-btn {
+        display: flex;
+    }
+
+    .sidebar-toggle-btn {
+        display: flex;
+        position: fixed;
+        top: 80px;
+        left: 8px;
+        z-index: 50;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 0.5rem;
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+    }
+
     .release-grid {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     }

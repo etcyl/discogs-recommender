@@ -134,6 +134,89 @@ Return ONLY the JSON array, no other text."""
         cache.set(cache_key, info, ttl=86400)
         return info
 
+    def generate_playlist_from_tracks(self, tracks: list[dict],
+                                      mode: str = "similar_songs",
+                                      thumbs_summary: str = "",
+                                      dislikes_summary: str = "") -> list[dict]:
+        """Generate a 40-song playlist based on Spotify playlist tracks."""
+        track_listing = self._build_track_listing(tracks)
+
+        if mode == "new_discoveries":
+            philosophy = """CURATION PHILOSOPHY — NEW DISCOVERIES MODE:
+- The listener already knows and loves the playlist songs. Your job is to EXPAND their horizons.
+- Recommend songs from DIFFERENT genres, eras, and scenes that share deeper musical DNA.
+- No songs by artists already in the playlist.
+- Prioritize: unexpected connections, cross-cultural links, genre-bridging artists.
+- At least 50% of songs should be from genres NOT represented in the playlist.
+- Think: "If you like this playlist, you have NO IDEA you'd also love..."
+"""
+        else:
+            philosophy = """CURATION PHILOSOPHY — SIMILAR SONGS MODE:
+- Find songs that would fit seamlessly INTO this playlist.
+- Match the mood, energy, tempo range, and sonic palette.
+- Include artists from the same scenes, labels, and eras.
+- Balance: 60% similar vibes, 40% slightly adjacent discoveries.
+- Dig deep: obscure B-sides, overlooked album tracks, international gems.
+"""
+
+        dislikes_block = ""
+        if dislikes_summary:
+            dislikes_block = f"""
+PREVIOUSLY DISLIKED SONGS (AVOID these and similar):
+{dislikes_summary}
+"""
+
+        prompt = f"""You are an expert music curator with encyclopedic knowledge.
+
+Based on this Spotify playlist, create a radio playlist of 40 SONGS the listener would love.
+
+PLAYLIST TRACKS:
+{track_listing}
+
+PREVIOUSLY LIKED SONGS (from radio thumbs-up):
+{thumbs_summary or "None yet."}
+{dislikes_block}
+{philosophy}
+RULES:
+- Do NOT repeat any song from the input playlist.
+- NEVER repeat a song from the disliked list.
+- For EACH song, include a "similar_to" field referencing 1-3 songs from the INPUT playlist
+  that this recommendation connects to, and briefly why.
+
+Return a JSON array of exactly 40 objects with these keys:
+"artist", "title", "album", "year", "reason", "similar_to"
+
+The "similar_to" should be an array like: [{{"artist": "Tame Impala", "album": "Currents", "why": "same dreamy psychedelic production"}}]
+
+Return ONLY the JSON array, no other text."""
+
+        message = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        text = message.content[0].text
+        try:
+            playlist = json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("[")
+            end = text.rfind("]") + 1
+            if start >= 0 and end > start:
+                playlist = json.loads(text[start:end])
+            else:
+                playlist = []
+
+        return playlist
+
+    def _build_track_listing(self, tracks: list[dict], max_tracks: int = 80) -> str:
+        """Format Spotify tracks for the Claude prompt."""
+        lines = []
+        for t in tracks[:max_tracks]:
+            year = f" ({t['year']})" if t.get("year") else ""
+            lines.append(f"  - {t['artist']} - {t['title']} [{t.get('album', '')}]{year}")
+        return "\n".join(lines)
+
     def _build_profile_summary(self, profile: dict, collection: list[dict]) -> str:
         lines = [
             f"Total releases: {profile['total_releases']}",

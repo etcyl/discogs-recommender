@@ -18,6 +18,9 @@ htmlcov/
 *.cover
 coverage.xml
 
+# Data (user-specific)
+data/
+
 # IDE / Tools
 .claude/
 .vscode/

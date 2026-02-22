@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Query
@@ -17,6 +18,7 @@ from services.recommendation import CollectionAnalyzer
 from services.claude_recommender import ClaudeRecommender
 from services.radio_service import RadioService
 from services import thumbs
+from services import channel_service
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,12 @@ discogs = DiscogsService(settings.app_name, settings.discogs_token, settings.dis
 claude = ClaudeRecommender(api_key=settings.anthropic_api_key)
 radio = RadioService(api_key=settings.anthropic_api_key)
 
+# Spotify (optional — enabled only when credentials are configured)
+spotify = None
+if settings.spotify_client_id and settings.spotify_client_secret:
+    from services.spotify_service import SpotifyService
+    spotify = SpotifyService(settings.spotify_client_id, settings.spotify_client_secret)
+
 
 # ---------------------------------------------------------------------------
 # Request/response models (CWE-20)
@@ -50,6 +58,20 @@ class ThumbRequest(BaseModel):
     @classmethod
     def validate_lists(cls, v: list[str]) -> list[str]:
         return [s[:200] for s in v[:20] if isinstance(s, str)]
+
+
+class ChannelCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    spotify_url: str = Field(..., min_length=10, max_length=500)
+    mode: str = Field(..., pattern=r"^(play_playlist|similar_songs|new_discoveries)$")
+
+
+class ChannelRenameRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class SpotifyPreviewRequest(BaseModel):
+    url: str = Field(..., min_length=10, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -278,16 +300,19 @@ async def refresh_collection():
 @app.get("/radio", response_class=HTMLResponse)
 async def radio_page(request: Request):
     """Radio player page."""
+    channels = channel_service.load_channels()
     return templates.TemplateResponse("radio.html", {
         "request": request,
         "username": settings.discogs_username,
+        "channels": channels,
+        "spotify_enabled": spotify is not None,
     })
 
 
 @app.get("/api/radio/playlist")
-async def radio_playlist():
+async def radio_playlist(channel_id: str = Query("my-collection")):
     """Generate a radio playlist with YouTube video IDs."""
-    cache_key = f"radio_playlist:{settings.discogs_username}"
+    cache_key = f"radio_playlist:{channel_id}"
     playlist = cache.get(cache_key)
     if playlist:
         return {"playlist": playlist, "cached": True}
@@ -316,44 +341,105 @@ async def radio_playlist():
 
 
 @app.get("/api/radio/playlist-stream")
-async def radio_playlist_stream():
-    """SSE endpoint: streams progress events while generating the radio playlist."""
+async def radio_playlist_stream(channel_id: str = Query("my-collection")):
+    """SSE endpoint: streams progress events while generating a channel's playlist."""
     async def event_generator():
         def _sse(event: str, data: dict) -> str:
             return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
-        # Check cache first
-        cache_key = f"radio_playlist:{settings.discogs_username}"
+        # Validate channel_id format (CWE-20)
+        if not re.match(r"^[a-zA-Z0-9_-]+$", channel_id):
+            yield _sse("error", {"message": "Invalid channel ID"})
+            return
+
+        cache_key = f"radio_playlist:{channel_id}"
         playlist = cache.get(cache_key)
         if playlist:
             yield _sse("complete", {"playlist": playlist, "cached": True})
             return
 
         try:
-            # Step 1: Load collection
-            yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
-            collection = await asyncio.to_thread(_get_cached_collection)
-            if not collection:
-                yield _sse("error", {"message": "Collection is empty."})
+            channel = channel_service.get_channel(channel_id)
+            if not channel:
+                yield _sse("error", {"message": "Channel not found"})
                 return
 
-            # Step 2: Analyze
-            yield _sse("progress", {"message": "Analyzing your taste profile...", "percent": 15})
-            analyzer = _get_analyzer(collection)
-            profile = analyzer.get_profile()
-            thumbs_summary = thumbs.get_thumbs_summary()
-            dislikes_summary = thumbs.get_dislikes_summary()
+            source_type = channel.get("source_type", "discogs")
 
-            # Step 3: Claude generates playlist
-            yield _sse("progress", {"message": "Claude is curating 40 songs for you...", "percent": 25})
-            playlist = await asyncio.to_thread(
-                radio.generate_playlist, profile, collection, thumbs_summary, dislikes_summary)
+            if source_type == "discogs":
+                # Existing Discogs flow — unchanged
+                yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
+                collection_data = await asyncio.to_thread(_get_cached_collection)
+                if not collection_data:
+                    yield _sse("error", {"message": "Collection is empty."})
+                    return
 
-            if not playlist:
-                yield _sse("error", {"message": "Claude returned no songs."})
+                yield _sse("progress", {"message": "Analyzing your taste profile...", "percent": 15})
+                analyzer = _get_analyzer(collection_data)
+                profile = analyzer.get_profile()
+                thumbs_summary = thumbs.get_thumbs_summary()
+                dislikes_summary = thumbs.get_dislikes_summary()
+
+                yield _sse("progress", {"message": "Claude is curating 40 songs for you...", "percent": 25})
+                playlist = await asyncio.to_thread(
+                    radio.generate_playlist, profile, collection_data, thumbs_summary, dislikes_summary)
+
+                if not playlist:
+                    yield _sse("error", {"message": "Claude returned no songs."})
+                    return
+
+            elif source_type == "spotify":
+                if not spotify:
+                    yield _sse("error", {"message": "Spotify is not configured."})
+                    return
+
+                playlist_id = channel.get("source_data", {}).get("playlist_id")
+                if not playlist_id:
+                    yield _sse("error", {"message": "Invalid channel data."})
+                    return
+
+                yield _sse("progress", {"message": "Fetching Spotify playlist...", "percent": 10})
+                tracks = await asyncio.to_thread(spotify.get_playlist_tracks, playlist_id)
+                if not tracks:
+                    yield _sse("error", {"message": "Spotify playlist is empty."})
+                    return
+
+                mode = channel.get("mode", "similar_songs")
+
+                if mode == "play_playlist":
+                    yield _sse("progress", {"message": "Preparing playlist...", "percent": 25})
+                    playlist = [
+                        {
+                            "artist": t["artist"],
+                            "title": t["title"],
+                            "album": t.get("album", ""),
+                            "year": t.get("year", ""),
+                            "reason": "From your Spotify playlist",
+                            "similar_to": [],
+                        }
+                        for t in tracks
+                    ]
+                else:
+                    mode_label = "similar songs" if mode == "similar_songs" else "new discoveries"
+                    yield _sse("progress", {
+                        "message": f"Claude is finding {mode_label}...",
+                        "percent": 25,
+                    })
+                    thumbs_summary = thumbs.get_thumbs_summary()
+                    dislikes_summary = thumbs.get_dislikes_summary()
+                    playlist = await asyncio.to_thread(
+                        radio.generate_playlist_from_tracks,
+                        tracks, mode, thumbs_summary, dislikes_summary)
+
+                if not playlist:
+                    yield _sse("error", {"message": "No songs generated."})
+                    return
+
+            else:
+                yield _sse("error", {"message": "Unknown channel type."})
                 return
 
-            # Step 4: Resolve YouTube IDs in chunks for progress updates
+            # Resolve YouTube IDs in chunks
             total = len(playlist)
             resolved = []
             chunk_size = 5
@@ -481,7 +567,110 @@ async def radio_history_page(request: Request):
 
 
 @app.get("/api/radio/refresh-playlist")
-async def radio_refresh():
-    """Clear radio playlist cache to force a new Claude call."""
-    cache.invalidate_prefix("radio_playlist:")
+async def radio_refresh(channel_id: str = Query("my-collection")):
+    """Clear radio playlist cache for a specific channel."""
+    cache_key = f"radio_playlist:{channel_id}"
+    cache.invalidate(cache_key)
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Channel Management
+# ---------------------------------------------------------------------------
+
+@app.get("/api/radio/channels")
+async def list_channels():
+    """List all radio channels."""
+    channels = channel_service.load_channels()
+    return {"channels": channels, "spotify_enabled": spotify is not None}
+
+
+@app.post("/api/radio/channels")
+async def create_channel(request: Request):
+    """Create a new channel from a Spotify playlist URL."""
+    if not spotify:
+        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
+
+    try:
+        body = await request.json()
+        data = ChannelCreateRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    from services.spotify_service import SpotifyService
+    playlist_id = SpotifyService.parse_playlist_url(data.spotify_url)
+    if not playlist_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid Spotify playlist URL"})
+
+    try:
+        info = await asyncio.to_thread(spotify.get_playlist_info, playlist_id)
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Could not fetch playlist. Is it public?"})
+
+    try:
+        channel = channel_service.create_channel(
+            name=data.name,
+            source_type="spotify",
+            source_data={
+                "playlist_id": playlist_id,
+                "playlist_url": data.spotify_url,
+                "playlist_name": info["name"],
+                "track_count": info["track_count"],
+            },
+            mode=data.mode,
+        )
+        return {"status": "ok", "channel": channel}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.put("/api/radio/channels/{channel_id}")
+async def rename_channel_endpoint(channel_id: str, request: Request):
+    """Rename a channel."""
+    try:
+        body = await request.json()
+        data = ChannelRenameRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    try:
+        channel = channel_service.rename_channel(channel_id, data.name)
+        return {"status": "ok", "channel": channel}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.delete("/api/radio/channels/{channel_id}")
+async def delete_channel_endpoint(channel_id: str):
+    """Delete a channel."""
+    try:
+        channel_service.delete_channel(channel_id)
+        # Also clear the channel's cached playlist
+        cache.invalidate(f"radio_playlist:{channel_id}")
+        return {"status": "ok"}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.post("/api/radio/spotify-preview")
+async def spotify_preview(request: Request):
+    """Validate a Spotify URL and return playlist metadata."""
+    if not spotify:
+        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
+
+    try:
+        body = await request.json()
+        data = SpotifyPreviewRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    from services.spotify_service import SpotifyService
+    playlist_id = SpotifyService.parse_playlist_url(data.url)
+    if not playlist_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid Spotify playlist URL"})
+
+    try:
+        info = await asyncio.to_thread(spotify.get_playlist_info, playlist_id)
+        return info
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Could not fetch playlist. Is it public?"})

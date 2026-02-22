@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Radio Mode — YouTube IFrame API + Queue Management
+// Radio Mode — YouTube IFrame API + Queue Management + Channels
 // ---------------------------------------------------------------------------
 
 let player = null;
@@ -9,6 +9,11 @@ let isPlaying = false;
 let progressInterval = null;
 let isSeeking = false;
 let likedSet = new Set();
+let dislikedSet = new Set();
+
+// ---- Channel State ----
+let activeChannelId = 'my-collection';
+let menuTargetChannelId = null;
 
 // ---- YouTube IFrame API ----
 const tag = document.createElement('script');
@@ -41,7 +46,6 @@ function onPlayerReady() {
 }
 
 function onPlayerError(event) {
-    // Error codes: 2=invalid param, 5=HTML5 error, 100=not found, 101/150=embed blocked
     const track = queue[currentIndex];
     if (track && track.altVideoIds && track.altVideoIds.length > 0) {
         const nextId = track.altVideoIds.shift();
@@ -72,7 +76,8 @@ function onPlayerStateChange(event) {
 // ---- Playlist Loading (SSE with progress) ----
 function loadPlaylistSSE() {
     showLoading(true);
-    const es = new EventSource('/api/radio/playlist-stream');
+    const url = `/api/radio/playlist-stream?channel_id=${encodeURIComponent(activeChannelId)}`;
+    const es = new EventSource(url);
 
     es.addEventListener('progress', (e) => {
         const data = JSON.parse(e.data);
@@ -89,12 +94,11 @@ function loadPlaylistSSE() {
             renderQueue();
             playNext();
         } else {
-            showError('No songs found. Try adding more to your Discogs collection.');
+            showError('No songs found. Try a different playlist or add more to your collection.');
         }
     });
 
     es.addEventListener('error', (e) => {
-        // SSE sends a custom "error" event with data, or the connection may just fail
         try {
             const data = JSON.parse(e.data);
             showError(data.message || 'Failed to load playlist.');
@@ -112,7 +116,7 @@ function loadPlaylist() {
 async function refreshPlaylist() {
     showLoading(true);
     resetLoadingUI();
-    await fetch('/api/radio/refresh-playlist');
+    await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(activeChannelId)}`);
     loadPlaylistSSE();
 }
 
@@ -138,6 +142,173 @@ function getStepHint(percent) {
     if (percent < 30) return 'AI is picking the perfect songs...';
     if (percent < 95) return 'Matching songs to YouTube...';
     return 'Almost there!';
+}
+
+// ---- Channel Switching ----
+function switchChannel(channelId) {
+    if (channelId === activeChannelId) return;
+    activeChannelId = channelId;
+
+    // Update sidebar highlighting
+    document.querySelectorAll('.channel-item').forEach(el => {
+        el.classList.toggle('channel-active', el.dataset.channelId === channelId);
+    });
+
+    // Stop current playback
+    if (player && isPlaying) {
+        try { player.stopVideo(); } catch (e) {}
+    }
+
+    // Reset queue
+    queue = [];
+    currentIndex = -1;
+    renderQueue();
+
+    // Load new channel
+    showLoading(true);
+    resetLoadingUI();
+    loadPlaylistSSE();
+
+    // Close mobile sidebar
+    document.getElementById('channel-sidebar')?.classList.remove('sidebar-open');
+}
+
+// ---- Channel CRUD ----
+function openNewChannelDialog() {
+    const dialog = document.getElementById('new-channel-dialog');
+    document.getElementById('spotify-url-input').value = '';
+    document.getElementById('channel-name-input').value = '';
+    document.getElementById('playlist-preview').style.display = 'none';
+    document.querySelector('input[name="channel-mode"][value="similar_songs"]').checked = true;
+    dialog.showModal();
+}
+
+async function previewSpotifyPlaylist() {
+    const urlInput = document.getElementById('spotify-url-input');
+    const url = urlInput.value.trim();
+    if (!url || !url.includes('spotify')) return;
+
+    try {
+        const resp = await fetch('/api/radio/spotify-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        document.getElementById('preview-name').textContent = data.name;
+        document.getElementById('preview-count').textContent = `${data.track_count} tracks`;
+        const img = document.getElementById('preview-image');
+        if (data.image_url) {
+            img.src = data.image_url;
+            img.style.display = '';
+        } else {
+            img.style.display = 'none';
+        }
+        document.getElementById('playlist-preview').style.display = 'flex';
+
+        const nameInput = document.getElementById('channel-name-input');
+        if (!nameInput.value) {
+            nameInput.value = data.name;
+        }
+    } catch (e) {}
+}
+
+async function createChannel(e) {
+    e.preventDefault();
+    const url = document.getElementById('spotify-url-input').value.trim();
+    const name = document.getElementById('channel-name-input').value.trim();
+    const mode = document.querySelector('input[name="channel-mode"]:checked')?.value || 'similar_songs';
+
+    if (!url || !name) return;
+
+    const btn = document.getElementById('btn-create-channel');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    try {
+        const resp = await fetch('/api/radio/channels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, spotify_url: url, mode }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            alert(data.error || 'Failed to create channel');
+            return;
+        }
+
+        addChannelToSidebar(data.channel);
+        document.getElementById('new-channel-dialog').close();
+        switchChannel(data.channel.id);
+    } catch (e) {
+        alert('Failed to create channel');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Channel';
+    }
+}
+
+function addChannelToSidebar(channel) {
+    const list = document.getElementById('channel-list');
+    const item = document.createElement('div');
+    item.className = 'channel-item';
+    item.dataset.channelId = channel.id;
+    item.dataset.sourceType = channel.source_type;
+    item.innerHTML = `
+        <span class="channel-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        </span>
+        <span class="channel-name">${channel.name}</span>
+        <button class="channel-menu-btn" data-channel-id="${channel.id}" title="Channel options">&hellip;</button>
+    `;
+    list.appendChild(item);
+}
+
+function openChannelMenu(channelId) {
+    menuTargetChannelId = channelId;
+    document.getElementById('channel-menu-dialog').showModal();
+}
+
+async function renameChannel() {
+    if (!menuTargetChannelId) return;
+    document.getElementById('channel-menu-dialog').close();
+    const newName = prompt('Enter new channel name:');
+    if (!newName || !newName.trim()) return;
+
+    try {
+        const resp = await fetch(`/api/radio/channels/${encodeURIComponent(menuTargetChannelId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName.trim() }),
+        });
+        if (resp.ok) {
+            const item = document.querySelector(`.channel-item[data-channel-id="${menuTargetChannelId}"]`);
+            if (item) {
+                item.querySelector('.channel-name').textContent = newName.trim();
+            }
+        }
+    } catch (e) {}
+}
+
+async function deleteChannel() {
+    if (!menuTargetChannelId) return;
+    document.getElementById('channel-menu-dialog').close();
+    if (!confirm('Delete this channel?')) return;
+
+    try {
+        const resp = await fetch(`/api/radio/channels/${encodeURIComponent(menuTargetChannelId)}`, {
+            method: 'DELETE',
+        });
+        if (resp.ok) {
+            const item = document.querySelector(`.channel-item[data-channel-id="${menuTargetChannelId}"]`);
+            if (item) item.remove();
+            if (menuTargetChannelId === activeChannelId) {
+                switchChannel('my-collection');
+            }
+        }
+    } catch (e) {}
 }
 
 // ---- Playback Controls ----
@@ -182,7 +353,6 @@ function updateTrackInfo(track) {
         : '';
     document.getElementById('track-reason').textContent = track.reason || '';
 
-    // Render "similar to" collection items
     const similarSection = document.getElementById('similar-to');
     const similarList = document.getElementById('similar-to-list');
     if (similarSection && similarList) {
@@ -241,12 +411,11 @@ function formatTime(seconds) {
     return m + ':' + (s < 10 ? '0' : '') + s;
 }
 
-// Progress bar seeking
-const progressBar = document.getElementById('progress-bar');
-if (progressBar) {
-    progressBar.addEventListener('click', (e) => {
+const progressBarEl = document.getElementById('progress-bar');
+if (progressBarEl) {
+    progressBarEl.addEventListener('click', (e) => {
         if (!player) return;
-        const rect = progressBar.getBoundingClientRect();
+        const rect = progressBarEl.getBoundingClientRect();
         const pct = (e.clientX - rect.left) / rect.width;
         const duration = player.getDuration() || 0;
         player.seekTo(pct * duration, true);
@@ -281,9 +450,7 @@ async function thumbsUp() {
     } catch (e) {}
 }
 
-// ---- Thumbs Down (Dislike + Auto-Skip) ----
-let dislikedSet = new Set();
-
+// ---- Thumbs Down ----
 async function thumbsDown() {
     if (currentIndex < 0 || currentIndex >= queue.length) return;
     const track = queue[currentIndex];
@@ -415,9 +582,44 @@ document.getElementById('btn-thumbs')?.addEventListener('click', thumbsUp);
 document.getElementById('btn-dislike')?.addEventListener('click', thumbsDown);
 document.getElementById('btn-refresh')?.addEventListener('click', refreshPlaylist);
 
+// ---- Channel Bindings ----
+document.getElementById('btn-new-channel')?.addEventListener('click', openNewChannelDialog);
+document.getElementById('new-channel-form')?.addEventListener('submit', createChannel);
+document.getElementById('spotify-url-input')?.addEventListener('blur', previewSpotifyPlaylist);
+document.getElementById('btn-cancel-channel')?.addEventListener('click', () => {
+    document.getElementById('new-channel-dialog').close();
+});
+
+document.getElementById('channel-list')?.addEventListener('click', (e) => {
+    const menuBtn = e.target.closest('.channel-menu-btn');
+    if (menuBtn) {
+        e.stopPropagation();
+        openChannelMenu(menuBtn.dataset.channelId);
+        return;
+    }
+    const item = e.target.closest('.channel-item');
+    if (item) {
+        switchChannel(item.dataset.channelId);
+    }
+});
+
+document.getElementById('btn-rename-channel')?.addEventListener('click', renameChannel);
+document.getElementById('btn-delete-channel')?.addEventListener('click', deleteChannel);
+document.getElementById('btn-close-menu')?.addEventListener('click', () => {
+    document.getElementById('channel-menu-dialog').close();
+});
+
+document.getElementById('sidebar-toggle-open')?.addEventListener('click', () => {
+    document.getElementById('channel-sidebar').classList.add('sidebar-open');
+});
+document.getElementById('sidebar-toggle-close')?.addEventListener('click', () => {
+    document.getElementById('channel-sidebar').classList.remove('sidebar-open');
+});
+
 // ---- Keyboard Shortcuts ----
 document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.target.closest('dialog')) return;
     switch (e.code) {
         case 'Space': e.preventDefault(); togglePlay(); break;
         case 'ArrowRight': playNext(); break;
@@ -427,7 +629,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ---- Visualizer (canvas bars animation) ----
+// ---- Visualizer ----
 let vizAnimFrame = null;
 const vizCanvas = document.getElementById('visualizer');
 let vizCtx = vizCanvas ? vizCanvas.getContext('2d') : null;
@@ -464,17 +666,14 @@ function animateVisualizer() {
     const barWidth = (w / barCount) * 0.7;
     const gap = (w / barCount) * 0.3;
 
-    // Simulate audio-reactive bars
     for (let i = 0; i < barCount; i++) {
         if (isPlaying) {
-            // Random target heights that change smoothly
             if (Math.random() < 0.1) {
                 vizBars[i].target = Math.random() * h * 0.85 + h * 0.05;
             }
         } else {
             vizBars[i].target = h * 0.03;
         }
-        // Smooth spring animation
         const bar = vizBars[i];
         const spring = 0.08;
         const damping = 0.75;
@@ -484,8 +683,7 @@ function animateVisualizer() {
         const x = i * (barWidth + gap) + gap / 2;
         const barH = Math.max(2, bar.height);
 
-        // Gradient color per bar
-        const hue = 200 + (i / barCount) * 160; // blue to pink
+        const hue = 200 + (i / barCount) * 160;
         const gradient = vizCtx.createLinearGradient(x, h, x, h - barH);
         gradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.9)`);
         gradient.addColorStop(1, `hsla(${hue + 30}, 90%, 75%, 0.6)`);
