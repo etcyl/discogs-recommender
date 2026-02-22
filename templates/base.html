@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Discogs Recommender{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><strong>Discogs Recommender</strong></li>
+        </ul>
+        <ul>
+            <li><a href="/" {% if active_page == 'home' %}class="active"{% endif %}>Home</a></li>
+            <li><a href="/collection" {% if active_page == 'collection' %}class="active"{% endif %}>Collection</a></li>
+            <li><a href="/recommendations" {% if active_page == 'recommendations' %}class="active"{% endif %}>Recommendations</a></li>
+            <li><a href="/radio" {% if active_page == 'radio' %}class="active"{% endif %}>Radio</a></li>
+            <li><a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% if error %}
+        <article class="error-banner">
+            <p><strong>Error:</strong> {{ error }}</p>
+        </article>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <hr>
+        <p class="footer-text">
+            Powered by <a href="https://www.discogs.com/developers/" target="_blank">Discogs API</a>
+            &amp; <a href="https://www.anthropic.com" target="_blank">Claude</a>
+        </p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

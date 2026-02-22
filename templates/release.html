@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}{{ release.title if release else 'Release' }} - Discogs Recommender{% endblock %}
+
+{% block content %}
+{% if release %}
+<article class="release-detail">
+    <div class="release-header">
+        {% if release.images %}
+        <img src="{{ release.images[0] }}" alt="{{ release.title }}" class="release-cover">
+        {% elif release.thumb %}
+        <img src="{{ release.thumb }}" alt="{{ release.title }}" class="release-cover">
+        {% endif %}
+        <div class="release-header-info">
+            <h1>{{ release.title }}</h1>
+            <h2 class="artist-name">{{ release.artists | join(', ') }}</h2>
+            <div class="release-meta-detail">
+                {% if release.year %}<p><strong>Year:</strong> {{ release.year }}</p>{% endif %}
+                {% if release.country %}<p><strong>Country:</strong> {{ release.country }}</p>{% endif %}
+                {% if release.labels %}<p><strong>Label:</strong> {{ release.labels | join(', ') }}</p>{% endif %}
+                {% if release.formats %}<p><strong>Format:</strong> {{ release.formats | join(', ') }}</p>{% endif %}
+            </div>
+            <div class="tags">
+                {% for g in release.genres %}
+                <span class="tag genre-tag">{{ g }}</span>
+                {% endfor %}
+                {% for s in release.styles %}
+                <span class="tag style-tag">{{ s }}</span>
+                {% endfor %}
+            </div>
+            <div class="release-actions">
+                <a href="{{ release.url }}" target="_blank" role="button">View on Discogs</a>
+                {% if release.num_for_sale %}
+                <span class="marketplace-info">
+                    {{ release.num_for_sale }} for sale
+                    {% if release.lowest_price %} from ${{ "%.2f"|format(release.lowest_price) }}{% endif %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if release.tracklist %}
+    <h3>Tracklist</h3>
+    <table class="tracklist-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for track in release.tracklist %}
+            <tr>
+                <td>{{ track.position }}</td>
+                <td>{{ track.title }}</td>
+                <td>{{ track.duration }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if release.notes %}
+    <h3>Notes</h3>
+    <p>{{ release.notes }}</p>
+    {% endif %}
+</article>
+{% else %}
+<article>
+    <p>Release not found.</p>
+</article>
+{% endif %}
+{% endblock %}

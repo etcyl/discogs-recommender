@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% set active_page = 'collection' %}
+
+{% block title %}Collection - Discogs Recommender{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>{{ username }}'s Collection</h1>
+    <p>Page {{ page }} of {{ total_pages }}</p>
+</hgroup>
+
+{% if releases %}
+<div class="release-grid">
+    {% for release in releases %}
+    <article class="release-card">
+        <a href="/release/{{ release.id }}">
+            {% if release.thumb %}
+            <img src="{{ release.thumb }}" alt="{{ release.title }}" loading="lazy">
+            {% else %}
+            <div class="no-image">No Image</div>
+            {% endif %}
+        </a>
+        <div class="release-info">
+            <a href="/release/{{ release.id }}">
+                <strong>{{ release.title }}</strong>
+            </a>
+            <p class="artist-name">{{ release.artists | join(', ') }}</p>
+            <p class="release-meta">
+                {% if release.year %}{{ release.year }}{% endif %}
+                {% if release.formats %} &middot; {{ release.formats | join(', ') }}{% endif %}
+            </p>
+            <div class="tags">
+                {% for genre in release.genres %}
+                <span class="tag genre-tag">{{ genre }}</span>
+                {% endfor %}
+                {% for style in release.styles[:3] %}
+                <span class="tag style-tag">{{ style }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+<nav class="pagination">
+    <ul>
+        <li>
+            {% if page > 1 %}
+            <a href="/collection?page={{ page - 1 }}">&laquo; Previous</a>
+            {% else %}
+            <span class="disabled">&laquo; Previous</span>
+            {% endif %}
+        </li>
+        <li>
+            <span>Page {{ page }} / {{ total_pages }}</span>
+        </li>
+        <li>
+            {% if page < total_pages %}
+            <a href="/collection?page={{ page + 1 }}">Next &raquo;</a>
+            {% else %}
+            <span class="disabled">Next &raquo;</span>
+            {% endif %}
+        </li>
+    </ul>
+</nav>
+{% else %}
+<article>
+    <p>No releases found in your collection.</p>
+</article>
+{% endif %}
+{% endblock %}

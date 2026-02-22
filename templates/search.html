@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% set active_page = 'search' %}
+
+{% block title %}Search - Discogs Recommender{% endblock %}
+
+{% block content %}
+<h1>Search Discogs</h1>
+
+<form method="get" action="/search">
+    <div class="grid">
+        <label>
+            Search Query
+            <input type="text" name="q" value="{{ query.q }}" placeholder="Album, artist, or keyword...">
+        </label>
+        <label>
+            Artist
+            <input type="text" name="artist" value="{{ query.artist }}" placeholder="Artist name">
+        </label>
+    </div>
+    <div class="grid">
+        <label>
+            Genre
+            <input type="text" name="genre" value="{{ query.genre }}" placeholder="e.g. Electronic, Rock">
+        </label>
+        <label>
+            Style
+            <input type="text" name="style" value="{{ query.style }}" placeholder="e.g. Ambient, Punk">
+        </label>
+        <label>
+            Label
+            <input type="text" name="label" value="{{ query.label }}" placeholder="e.g. Warp, Sub Pop">
+        </label>
+    </div>
+    <button type="submit">Search</button>
+</form>
+
+{% if results is not none %}
+    {% if results %}
+    <h2>Results</h2>
+    <div class="release-grid">
+        {% for item in results %}
+        <article class="release-card">
+            <a href="/release/{{ item.id }}">
+                {% if item.thumb %}
+                <img src="{{ item.thumb }}" alt="{{ item.title }}" loading="lazy">
+                {% else %}
+                <div class="no-image">No Image</div>
+                {% endif %}
+            </a>
+            <div class="release-info">
+                <a href="/release/{{ item.id }}">
+                    <strong>{{ item.title }}</strong>
+                </a>
+                {% if item.artists %}
+                <p class="artist-name">{{ item.artists | join(', ') }}</p>
+                {% endif %}
+                <p class="release-meta">
+                    {% if item.year %}{{ item.year }}{% endif %}
+                    {% if item.type %} &middot; {{ item.type }}{% endif %}
+                </p>
+                <div class="tags">
+                    {% for g in item.genres or [] %}
+                    <span class="tag genre-tag">{{ g }}</span>
+                    {% endfor %}
+                    {% for s in (item.styles or [])[:3] %}
+                    <span class="tag style-tag">{{ s }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <article>
+        <p>No results found. Try different search terms.</p>
+    </article>
+    {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% set active_page = 'recommendations' %}
+
+{% block title %}Recommendations - Discogs Recommender{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Recommendations</h1>
+    <p>
+        {% if engine == 'claude' %}
+        AI-powered suggestions based on your collection
+        {% else %}
+        Genre &amp; style-based matches from Discogs
+        {% endif %}
+    </p>
+</hgroup>
+
+<div class="engine-toggle">
+    <a href="/recommendations?engine=genre"
+       role="button" {% if engine != 'claude' %}class="active-engine"{% else %}class="outline"{% endif %}>
+        Genre/Style Engine
+    </a>
+    <a href="/recommendations?engine=claude"
+       role="button" {% if engine == 'claude' %}class="active-engine secondary"{% else %}class="outline secondary"{% endif %}>
+        Claude AI Engine
+    </a>
+</div>
+
+{% if engine != 'claude' %}
+<div class="discovery-controls">
+    <div class="discovery-slider-group">
+        <span class="discovery-label">Familiar</span>
+        <input type="range" id="discovery-slider" class="discovery-slider"
+               min="0" max="100" step="5" value="{{ discovery }}">
+        <span class="discovery-label">Adventurous</span>
+        <span id="discovery-value" class="discovery-value">{{ discovery }}%</span>
+    </div>
+    <button id="btn-refresh-recs" class="outline refresh-recs-btn" onclick="refreshRecs()">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        Refresh
+    </button>
+</div>
+{% endif %}
+
+{% if recommendations %}
+<div class="rec-list">
+    {% if engine == 'claude' %}
+        {% for rec in recommendations %}
+        <article class="rec-card">
+            <div class="rec-content">
+                {% if rec.discogs_match and rec.discogs_match.thumb %}
+                <img src="{{ rec.discogs_match.thumb }}" alt="{{ rec.album }}" class="rec-thumb" loading="lazy">
+                {% endif %}
+                <div class="rec-details">
+                    <h4>{{ rec.artist }} &mdash; {{ rec.album }}</h4>
+                    <p class="rec-year">{{ rec.year or 'Unknown year' }}</p>
+                    <p class="rec-reason">{{ rec.reason }}</p>
+                    <div class="tags">
+                        {% for g in rec.genres or [] %}
+                        <span class="tag genre-tag">{{ g }}</span>
+                        {% endfor %}
+                        {% for s in rec.styles or [] %}
+                        <span class="tag style-tag">{{ s }}</span>
+                        {% endfor %}
+                    </div>
+
+                    {% if rec.tracks %}
+                    <details class="yt-dropdown">
+                        <summary>Listen on YouTube ({{ rec.tracks | length }} tracks)</summary>
+                        <ul class="yt-track-list">
+                            {% for track in rec.tracks %}
+                            <li>
+                                <a href="https://www.youtube.com/results?search_query={{ (rec.artist ~ ' ' ~ track.title) | urlencode }}"
+                                   target="_blank" class="yt-link">
+                                    <span class="yt-icon">&#9654;</span>
+                                    {{ track.title }}
+                                </a>
+                                {% if track.reason %}
+                                <span class="yt-track-reason">{{ track.reason }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endif %}
+
+                    <div class="rec-actions">
+                        {% if rec.discogs_match %}
+                        <a href="/release/{{ rec.discogs_match.id }}" role="button" class="outline small-btn">
+                            View on App
+                        </a>
+                        <a href="{{ rec.discogs_match.url }}" target="_blank" role="button" class="outline small-btn">
+                            Discogs Page
+                        </a>
+                        {% else %}
+                        <a href="/search?q={{ rec.artist }}+{{ rec.album }}" role="button" class="outline small-btn">
+                            Search on Discogs
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    {% else %}
+        {% for rec in recommendations %}
+        <article class="rec-card">
+            <div class="rec-content">
+                {% if rec.thumb %}
+                <img src="{{ rec.thumb }}" alt="{{ rec.title }}" class="rec-thumb" loading="lazy">
+                {% endif %}
+                <div class="rec-details">
+                    <h4>{{ rec.artists | join(', ') }} &mdash; {{ rec.title }}</h4>
+                    <p class="rec-year">
+                        {{ rec.year or 'Unknown year' }}
+                        &middot; Score: <strong>{{ rec.score }}</strong>
+                    </p>
+                    <div class="tags">
+                        {% for g in rec.genres or [] %}
+                        <span class="tag genre-tag">{{ g }}</span>
+                        {% endfor %}
+                        {% for s in rec.styles or [] %}
+                        <span class="tag style-tag">{{ s }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <details class="yt-dropdown">
+                        <summary>Listen on YouTube</summary>
+                        <ul class="yt-track-list">
+                            <li>
+                                <a href="https://www.youtube.com/results?search_query={{ (rec.artists | join(', ') ~ ' ' ~ rec.title ~ ' full album') | urlencode }}"
+                                   target="_blank" class="yt-link">
+                                    <span class="yt-icon">&#9654;</span>
+                                    Full Album
+                                </a>
+                            </li>
+                            {% for track in rec.get('tracks', []) %}
+                            <li>
+                                <a href="https://www.youtube.com/results?search_query={{ (rec.artists | join(', ') ~ ' ' ~ track.title) | urlencode }}"
+                                   target="_blank" class="yt-link">
+                                    <span class="yt-icon">&#9654;</span>
+                                    {{ track.title }}
+                                </a>
+                                {% if track.reason %}
+                                <span class="yt-track-reason">{{ track.reason }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+
+                    <div class="rec-actions">
+                        <a href="/release/{{ rec.id }}" role="button" class="outline small-btn">View Details</a>
+                        <a href="{{ rec.url }}" target="_blank" role="button" class="outline small-btn">Discogs Page</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    {% endif %}
+</div>
+{% elif not error %}
+<article>
+    <p>No recommendations found. Try adding more releases to your collection for better results.</p>
+</article>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const slider = document.getElementById('discovery-slider');
+const valueLabel = document.getElementById('discovery-value');
+if (slider) {
+    slider.addEventListener('input', () => {
+        valueLabel.textContent = slider.value + '%';
+    });
+}
+
+async function refreshRecs() {
+    const btn = document.getElementById('btn-refresh-recs');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    try {
+        await fetch('/api/refresh-recommendations');
+        const d = slider ? slider.value : 30;
+        window.location.href = '/recommendations?engine=genre&discovery=' + d;
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% set active_page = 'home' %}
+
+{% block title %}Home - Discogs Recommender{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Welcome, {{ username }}</h1>
+    <p>Your Discogs collection at a glance</p>
+</hgroup>
+
+{% if profile %}
+<div class="grid">
+    <article>
+        <header>Collection Size</header>
+        <h2 class="stat-number">{{ profile.total_releases }}</h2>
+        <p>releases</p>
+    </article>
+    <article>
+        <header>Top Genre</header>
+        <h2 class="stat-number">{{ profile.top_genres[0][0] if profile.top_genres else 'N/A' }}</h2>
+        <p>{{ profile.top_genres[0][1] if profile.top_genres else 0 }} releases</p>
+    </article>
+    <article>
+        <header>Top Artist</header>
+        <h2 class="stat-number stat-text">{{ profile.top_artists[0][0] if profile.top_artists else 'N/A' }}</h2>
+        <p>{{ profile.top_artists[0][1] if profile.top_artists else 0 }} releases</p>
+    </article>
+</div>
+
+<div class="grid">
+    <article>
+        <header><h3>Genres</h3></header>
+        <table>
+            <tbody>
+            {% for genre, count in profile.top_genres %}
+                <tr>
+                    <td>{{ genre }}</td>
+                    <td>
+                        <progress value="{{ count }}" max="{{ profile.top_genres[0][1] }}"></progress>
+                    </td>
+                    <td class="count-cell">{{ count }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article>
+        <header><h3>Styles</h3></header>
+        <table>
+            <tbody>
+            {% for style, count in profile.top_styles[:10] %}
+                <tr>
+                    <td>{{ style }}</td>
+                    <td>
+                        <progress value="{{ count }}" max="{{ profile.top_styles[0][1] }}"></progress>
+                    </td>
+                    <td class="count-cell">{{ count }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</div>
+
+<div class="grid">
+    <article>
+        <header><h3>Top Artists</h3></header>
+        <table>
+            <tbody>
+            {% for artist, count in profile.top_artists %}
+                <tr>
+                    <td>{{ artist }}</td>
+                    <td class="count-cell">{{ count }} releases</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article>
+        <header><h3>Top Labels</h3></header>
+        <table>
+            <tbody>
+            {% for label, count in profile.top_labels %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td class="count-cell">{{ count }} releases</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</div>
+
+<div class="action-buttons">
+    <a href="/recommendations?engine=genre" role="button">Genre-Based Recommendations</a>
+    <a href="/recommendations?engine=claude" role="button" class="secondary">AI Recommendations</a>
+    <button id="refresh-btn" class="outline" onclick="refreshCollection()">Refresh Collection</button>
+</div>
+
+{% else %}
+<article>
+    <p>Could not load your collection. Make sure your <code>.env</code> file has the correct
+    <code>DISCOGS_TOKEN</code> and <code>DISCOGS_USERNAME</code>.</p>
+</article>
+{% endif %}
+{% endblock %}
