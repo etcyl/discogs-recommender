@@ -15,9 +15,19 @@ A web app that analyzes your Discogs vinyl/CD collection and recommends new albu
 ## Screenshots
 
 ### Radio Player
-AI-curated playlist with YouTube playback, audio visualizer, and collection-based recommendations.
+AI-curated playlist with YouTube playback, audio visualizer, share/copy buttons, and collection-based recommendations.
 
 ![Radio Player](docs/radio-player.png)
+
+### Now Playing
+Track info with copy-to-clipboard buttons for song text, YouTube link, and Spotify search.
+
+![Now Playing](docs/radio-now-playing.png)
+
+### Queue
+Up Next queue with per-track YouTube and Spotify share icons.
+
+![Queue](docs/radio-queue.png)
 
 ### Collection Browser
 Paginated grid view of your Discogs releases with cover art, genres, and styles.
@@ -138,7 +148,7 @@ Use the refresh buttons in the UI to force re-fetches when needed.
 
 ## Testing
 
-The project includes a comprehensive test suite with **224 unit tests** achieving **95% code coverage**. Tests cover functional correctness and security hardening mapped to modern CWE categories.
+The project includes a comprehensive test suite with **265 unit tests** achieving **95% code coverage**. Tests cover functional correctness and security hardening mapped to modern CWE categories.
 
 ### Running the tests
 
@@ -202,7 +212,7 @@ The test suite validates protections against these vulnerability classes:
 A successful run looks like:
 
 ```
-====================== 224 passed, 0 failed in ~3s =======================
+====================== 265 passed, 0 failed in ~3s =======================
 ```
 
 If any tests fail, the output shows:
