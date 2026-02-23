@@ -12,8 +12,6 @@ class Settings(BaseSettings):
     discogs_token: str
     discogs_username: str
     anthropic_api_key: str = ""
-    spotify_client_id: str = ""
-    spotify_client_secret: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3:latest"
     app_name: str = "DiscogsRecommender/1.0"

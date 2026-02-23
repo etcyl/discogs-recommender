@@ -14,6 +14,7 @@ let dislikedSet = new Set();
 // ---- Channel State ----
 let activeChannelId = 'my-collection';
 let menuTargetChannelId = null;
+let activeEventSource = null;
 
 // ---- YouTube IFrame API ----
 const tag = document.createElement('script');
@@ -79,9 +80,17 @@ function onPlayerStateChange(event) {
 
 // ---- Playlist Loading (SSE with progress) ----
 function loadPlaylistSSE() {
+    // Close any existing SSE connection
+    if (activeEventSource) {
+        activeEventSource.close();
+        activeEventSource = null;
+    }
+
     showLoading(true);
     const url = `/api/radio/playlist-stream?channel_id=${encodeURIComponent(activeChannelId)}`;
     const es = new EventSource(url);
+    activeEventSource = es;
+    let sseFinished = false;  // Track whether we got a terminal event
 
     es.addEventListener('progress', (e) => {
         const data = JSON.parse(e.data);
@@ -89,7 +98,9 @@ function loadPlaylistSSE() {
     });
 
     es.addEventListener('complete', (e) => {
+        sseFinished = true;
         es.close();
+        activeEventSource = null;
         const data = JSON.parse(e.data);
         if (data.playlist && data.playlist.length > 0) {
             queue = data.playlist;
@@ -110,15 +121,42 @@ function loadPlaylistSSE() {
         }
     });
 
+    // Server-sent "event: error" from our backend
     es.addEventListener('error', (e) => {
+        if (!e.data) return;  // Not a server-sent event — handled by onerror
+        sseFinished = true;
         try {
             const data = JSON.parse(e.data);
             showError(data.message || 'Failed to load playlist.');
         } catch {
-            showError('Connection lost. Try refreshing the page.');
+            showError('Failed to load playlist.');
         }
         es.close();
+        activeEventSource = null;
     });
+
+    // Connection-level error (network drop, stream ended unexpectedly)
+    es.onerror = () => {
+        if (sseFinished) return;  // Already handled by complete/error event
+        // EventSource will try to reconnect (readyState=CONNECTING).
+        // Only show error if the connection is fully dead.
+        if (es.readyState === EventSource.CLOSED) {
+            showError('Connection lost. Try refreshing the page.');
+            activeEventSource = null;
+        }
+    };
+}
+
+function stopLoading() {
+    if (activeEventSource) {
+        activeEventSource.close();
+        activeEventSource = null;
+    }
+    showLoading(false);
+    // Show player with whatever was previously loaded
+    if (queue.length === 0) {
+        showError('Generation stopped.');
+    }
 }
 
 function loadPlaylist() {
@@ -259,6 +297,10 @@ async function createChannel(e) {
     try {
         let resp;
 
+        const aiModel = document.getElementById('new-channel-model')?.value || 'claude-sonnet';
+        const era = document.getElementById('new-channel-era')?.value || '';
+        const numSongs = parseInt(document.getElementById('new-channel-num-songs')?.value || '50', 10);
+
         if (channelType === 'upload') {
             const fileInput = document.getElementById('upload-file-input');
             const file = fileInput?.files[0];
@@ -268,6 +310,9 @@ async function createChannel(e) {
             formData.append('file', file);
             formData.append('name', name);
             formData.append('mode', mode);
+            formData.append('ai_model', aiModel);
+            formData.append('era', era);
+            formData.append('num_songs', numSongs);
             resp = await fetch('/api/radio/upload-channel', { method: 'POST', body: formData });
         } else if (channelType === 'themed') {
             const theme = document.getElementById('theme-input')?.value.trim();
@@ -275,7 +320,7 @@ async function createChannel(e) {
             resp = await fetch('/api/radio/channels', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, theme, mode: 'themed' }),
+                body: JSON.stringify({ name, theme, mode: 'themed', ai_model: aiModel, era, num_songs: numSongs }),
             });
         } else {
             const url = document.getElementById('spotify-url-input')?.value.trim();
@@ -284,7 +329,7 @@ async function createChannel(e) {
             resp = await fetch('/api/radio/channels', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, spotify_url: url, mode }),
+                body: JSON.stringify({ name, spotify_url: url, mode, ai_model: aiModel, era, num_songs: numSongs }),
             });
         }
 
@@ -365,6 +410,11 @@ function addChannelToSidebar(channel) {
                 ${_buildModelOptions(channel.ai_model || 'claude-sonnet')}
             </select>
         </div>
+        <div class="channel-num-songs" data-channel-id="${channel.id}">
+            <label style="font-size:0.75rem;opacity:0.7;">Songs: <span class="num-songs-label">${channel.num_songs || 50}</span></label>
+            <input type="range" class="channel-num-songs-slider" min="5" max="100" step="5"
+                   value="${channel.num_songs || 50}" title="Playlist size: ${channel.num_songs || 50}">
+        </div>
     `;
     list.appendChild(item);
 }
@@ -439,15 +489,28 @@ function togglePlay() {
 }
 
 function loadTrack(track) {
-    if (!player || !track.videoId) return;
+    if (!track) return;
 
-    player.loadVideoById(track.videoId);
+    // Always update UI even if YouTube player hasn't loaded yet
     updateTrackInfo(track);
-    updateMediaSession(track);
     renderQueue();
     resetThumbButton(track);
     saveToHistory(track);
     if (mindmapVisible) updateMindmapForCurrentTrack();
+
+    // Lyrics/meaning: fetch if panel is visible
+    if (lyricsVisible) {
+        fetchLyricsForTrack(track);
+        activeLyricIndex = -1;
+    }
+
+    // Always fetch meaning in background for dynamic theming
+    fetchMeaningForTrack(track);
+
+    if (player && track.videoId) {
+        player.loadVideoById(track.videoId);
+        updateMediaSession(track);
+    }
 }
 
 function updateTrackInfo(track) {
@@ -707,15 +770,17 @@ document.getElementById('spotify-url-input')?.addEventListener('blur', previewSp
 document.getElementById('btn-cancel-channel')?.addEventListener('click', () => {
     document.getElementById('new-channel-dialog').close();
 });
+document.getElementById('btn-stop-loading')?.addEventListener('click', stopLoading);
 document.querySelectorAll('input[name="channel-type"]').forEach(r => {
     r.addEventListener('change', toggleChannelTypeFields);
 });
 
 document.getElementById('channel-list')?.addEventListener('click', (e) => {
-    // Ignore clicks on discovery slider, era picker, or AI model areas
+    // Ignore clicks on discovery slider, era picker, AI model, or num songs areas
     if (e.target.closest('.channel-discovery')) return;
     if (e.target.closest('.channel-era')) return;
     if (e.target.closest('.channel-ai-model')) return;
+    if (e.target.closest('.channel-num-songs')) return;
     const menuBtn = e.target.closest('.channel-menu-btn');
     if (menuBtn) {
         e.stopPropagation();
@@ -858,6 +923,36 @@ async function saveChannelAiModel(channelId, aiModel) {
     }
 }
 
+// ---- Num Songs Slider ----
+let numSongsDebounce = null;
+document.getElementById('channel-list')?.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('channel-num-songs-slider')) return;
+    const wrapper = e.target.closest('.channel-num-songs');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const value = parseInt(e.target.value);
+    e.target.title = `Playlist size: ${value}`;
+    const label = wrapper.querySelector('.num-songs-label');
+    if (label) label.textContent = value;
+
+    clearTimeout(numSongsDebounce);
+    numSongsDebounce = setTimeout(async () => {
+        try {
+            await fetch(`/api/radio/channels/${encodeURIComponent(channelId)}/num-songs`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ num_songs: value }),
+            });
+        } catch (err) {}
+    }, 400);
+});
+
+// ---- Create Dialog: Num Songs label ----
+document.getElementById('new-channel-num-songs')?.addEventListener('input', (e) => {
+    const label = document.getElementById('new-channel-num-songs-label');
+    if (label) label.textContent = e.target.value;
+});
+
 document.getElementById('btn-rename-channel')?.addEventListener('click', renameChannel);
 document.getElementById('btn-delete-channel')?.addEventListener('click', deleteChannel);
 document.getElementById('btn-close-menu')?.addEventListener('click', () => {
@@ -881,6 +976,7 @@ document.addEventListener('keydown', (e) => {
         case 'ArrowLeft': playPrev(); break;
         case 'KeyD': thumbsDown(); break;
         case 'KeyL': thumbsUp(); break;
+        case 'KeyY': toggleLyrics(); break;
     }
 });
 
@@ -938,7 +1034,7 @@ function animateVisualizer() {
         const x = i * (barWidth + gap) + gap / 2;
         const barH = Math.max(2, bar.height);
 
-        const hue = 200 + (i / barCount) * 160;
+        const hue = (typeof vizBaseHue !== 'undefined' ? vizBaseHue : 200) + (i / barCount) * 160;
         const gradient = vizCtx.createLinearGradient(x, h, x, h - barH);
         gradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.9)`);
         gradient.addColorStop(1, `hsla(${hue + 30}, 90%, 75%, 0.6)`);
@@ -1065,6 +1161,13 @@ function toggleMindmap() {
     const btn = document.getElementById('btn-mindmap');
 
     if (mindmapVisible) {
+        // Close lyrics if open
+        if (lyricsVisible) {
+            lyricsVisible = false;
+            document.getElementById('lyrics-panel').style.display = 'none';
+            document.getElementById('btn-lyrics')?.classList.remove('mindmap-active');
+            stopLyricsSync();
+        }
         panel.style.display = '';
         artworkSection.style.display = 'none';
         btn.classList.add('mindmap-active');
@@ -1280,3 +1383,396 @@ document.getElementById('queue-list')?.addEventListener('click', (e) => {
         copyToClipboard(getSpotifySearchUrl(track), 'Spotify link');
     }
 });
+
+// ====================================================================
+// LYRICS & MEANING PANEL
+// ====================================================================
+
+let lyricsVisible = false;
+let lyricsCache = {};       // { "artist|title": { synced, plain, instrumental } }
+let meaningCache = {};      // { "artist|title": { summary, themes, mood, ... } }
+let parsedLyrics = [];      // [{ time: seconds, text: string }]
+let lyricsSyncInterval = null;
+let activeLyricIndex = -1;
+
+// ---- Toggle Panel ----
+function toggleLyrics() {
+    lyricsVisible = !lyricsVisible;
+    const panel = document.getElementById('lyrics-panel');
+    const artworkSection = document.querySelector('.player-artwork-section');
+    const btn = document.getElementById('btn-lyrics');
+
+    if (lyricsVisible) {
+        // Close mindmap if open
+        if (mindmapVisible) toggleMindmap();
+
+        panel.style.display = 'flex';
+        artworkSection.style.display = 'none';
+        btn.classList.add('mindmap-active');
+
+        // Fetch lyrics for current track
+        if (currentIndex >= 0 && queue[currentIndex]) {
+            fetchLyricsForTrack(queue[currentIndex]);
+        }
+        startLyricsSync();
+    } else {
+        panel.style.display = 'none';
+        artworkSection.style.display = '';
+        btn.classList.remove('mindmap-active');
+        stopLyricsSync();
+    }
+}
+
+document.getElementById('btn-lyrics')?.addEventListener('click', toggleLyrics);
+
+// ---- Tab Switching ----
+document.querySelectorAll('.lyrics-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        document.querySelectorAll('.lyrics-tab').forEach(t => t.classList.remove('lyrics-tab-active'));
+        document.querySelectorAll('.lyrics-tab-content').forEach(c => c.classList.remove('lyrics-tab-visible'));
+        tab.classList.add('lyrics-tab-active');
+        document.getElementById(`lyrics-tab-${target}`)?.classList.add('lyrics-tab-visible');
+
+        // Lazy-load meaning/vibe when tab is first clicked
+        if ((target === 'meaning' || target === 'vibe') && currentIndex >= 0) {
+            fetchMeaningForTrack(queue[currentIndex]);
+        }
+    });
+});
+
+// ---- Fetch Lyrics ----
+async function fetchLyricsForTrack(track) {
+    if (!track) return;
+    const key = `${track.artist}|${track.title}`;
+    const container = document.getElementById('lyrics-container');
+
+    // Check cache
+    if (lyricsCache[key]) {
+        renderLyrics(lyricsCache[key]);
+        return;
+    }
+
+    container.innerHTML = '<div class="lyrics-placeholder">Loading lyrics...</div>';
+
+    try {
+        const resp = await fetch(`/api/lyrics?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}`);
+        const data = await resp.json();
+        lyricsCache[key] = data;
+
+        // Cap cache size
+        const keys = Object.keys(lyricsCache);
+        if (keys.length > 200) delete lyricsCache[keys[0]];
+
+        renderLyrics(data);
+    } catch (e) {
+        container.innerHTML = '<div class="lyrics-placeholder">Could not load lyrics</div>';
+    }
+}
+
+// ---- Render Lyrics ----
+function renderLyrics(data) {
+    const container = document.getElementById('lyrics-container');
+    parsedLyrics = [];
+    activeLyricIndex = -1;
+
+    if (!data.found) {
+        container.innerHTML = '<div class="lyrics-placeholder">No lyrics found for this song</div>';
+        return;
+    }
+
+    if (data.instrumental) {
+        container.innerHTML = `
+            <div class="lyrics-instrumental">
+                <svg viewBox="0 0 24 24" width="48" height="48"><path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                <span>Instrumental</span>
+            </div>`;
+        return;
+    }
+
+    if (data.syncedLyrics) {
+        parsedLyrics = parseSyncedLyrics(data.syncedLyrics);
+        container.innerHTML = parsedLyrics.map((line, i) =>
+            `<div class="lyrics-line" data-index="${i}" data-time="${line.time}">${line.text || '&nbsp;'}</div>`
+        ).join('');
+
+        // Click-to-seek
+        container.querySelectorAll('.lyrics-line').forEach(el => {
+            el.addEventListener('click', () => {
+                const time = parseFloat(el.dataset.time);
+                if (player && !isNaN(time)) player.seekTo(time, true);
+            });
+        });
+
+        startLyricsSync();
+    } else if (data.plainLyrics) {
+        const sourceNote = data.source === 'ai' ? '<div class="lyrics-source">Lyrics recalled by AI — may not be exact</div>' : '';
+        container.innerHTML = `${sourceNote}<div class="lyrics-plain">${escapeHtml(data.plainLyrics)}</div>`;
+    } else {
+        container.innerHTML = '<div class="lyrics-placeholder">No lyrics found for this song</div>';
+    }
+}
+
+function parseSyncedLyrics(text) {
+    const lines = [];
+    const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)/;
+    for (const raw of text.split('\n')) {
+        const m = raw.match(regex);
+        if (m) {
+            const mins = parseInt(m[1]);
+            const secs = parseInt(m[2]);
+            const ms = parseInt(m[3].padEnd(3, '0'));
+            lines.push({ time: mins * 60 + secs + ms / 1000, text: m[4] });
+        }
+    }
+    return lines;
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ---- Lyrics Sync Engine ----
+function startLyricsSync() {
+    stopLyricsSync();
+    if (parsedLyrics.length === 0) return;
+    lyricsSyncInterval = setInterval(syncLyrics, 100);
+}
+
+function stopLyricsSync() {
+    if (lyricsSyncInterval) {
+        clearInterval(lyricsSyncInterval);
+        lyricsSyncInterval = null;
+    }
+}
+
+function syncLyrics() {
+    if (!player || parsedLyrics.length === 0 || !lyricsVisible) return;
+    try {
+        const currentTime = player.getCurrentTime() || 0;
+        let newIndex = -1;
+
+        for (let i = parsedLyrics.length - 1; i >= 0; i--) {
+            if (currentTime >= parsedLyrics[i].time - 0.1) {
+                newIndex = i;
+                break;
+            }
+        }
+
+        if (newIndex === activeLyricIndex) return;
+        activeLyricIndex = newIndex;
+
+        const container = document.getElementById('lyrics-container');
+        const lines = container.querySelectorAll('.lyrics-line');
+
+        lines.forEach((el, i) => {
+            el.classList.remove('lyrics-active', 'lyrics-near', 'lyrics-passed');
+            if (i === newIndex) {
+                el.classList.add('lyrics-active');
+            } else if (Math.abs(i - newIndex) <= 2) {
+                el.classList.add('lyrics-near');
+            } else if (i < newIndex) {
+                el.classList.add('lyrics-passed');
+            }
+        });
+
+        // Scroll active line into view
+        if (newIndex >= 0 && lines[newIndex]) {
+            lines[newIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } catch (e) { /* ignore */ }
+}
+
+// ---- Fetch Song Meaning ----
+async function fetchMeaningForTrack(track) {
+    if (!track) return;
+    const key = `${track.artist}|${track.title}`;
+    const meaningEl = document.getElementById('meaning-container');
+    const vibeEl = document.getElementById('vibe-container');
+
+    // Check cache
+    if (meaningCache[key]) {
+        renderMeaning(meaningCache[key]);
+        renderVibe(meaningCache[key]);
+        applyDynamicTheme(meaningCache[key]);
+        return;
+    }
+
+    meaningEl.innerHTML = '<div class="meaning-loading"><div class="loading-spinner"></div>Analyzing song...</div>';
+    vibeEl.innerHTML = '<div class="meaning-loading"><div class="loading-spinner"></div>Detecting vibe...</div>';
+
+    try {
+        const resp = await fetch(
+            `/api/song-meaning?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}&album=${encodeURIComponent(track.album || '')}`
+        );
+        const data = await resp.json();
+        meaningCache[key] = data;
+
+        // Cap cache size
+        const keys = Object.keys(meaningCache);
+        if (keys.length > 200) delete meaningCache[keys[0]];
+
+        renderMeaning(data);
+        renderVibe(data);
+        applyDynamicTheme(data);
+    } catch (e) {
+        meaningEl.innerHTML = '<div class="lyrics-placeholder">Could not load interpretation</div>';
+        vibeEl.innerHTML = '<div class="lyrics-placeholder">Could not detect vibe</div>';
+    }
+}
+
+function renderMeaning(data) {
+    const el = document.getElementById('meaning-container');
+    if (!data.found) {
+        el.innerHTML = '<div class="lyrics-placeholder">No interpretation available</div>';
+        return;
+    }
+
+    let html = '';
+    if (data.summary) {
+        html += `<div class="meaning-section">
+            <div class="meaning-section-label">Interpretation</div>
+            <p class="meaning-summary">${escapeHtml(data.summary)}</p>
+        </div>`;
+    }
+    if (data.artist_context && data.artist_context !== 'No known artist commentary.') {
+        html += `<div class="meaning-section">
+            <div class="meaning-section-label">Artist Commentary</div>
+            <p class="meaning-context">${escapeHtml(data.artist_context)}</p>
+        </div>`;
+    }
+    el.innerHTML = html || '<div class="lyrics-placeholder">No interpretation available</div>';
+}
+
+function renderVibe(data) {
+    const el = document.getElementById('vibe-container');
+    if (!data.found) {
+        el.innerHTML = '<div class="lyrics-placeholder">No vibe data available</div>';
+        return;
+    }
+
+    let html = '';
+
+    // Mood badge
+    if (data.mood) {
+        html += `<div class="meaning-section" style="text-align:center;">
+            <div class="vibe-mood-badge">${escapeHtml(data.mood)}</div>
+        </div>`;
+    }
+
+    // Genre tags
+    if (data.genres && data.genres.length > 0) {
+        html += `<div class="meaning-section">
+            <div class="meaning-section-label">Genres</div>
+            <div class="vibe-tags">${data.genres.map(g => `<span class="vibe-tag genre-vibe">${escapeHtml(g)}</span>`).join('')}</div>
+        </div>`;
+    }
+
+    // Theme tags
+    if (data.themes && data.themes.length > 0) {
+        html += `<div class="meaning-section">
+            <div class="meaning-section-label">Emotional Themes</div>
+            <div class="vibe-tags">${data.themes.map(t => `<span class="vibe-tag theme-vibe">${escapeHtml(t)}</span>`).join('')}</div>
+        </div>`;
+    }
+
+    // Color palette preview
+    if (data.color_palette && data.color_palette.primary) {
+        const cp = data.color_palette;
+        html += `<div class="meaning-section">
+            <div class="meaning-section-label">Color Palette</div>
+            <div class="vibe-color-preview">
+                <div class="vibe-color-swatch" style="background:${cp.primary}"><span>Primary</span></div>
+                <div class="vibe-color-swatch" style="background:${cp.secondary || cp.primary}"><span>Secondary</span></div>
+                <div class="vibe-color-swatch" style="background:${cp.accent || cp.primary}"><span>Accent</span></div>
+            </div>
+        </div>`;
+    }
+
+    el.innerHTML = html || '<div class="lyrics-placeholder">No vibe data available</div>';
+}
+
+// ---- Dynamic Theme ----
+function applyDynamicTheme(data) {
+    const playerEl = document.getElementById('radio-player');
+    if (!playerEl || !data.found) return;
+
+    playerEl.classList.add('themed');
+
+    const cp = data.color_palette || {};
+    const primary = cp.primary || '#e8a03e';
+    const secondary = cp.secondary || '#e85d75';
+    const accent = cp.accent || primary;
+
+    // Set CSS custom properties on the player element
+    playerEl.style.setProperty('--dynamic-primary', primary);
+    playerEl.style.setProperty('--dynamic-secondary', secondary);
+    playerEl.style.setProperty('--dynamic-accent', accent);
+    playerEl.style.setProperty('--dynamic-glow', hexToRgba(primary, 0.35));
+    playerEl.style.setProperty('--dynamic-accent-bg', hexToRgba(accent, 0.15));
+    playerEl.style.setProperty('--dynamic-accent-border', hexToRgba(accent, 0.3));
+
+    // Background gradient
+    if (data.bg_gradient) {
+        playerEl.style.setProperty('--dynamic-bg', data.bg_gradient);
+    } else {
+        playerEl.style.setProperty('--dynamic-bg',
+            `radial-gradient(ellipse at 20% 50%, ${hexToRgba(primary, 0.1)} 0%, transparent 70%),
+             radial-gradient(ellipse at 80% 50%, ${hexToRgba(secondary, 0.08)} 0%, transparent 70%)`
+        );
+    }
+
+    // Also theme the lyrics panel
+    const lyricsPanel = document.getElementById('lyrics-panel');
+    if (lyricsPanel) {
+        lyricsPanel.style.setProperty('--dynamic-accent', accent);
+        lyricsPanel.style.setProperty('--dynamic-glow', hexToRgba(accent, 0.5));
+        lyricsPanel.style.setProperty('--dynamic-accent-bg', hexToRgba(accent, 0.15));
+        lyricsPanel.style.setProperty('--dynamic-accent-border', hexToRgba(accent, 0.3));
+    }
+
+    // Visualizer color hue shift
+    const hue = hexToHue(primary);
+    if (vizBars) vizBaseHue = hue;
+}
+
+let vizBaseHue = 200; // default
+
+function hexToRgba(hex, alpha) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function hexToHue(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0;
+    if (max !== min) {
+        const d = max - min;
+        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b - r) / d + 2) / 6;
+        else h = ((r - g) / d + 4) / 6;
+    }
+    return Math.round(h * 360);
+}
+
+function clearDynamicTheme() {
+    const playerEl = document.getElementById('radio-player');
+    if (!playerEl) return;
+    playerEl.classList.remove('themed');
+    ['--dynamic-primary', '--dynamic-secondary', '--dynamic-accent', '--dynamic-glow',
+     '--dynamic-accent-bg', '--dynamic-accent-border', '--dynamic-bg'].forEach(p => {
+        playerEl.style.removeProperty(p);
+    });
+    vizBaseHue = 200;
+}

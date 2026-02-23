@@ -1,8 +1,57 @@
-"""Tests for services/spotify_service.py."""
+"""Tests for services/spotify_service.py (embed scraping approach)."""
+import json
 import pytest
 from unittest.mock import MagicMock, patch
 
-from services.spotify_service import SpotifyService, MAX_PLAYLIST_TRACKS
+from services.spotify_service import SpotifyService, SpotifyServiceError, MAX_PLAYLIST_TRACKS, _embed_cache
+
+
+def _make_embed_html(entity_data: dict) -> str:
+    """Build fake embed page HTML with __NEXT_DATA__ containing the entity."""
+    next_data = {
+        "props": {
+            "pageProps": {
+                "state": {
+                    "data": {
+                        "entity": entity_data
+                    }
+                }
+            }
+        }
+    }
+    return f'<html><script id="__NEXT_DATA__" type="application/json">{json.dumps(next_data)}</script></html>'
+
+
+SAMPLE_ENTITY = {
+    "name": "Chill Hits",
+    "subtitle": "Spotify",
+    "description": "Relax and unwind",
+    "coverArt": {
+        "sources": [{"url": "https://img.spotify.com/cover.jpg", "width": 640, "height": 640}]
+    },
+    "trackList": [
+        {
+            "title": "Song A",
+            "subtitle": "Artist A",
+            "uri": "spotify:track:track1",
+            "duration": 240000,
+        },
+        {
+            "title": "Song B",
+            "subtitle": "Artist B, Artist C",
+            "uri": "spotify:track:track2",
+            "duration": 180000,
+        },
+    ],
+}
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear the embed cache before each test."""
+    _embed_cache.clear()
+    yield
+    _embed_cache.clear()
 
 
 class TestParsePlaylistUrl:
@@ -34,122 +83,118 @@ class TestParsePlaylistUrl:
 class TestGetPlaylistInfo:
     """Tests for get_playlist_info()."""
 
-    @patch("services.spotify_service.spotipy.Spotify")
-    def test_returns_info(self, mock_sp_cls):
-        mock_sp = MagicMock()
-        mock_sp.playlist.return_value = {
-            "name": "Chill Hits",
-            "description": "Relax",
-            "owner": {"display_name": "Spotify"},
-            "images": [{"url": "https://img.spotify.com/cover.jpg"}],
-            "tracks": {"total": 80},
-        }
-        mock_sp_cls.return_value = mock_sp
+    @patch("services.spotify_service.httpx.get")
+    def test_returns_info(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(SAMPLE_ENTITY)
+        mock_get.return_value = mock_resp
 
-        with patch("services.spotify_service.SpotifyClientCredentials"):
-            svc = SpotifyService("id", "secret")
-        svc.sp = mock_sp
-
+        svc = SpotifyService()
         info = svc.get_playlist_info("abc123")
         assert info["name"] == "Chill Hits"
-        assert info["track_count"] == 80
+        assert info["track_count"] == 2
         assert info["playlist_id"] == "abc123"
+        assert info["image_url"] == "https://img.spotify.com/cover.jpg"
+        assert info["owner"] == "Spotify"
 
-    @patch("services.spotify_service.spotipy.Spotify")
-    def test_no_images(self, mock_sp_cls):
-        mock_sp = MagicMock()
-        mock_sp.playlist.return_value = {
-            "name": "Test",
-            "owner": {"display_name": "User"},
-            "images": [],
-            "tracks": {"total": 5},
-        }
-        mock_sp_cls.return_value = mock_sp
+    @patch("services.spotify_service.httpx.get")
+    def test_no_cover_art(self, mock_get):
+        entity = {**SAMPLE_ENTITY, "coverArt": {}}
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(entity)
+        mock_get.return_value = mock_resp
 
-        with patch("services.spotify_service.SpotifyClientCredentials"):
-            svc = SpotifyService("id", "secret")
-        svc.sp = mock_sp
-
+        svc = SpotifyService()
         info = svc.get_playlist_info("xyz")
         assert info["image_url"] == ""
+
+    @patch("services.spotify_service.httpx.get")
+    def test_404_raises(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_get.return_value = mock_resp
+
+        svc = SpotifyService()
+        with pytest.raises(SpotifyServiceError, match="not found"):
+            svc.get_playlist_info("bad_id")
 
 
 class TestGetPlaylistTracks:
     """Tests for get_playlist_tracks()."""
 
-    @patch("services.spotify_service.spotipy.Spotify")
-    def test_returns_tracks(self, mock_sp_cls):
-        mock_sp = MagicMock()
-        mock_sp.playlist_tracks.return_value = {
-            "items": [
-                {
-                    "track": {
-                        "name": "Song A",
-                        "artists": [{"name": "Artist A"}],
-                        "album": {"name": "Album A", "release_date": "2020-01-15"},
-                        "duration_ms": 240000,
-                        "id": "track1",
-                    }
-                },
-                {
-                    "track": {
-                        "name": "Song B",
-                        "artists": [{"name": "Artist B"}, {"name": "Artist C"}],
-                        "album": {"name": "Album B", "release_date": "2019"},
-                        "duration_ms": 180000,
-                        "id": "track2",
-                    }
-                },
-            ],
-            "next": None,
-        }
-        mock_sp_cls.return_value = mock_sp
+    @patch("services.spotify_service.httpx.get")
+    def test_returns_tracks(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(SAMPLE_ENTITY)
+        mock_get.return_value = mock_resp
 
-        with patch("services.spotify_service.SpotifyClientCredentials"):
-            svc = SpotifyService("id", "secret")
-        svc.sp = mock_sp
-
+        svc = SpotifyService()
         tracks = svc.get_playlist_tracks("abc123")
         assert len(tracks) == 2
         assert tracks[0]["artist"] == "Artist A"
         assert tracks[0]["title"] == "Song A"
-        assert tracks[0]["year"] == "2020"
+        assert tracks[0]["spotify_id"] == "track1"
+        assert tracks[0]["duration_ms"] == 240000
         assert tracks[1]["all_artists"] == ["Artist B", "Artist C"]
 
-    @patch("services.spotify_service.spotipy.Spotify")
-    def test_skips_null_tracks(self, mock_sp_cls):
-        mock_sp = MagicMock()
-        mock_sp.playlist_tracks.return_value = {
-            "items": [
-                {"track": None},
-                {"track": {"name": "", "artists": [], "album": {}, "duration_ms": 0, "id": ""}},
-                {"track": {"name": "Real Song", "artists": [{"name": "A"}], "album": {"name": "B"}, "duration_ms": 100, "id": "x"}},
+    @patch("services.spotify_service.httpx.get")
+    def test_skips_empty_titles(self, mock_get):
+        entity = {
+            **SAMPLE_ENTITY,
+            "trackList": [
+                {"title": "", "subtitle": "A", "uri": "spotify:track:x", "duration": 100},
+                {"title": "Real Song", "subtitle": "B", "uri": "spotify:track:y", "duration": 200},
             ],
-            "next": None,
         }
-        mock_sp_cls.return_value = mock_sp
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(entity)
+        mock_get.return_value = mock_resp
 
-        with patch("services.spotify_service.SpotifyClientCredentials"):
-            svc = SpotifyService("id", "secret")
-        svc.sp = mock_sp
-
+        svc = SpotifyService()
         tracks = svc.get_playlist_tracks("abc")
         assert len(tracks) == 1
         assert tracks[0]["title"] == "Real Song"
 
-    @patch("services.spotify_service.spotipy.Spotify")
-    def test_respects_max_tracks_limit(self, mock_sp_cls):
-        mock_sp = MagicMock()
-        items = [
-            {"track": {"name": f"Song {i}", "artists": [{"name": "A"}], "album": {"name": "B"}, "duration_ms": 100, "id": f"t{i}"}}
+    @patch("services.spotify_service.httpx.get")
+    def test_respects_max_tracks_limit(self, mock_get):
+        track_list = [
+            {"title": f"Song {i}", "subtitle": "A", "uri": f"spotify:track:t{i}", "duration": 100}
             for i in range(MAX_PLAYLIST_TRACKS + 50)
         ]
-        mock_sp.playlist_tracks.return_value = {"items": items, "next": None}
-        mock_sp_cls.return_value = mock_sp
+        entity = {**SAMPLE_ENTITY, "trackList": track_list}
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(entity)
+        mock_get.return_value = mock_resp
 
-        with patch("services.spotify_service.SpotifyClientCredentials"):
-            svc = SpotifyService("id", "secret")
-        svc.sp = mock_sp
-
+        svc = SpotifyService()
         tracks = svc.get_playlist_tracks("abc")
         assert len(tracks) == MAX_PLAYLIST_TRACKS
+
+    @patch("services.spotify_service.httpx.get")
+    def test_caches_embed_data(self, mock_get):
+        """Second call should use cached data, not make another HTTP request."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = _make_embed_html(SAMPLE_ENTITY)
+        mock_get.return_value = mock_resp
+
+        svc = SpotifyService()
+        svc.get_playlist_tracks("cached_id")
+        svc.get_playlist_tracks("cached_id")
+        assert mock_get.call_count == 1
+
+    @patch("services.spotify_service.httpx.get")
+    def test_malformed_html_raises(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = "<html><body>No data here</body></html>"
+        mock_get.return_value = mock_resp
+
+        svc = SpotifyService()
+        with pytest.raises(SpotifyServiceError, match="Could not extract"):
+            svc.get_playlist_tracks("bad")

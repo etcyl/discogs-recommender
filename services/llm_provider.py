@@ -140,7 +140,7 @@ def _call_ollama(
     }
 
     try:
-        resp = httpx.post(url, json=payload, timeout=180.0)
+        resp = httpx.post(url, json=payload, timeout=600.0)
         resp.raise_for_status()
     except httpx.ConnectError:
         raise LLMError(
@@ -148,7 +148,7 @@ def _call_ollama(
             "Make sure Ollama is running (ollama serve) and the model is pulled."
         )
     except httpx.TimeoutException:
-        raise LLMError("Ollama request timed out after 180 seconds.")
+        raise LLMError("Ollama request timed out after 600 seconds.")
     except httpx.HTTPStatusError as e:
         raise LLMError(f"Ollama returned HTTP {e.response.status_code}: {e.response.text[:200]}")
 

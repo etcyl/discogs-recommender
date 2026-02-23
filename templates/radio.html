@@ -70,6 +70,11 @@
                         {% if 'ollama' in allowed_models %}<option value="ollama">Ollama (free, local)</option>{% endif %}
                     </select>
                 </div>
+                <div class="channel-num-songs" data-channel-id="{{ ch.id }}">
+                    <label style="font-size:0.75rem;opacity:0.7;">Songs: <span class="num-songs-label">{{ ch.num_songs or 50 }}</span></label>
+                    <input type="range" class="channel-num-songs-slider" min="5" max="100" step="5"
+                           value="{{ ch.num_songs or 50 }}" title="Playlist size: {{ ch.num_songs or 50 }}">
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -97,6 +102,7 @@
                         </div>
                         <span class="loading-percent" id="loading-percent">0%</span>
                     </div>
+                    <button id="btn-stop-loading" class="outline" style="margin-top:1rem;">Stop</button>
                 </div>
             </div>
 
@@ -115,6 +121,30 @@
                     <!-- Mindmap Panel (toggle replaces artwork) -->
                     <div id="mindmap-panel" class="mindmap-panel" style="display:none;">
                         <canvas id="mindmap-canvas" class="mindmap-canvas"></canvas>
+                    </div>
+
+                    <!-- Lyrics & Meaning Panel (toggle replaces artwork) -->
+                    <div id="lyrics-panel" class="lyrics-panel" style="display:none;">
+                        <div class="lyrics-tabs">
+                            <button class="lyrics-tab lyrics-tab-active" data-tab="lyrics">Lyrics</button>
+                            <button class="lyrics-tab" data-tab="meaning">Meaning</button>
+                            <button class="lyrics-tab" data-tab="vibe">Vibe</button>
+                        </div>
+                        <div id="lyrics-tab-lyrics" class="lyrics-tab-content lyrics-tab-visible">
+                            <div id="lyrics-container" class="lyrics-container">
+                                <div class="lyrics-placeholder">Press play to see lyrics</div>
+                            </div>
+                        </div>
+                        <div id="lyrics-tab-meaning" class="lyrics-tab-content">
+                            <div id="meaning-container" class="meaning-container">
+                                <div class="lyrics-placeholder">Switch to Meaning to see song interpretation</div>
+                            </div>
+                        </div>
+                        <div id="lyrics-tab-vibe" class="lyrics-tab-content">
+                            <div id="vibe-container" class="vibe-container">
+                                <div class="lyrics-placeholder">Song mood and themes will appear here</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right: Track Info + Controls -->
@@ -187,6 +217,11 @@
                                     <line x1="12" y1="12" x2="19" y2="19" stroke="currentColor" stroke-width="1" opacity="0.4"/>
                                 </svg>
                             </button>
+                            <button id="btn-lyrics" class="mindmap-toggle-btn" title="Show lyrics & meaning (Y)">
+                                <svg viewBox="0 0 24 24" width="20" height="20">
+                                    <path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                </svg>
+                            </button>
                             <div class="volume-control">
                                 <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
                                 <input type="range" id="volume-slider" min="0" max="100" value="80" class="volume-slider">
@@ -231,9 +266,7 @@
         <fieldset>
             <legend>Channel Type</legend>
             <label><input type="radio" name="channel-type" value="themed" checked> Themed (mood, genre, vibe)</label>
-            {% if spotify_enabled %}
             <label><input type="radio" name="channel-type" value="spotify"> Spotify Playlist</label>
-            {% endif %}
             <label><input type="radio" name="channel-type" value="upload"> Upload File (txt/pdf)</label>
         </fieldset>
 
@@ -285,6 +318,31 @@
         <label for="channel-name-input">Channel Name</label>
         <input type="text" id="channel-name-input" maxlength="100" required>
 
+        <label for="new-channel-model">AI Model</label>
+        <select id="new-channel-model">
+            {% if 'claude-sonnet' in allowed_models %}<option value="claude-sonnet">Claude Sonnet</option>{% endif %}
+            {% if 'claude-haiku' in allowed_models %}<option value="claude-haiku">Claude Haiku (cheaper)</option>{% endif %}
+            {% if 'ollama' in allowed_models %}<option value="ollama">Ollama (free, local)</option>{% endif %}
+        </select>
+
+        <label for="new-channel-era">Era</label>
+        <select id="new-channel-era">
+            <option value="">All Eras</option>
+            <option value="60s">60s</option>
+            <option value="70s">70s</option>
+            <option value="80s">80s</option>
+            <option value="90s">90s</option>
+            <option value="00s">00s</option>
+            <option value="10s">10s</option>
+            <option value="20s">20s</option>
+        </select>
+
+        <label for="new-channel-num-songs">Playlist Size</label>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+            <input type="range" id="new-channel-num-songs" min="5" max="100" step="5" value="50" style="flex:1;">
+            <span id="new-channel-num-songs-label" style="min-width:3ch; text-align:right;">50</span>
+        </div>
+
         <div class="dialog-actions">
             <button type="button" id="btn-cancel-channel" class="outline">Cancel</button>
             <button type="submit" id="btn-create-channel">Create Channel</button>
@@ -305,7 +363,7 @@
 
 {% block scripts %}
 <script>
-    const SPOTIFY_ENABLED = {{ spotify_enabled | tojson }};
+    const SPOTIFY_ENABLED = true;
     const ALLOWED_MODELS = {{ allowed_models | tojson }};
 </script>
 <script src="/static/js/mindmap.js"></script>

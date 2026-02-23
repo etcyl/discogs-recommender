@@ -27,6 +27,7 @@ DEFAULT_CHANNEL = {
     "era_from": None,
     "era_to": None,
     "ai_model": "claude-sonnet",
+    "num_songs": 50,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -66,6 +67,9 @@ def load_channels(data_dir: Path | None = None) -> list[dict]:
         if "ai_model" not in ch:
             ch["ai_model"] = "claude-sonnet"
             dirty = True
+        if "num_songs" not in ch:
+            ch["num_songs"] = 50
+            dirty = True
     if dirty:
         d = data_dir or DATA_DIR
         d.mkdir(parents=True, exist_ok=True)
@@ -86,6 +90,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
                    era_from: Optional[int] = None,
                    era_to: Optional[int] = None,
                    ai_model: str = "claude-sonnet",
+                   num_songs: int = 50,
                    data_dir: Path | None = None) -> dict:
     name = _sanitize_name(name)
     if not name:
@@ -95,6 +100,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
     if mode not in VALID_MODES:
         raise ValueError(f"Invalid mode: {mode}")
     discovery = max(0, min(100, int(discovery)))
+    num_songs = max(5, min(100, int(num_songs)))
 
     channels = load_channels(data_dir)
     if len(channels) >= MAX_CHANNELS:
@@ -113,6 +119,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
         "era_from": era_from,
         "era_to": era_to,
         "ai_model": ai_model,
+        "num_songs": num_songs,
         "created_at": datetime.now().isoformat(),
         "is_default": False,
     }
@@ -177,6 +184,19 @@ def update_channel_ai_model(channel_id: str, ai_model: str,
     for ch in channels:
         if ch["id"] == channel_id:
             ch["ai_model"] = ai_model
+            _atomic_write_json(channels_file, channels)
+            return ch
+    raise ValueError(f"Channel not found: {channel_id}")
+
+
+def update_channel_num_songs(channel_id: str, num_songs: int,
+                              data_dir: Path | None = None) -> dict:
+    num_songs = max(5, min(100, int(num_songs)))
+    channels_file = _resolve_channels_file(data_dir)
+    channels = load_channels(data_dir)
+    for ch in channels:
+        if ch["id"] == channel_id:
+            ch["num_songs"] = num_songs
             _atomic_write_json(channels_file, channels)
             return ch
     raise ValueError(f"Channel not found: {channel_id}")

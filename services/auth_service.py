@@ -95,8 +95,8 @@ def create_user_from_invite(token: str, display_name: str,
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO users (id, display_name, discogs_username, discogs_token, is_admin, created_at) "
-            "VALUES (?, ?, ?, ?, 0, ?)",
+            "INSERT INTO users (id, display_name, discogs_username, discogs_token, is_admin, created_at, allowed_models) "
+            "VALUES (?, ?, ?, ?, 0, ?, 'ollama')",
             (user_id, display_name, discogs_username or None, discogs_token or None, now),
         )
         conn.execute(

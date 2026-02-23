@@ -8,7 +8,6 @@ pydantic>=2.6.0
 pydantic-settings>=2.2.0
 youtube-search-python>=1.6.6
 httpx>=0.25.0,<0.28.0  # youtube-search-python uses deprecated proxies kwarg removed in httpx 0.28
-spotipy>=2.23.0
 pdfplumber>=0.10.0
 python-multipart>=0.0.6
 

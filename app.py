@@ -3,11 +3,13 @@ import hmac
 import json
 import logging
 import os
+import queue as queue_mod
 import re
 import time
 from collections import defaultdict
 from pathlib import Path
 
+import httpx as _httpx
 from fastapi import FastAPI, Request, Query, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -62,11 +64,9 @@ AI_MODEL_LABELS = {
     "ollama": "Ollama",
 }
 
-# Spotify (optional — enabled only when credentials are configured)
-spotify = None
-if settings.spotify_client_id and settings.spotify_client_secret:
-    from services.spotify_service import SpotifyService
-    spotify = SpotifyService(settings.spotify_client_id, settings.spotify_client_secret)
+# Spotify (no credentials needed — scrapes public embed pages)
+from services.spotify_service import SpotifyService
+spotify = SpotifyService()
 
 # Initialize database and bootstrap admin user
 init_db()
@@ -97,6 +97,9 @@ class ChannelCreateRequest(BaseModel):
     spotify_url: str = Field("", max_length=500)
     theme: str = Field("", max_length=300)
     mode: str = Field(..., pattern=r"^(play_playlist|similar_songs|new_discoveries|themed)$")
+    ai_model: str = Field("claude-sonnet", pattern=r"^(claude-sonnet|claude-haiku|ollama)$")
+    era: str = Field("", max_length=20)
+    num_songs: int = Field(50, ge=5, le=100)
 
 
 class ChannelRenameRequest(BaseModel):
@@ -114,6 +117,10 @@ class ChannelEraRequest(BaseModel):
 
 class ChannelAiModelRequest(BaseModel):
     ai_model: str = Field(..., pattern=r"^(claude-sonnet|claude-haiku|ollama)$")
+
+
+class ChannelNumSongsRequest(BaseModel):
+    num_songs: int = Field(..., ge=5, le=100)
 
 
 class SpotifyPreviewRequest(BaseModel):
@@ -134,12 +141,12 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net https://www.youtube.com; "
         "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
-        "img-src 'self' data: https://i.discogs.com; "
-        "media-src 'self' https://*.googlevideo.com; "
+        "img-src 'self' data: https://i.discogs.com https://i.ytimg.com https://*.ytimg.com; "
+        "media-src 'self' https://*.googlevideo.com https://*.youtube.com; "
         "frame-src https://www.youtube.com https://www.youtube-nocookie.com; "
-        "connect-src 'self'"
+        "connect-src 'self' https://www.youtube.com https://*.googlevideo.com"
     )
     return response
 
@@ -196,6 +203,28 @@ async def auth_middleware(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_ERA_MAP = {
+    "60s": (1960, 1969), "70s": (1970, 1979), "80s": (1980, 1989),
+    "90s": (1990, 1999), "00s": (2000, 2009), "10s": (2010, 2019),
+    "20s": (2020, 2029),
+}
+
+
+def _parse_era(era: str) -> tuple:
+    """Convert era string like '70s' or '1970-1979' into (era_from, era_to)."""
+    if not era:
+        return None, None
+    if era in _ERA_MAP:
+        return _ERA_MAP[era]
+    if "-" in era:
+        parts = era.split("-", 1)
+        try:
+            return int(parts[0]), int(parts[1])
+        except (ValueError, IndexError):
+            pass
+    return None, None
+
 
 def _sanitize_error(error: Exception) -> str:
     """Return a safe error message without leaking internals (CWE-209)."""
@@ -637,7 +666,6 @@ async def recommendations(request: Request,
                                                         era_from=era_from, era_to=era_to,
                                                         source=source, profile=profile,
                                                         error=error,
-                                                        spotify_enabled=spotify is not None,
                                                         allowed_models=allowed_models))
 
 
@@ -719,7 +747,6 @@ async def radio_page(request: Request):
     allowed_models = list(auth_service.get_allowed_models(user))
     return templates.TemplateResponse("radio.html",
                                       _template_context(request, channels=channels,
-                                                        spotify_enabled=spotify is not None,
                                                         allowed_models=allowed_models))
 
 
@@ -771,6 +798,26 @@ async def radio_playlist_stream(request: Request,
         def _sse(event: str, data: dict) -> str:
             return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
+        async def _keepalive_loop(task, interval=10, progress_q=None):
+            """Yield keepalives and progress SSE while a task runs, to keep the connection alive."""
+            while not task.done():
+                done, _ = await asyncio.wait({task}, timeout=interval)
+                if progress_q:
+                    while not progress_q.empty():
+                        try:
+                            yield progress_q.get_nowait()
+                        except Exception:
+                            break
+                if not done:
+                    yield ": keepalive\n\n"
+            # Final drain
+            if progress_q:
+                while not progress_q.empty():
+                    try:
+                        yield progress_q.get_nowait()
+                    except Exception:
+                        break
+
         if not re.match(r"^[a-zA-Z0-9_-]+$", channel_id):
             yield _sse("error", {"message": "Invalid channel ID"})
             return
@@ -789,6 +836,7 @@ async def radio_playlist_stream(request: Request,
 
             source_type = channel.get("source_type", "discogs")
             ai_model = channel.get("ai_model", "claude-sonnet")
+            num_songs = channel.get("num_songs", 50)
             model_label = AI_MODEL_LABELS.get(ai_model, ai_model)
 
             allowed = auth_service.get_allowed_models(user)
@@ -798,7 +846,10 @@ async def radio_playlist_stream(request: Request,
 
             if source_type == "discogs":
                 yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
-                collection_data = await asyncio.to_thread(_get_user_collection, user)
+                _task = asyncio.ensure_future(asyncio.to_thread(_get_user_collection, user))
+                async for _p in _keepalive_loop(_task):
+                    yield _p
+                collection_data = _task.result()
                 if not collection_data:
                     yield _sse("error", {"message": "Collection is empty."})
                     return
@@ -815,20 +866,29 @@ async def radio_playlist_stream(request: Request,
                 theme = channel.get("source_data", {}).get("theme", "")
 
                 try:
+                    pq = queue_mod.Queue()
+                    def _on_batch(collected, total):
+                        pct = 25 + int(5 * collected / max(total, 1))
+                        pq.put(_sse("progress", {"message": f"{model_label}: {collected}/{total} songs generated...", "percent": pct}))
+
                     if theme:
                         yield _sse("progress", {"message": f"{model_label} is curating \"{theme}\" songs...", "percent": 25})
-                        playlist = await asyncio.to_thread(
+                        coro = asyncio.to_thread(
                             radio.generate_themed_playlist, profile, collection_data,
                             theme, thumbs_summary, dislikes_summary, play_history_summary,
                             discovery, era_from=era_from, era_to=era_to,
-                            ai_model=ai_model)
+                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
                     else:
-                        yield _sse("progress", {"message": f"{model_label} is curating 40 songs for you...", "percent": 25})
-                        playlist = await asyncio.to_thread(
+                        yield _sse("progress", {"message": f"{model_label} is curating {num_songs} songs for you...", "percent": 25})
+                        coro = asyncio.to_thread(
                             radio.generate_playlist, profile, collection_data, thumbs_summary,
                             dislikes_summary, play_history_summary, discovery,
                             era_from=era_from, era_to=era_to,
-                            ai_model=ai_model)
+                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
+                    _task = asyncio.ensure_future(coro)
+                    async for _p in _keepalive_loop(_task, progress_q=pq):
+                        yield _p
+                    playlist = _task.result()
                 except LLMError as e:
                     yield _sse("error", {"message": str(e)})
                     return
@@ -838,17 +898,16 @@ async def radio_playlist_stream(request: Request,
                     return
 
             elif source_type == "spotify":
-                if not spotify:
-                    yield _sse("error", {"message": "Spotify is not configured."})
-                    return
-
                 playlist_id = channel.get("source_data", {}).get("playlist_id")
                 if not playlist_id:
                     yield _sse("error", {"message": "Invalid channel data."})
                     return
 
                 yield _sse("progress", {"message": "Fetching Spotify playlist...", "percent": 10})
-                tracks = await asyncio.to_thread(spotify.get_playlist_tracks, playlist_id)
+                _task = asyncio.ensure_future(asyncio.to_thread(spotify.get_playlist_tracks, playlist_id))
+                async for _p in _keepalive_loop(_task):
+                    yield _p
+                tracks = _task.result()
                 if not tracks:
                     yield _sse("error", {"message": "Spotify playlist is empty."})
                     return
@@ -881,12 +940,20 @@ async def radio_playlist_stream(request: Request,
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
                     try:
-                        playlist = await asyncio.to_thread(
+                        pq = queue_mod.Queue()
+                        def _on_batch_sp(collected, total):
+                            pct = 25 + int(5 * collected / max(total, 1))
+                            pq.put(_sse("progress", {"message": f"{model_label}: {collected}/{total} songs generated...", "percent": pct}))
+                        _task = asyncio.ensure_future(asyncio.to_thread(
                             radio.generate_playlist_from_tracks,
                             tracks, mode, thumbs_summary, dislikes_summary,
                             play_history_summary, discovery,
                             era_from=era_from, era_to=era_to,
-                            ai_model=ai_model)
+                            ai_model=ai_model, num_songs=num_songs,
+                            on_batch=_on_batch_sp))
+                        async for _p in _keepalive_loop(_task, progress_q=pq):
+                            yield _p
+                        playlist = _task.result()
                     except LLMError as e:
                         yield _sse("error", {"message": str(e)})
                         return
@@ -929,12 +996,20 @@ async def radio_playlist_stream(request: Request,
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
                     try:
-                        playlist = await asyncio.to_thread(
+                        pq = queue_mod.Queue()
+                        def _on_batch_up(collected, total):
+                            pct = 25 + int(5 * collected / max(total, 1))
+                            pq.put(_sse("progress", {"message": f"{model_label}: {collected}/{total} songs generated...", "percent": pct}))
+                        _task = asyncio.ensure_future(asyncio.to_thread(
                             radio.generate_playlist_from_tracks,
                             tracks, mode, thumbs_summary, dislikes_summary,
                             play_history_summary, discovery,
                             era_from=era_from, era_to=era_to,
-                            ai_model=ai_model)
+                            ai_model=ai_model, num_songs=num_songs,
+                            on_batch=_on_batch_up))
+                        async for _p in _keepalive_loop(_task, progress_q=pq):
+                            yield _p
+                        playlist = _task.result()
                     except LLMError as e:
                         yield _sse("error", {"message": str(e)})
                         return
@@ -959,8 +1034,10 @@ async def radio_playlist_stream(request: Request,
                     "message": f"Finding songs on YouTube... ({done}/{total})",
                     "percent": pct,
                 })
-                chunk_resolved = await asyncio.to_thread(radio.resolve_youtube_ids, chunk)
-                resolved.extend(chunk_resolved)
+                _task = asyncio.ensure_future(asyncio.to_thread(radio.resolve_youtube_ids, chunk))
+                async for _p in _keepalive_loop(_task):
+                    yield _p
+                resolved.extend(_task.result())
 
             if resolved:
                 thumbs.save_recommendations(resolved, source="radio", data_dir=user_dir)
@@ -975,7 +1052,12 @@ async def radio_playlist_stream(request: Request,
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+            "Transfer-Encoding": "chunked",
+        },
     )
 
 
@@ -1102,7 +1184,7 @@ async def list_channels(request: Request):
     user = request.state.user
     user_dir = _get_user_data_dir(user)
     channels = channel_service.load_channels(data_dir=user_dir)
-    return {"channels": channels, "spotify_enabled": spotify is not None}
+    return {"channels": channels, "spotify_enabled": True}
 
 
 @app.post("/api/radio/channels")
@@ -1116,6 +1198,9 @@ async def create_channel(request: Request):
     except Exception:
         return JSONResponse(status_code=422, content={"error": "Invalid request body"})
 
+    # Parse era string into year range
+    era_from, era_to = _parse_era(data.era)
+
     # Themed collection channel (no Spotify needed)
     if data.mode == "themed":
         if not data.theme or not data.theme.strip():
@@ -1126,6 +1211,10 @@ async def create_channel(request: Request):
                 source_type="discogs",
                 source_data={"theme": data.theme.strip()},
                 mode="themed",
+                ai_model=data.ai_model,
+                era_from=era_from,
+                era_to=era_to,
+                num_songs=data.num_songs,
                 data_dir=user_dir,
             )
             return {"status": "ok", "channel": channel}
@@ -1133,13 +1222,9 @@ async def create_channel(request: Request):
             return JSONResponse(status_code=400, content={"error": str(e)})
 
     # Spotify channel
-    if not spotify:
-        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
-
     if not data.spotify_url:
         return JSONResponse(status_code=400, content={"error": "Spotify URL is required"})
 
-    from services.spotify_service import SpotifyService
     playlist_id = SpotifyService.parse_playlist_url(data.spotify_url)
     if not playlist_id:
         return JSONResponse(status_code=400, content={"error": "Invalid Spotify playlist URL"})
@@ -1160,6 +1245,10 @@ async def create_channel(request: Request):
                 "track_count": info["track_count"],
             },
             mode=data.mode,
+            ai_model=data.ai_model,
+            era_from=era_from,
+            era_to=era_to,
+            num_songs=data.num_songs,
             data_dir=user_dir,
         )
         return {"status": "ok", "channel": channel}
@@ -1263,10 +1352,29 @@ async def update_channel_ai_model_endpoint(channel_id: str, request: Request):
         return JSONResponse(status_code=400, content={"error": str(e)})
 
 
+@app.put("/api/radio/channels/{channel_id}/num-songs")
+async def update_channel_num_songs_endpoint(channel_id: str, request: Request):
+    """Update a channel's playlist size."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+    try:
+        body = await request.json()
+        data = ChannelNumSongsRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    try:
+        channel = channel_service.update_channel_num_songs(channel_id, data.num_songs,
+                                                            data_dir=user_dir)
+        cache.invalidate(f"radio_playlist:{user['id']}:{channel_id}")
+        return {"status": "ok", "channel": channel}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
 @app.get("/api/ollama/status")
 async def ollama_status():
     """Check if Ollama is running and list available models."""
-    import httpx as _httpx
     try:
         resp = _httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=3.0)
         if resp.status_code == 200:
@@ -1280,8 +1388,6 @@ async def ollama_status():
 @app.post("/api/radio/spotify-preview")
 async def spotify_preview(request: Request):
     """Validate a Spotify URL and return playlist metadata."""
-    if not spotify:
-        return JSONResponse(status_code=400, content={"error": "Spotify is not configured."})
 
     try:
         body = await request.json()
@@ -1289,7 +1395,6 @@ async def spotify_preview(request: Request):
     except Exception:
         return JSONResponse(status_code=422, content={"error": "Invalid request body"})
 
-    from services.spotify_service import SpotifyService
     playlist_id = SpotifyService.parse_playlist_url(data.url)
     if not playlist_id:
         return JSONResponse(status_code=400, content={"error": "Invalid Spotify playlist URL"})
@@ -1311,6 +1416,9 @@ async def create_upload_channel(
     file: UploadFile = File(...),
     name: str = Form(..., min_length=1, max_length=100),
     mode: str = Form(..., pattern=r"^(play_playlist|similar_songs|new_discoveries)$"),
+    ai_model: str = Form("claude-sonnet"),
+    era: str = Form(""),
+    num_songs: int = Form(50),
 ):
     """Create a channel from an uploaded text/PDF file."""
     user = request.state.user
@@ -1352,6 +1460,9 @@ async def create_upload_channel(
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to parse file content."})
 
+    era_from, era_to = _parse_era(era)
+    num_songs = max(5, min(100, num_songs))
+
     try:
         channel = channel_service.create_channel(
             name=name,
@@ -1362,6 +1473,10 @@ async def create_upload_channel(
                 "track_count": len(tracks),
             },
             mode=mode,
+            ai_model=ai_model,
+            era_from=era_from,
+            era_to=era_to,
+            num_songs=num_songs,
             data_dir=user_dir,
         )
         return {"status": "ok", "channel": channel, "track_count": len(tracks)}
@@ -1431,6 +1546,178 @@ async def mindmap_expand(
 
 
 # ---------------------------------------------------------------------------
+# Lyrics & Song Meaning
+# ---------------------------------------------------------------------------
+
+@app.get("/api/lyrics")
+async def lyrics_endpoint(
+    request: Request,
+    artist: str = Query(..., min_length=1, max_length=300),
+    title: str = Query(..., min_length=1, max_length=300),
+):
+    """Fetch synced/plain lyrics from lrclib.net, fall back to AI recall."""
+    cache_key = f"lyrics:{artist.lower()}:{title.lower()}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    result = None
+
+    # 1) Try lrclib.net (has synced timestamps)
+    try:
+        resp = await asyncio.to_thread(
+            _httpx.get,
+            "https://lrclib.net/api/get",
+            params={"artist_name": artist, "track_name": title},
+            timeout=8.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            synced = data.get("syncedLyrics") or ""
+            plain = data.get("plainLyrics") or ""
+            if synced or plain:
+                result = {
+                    "found": True,
+                    "syncedLyrics": synced,
+                    "plainLyrics": plain,
+                    "instrumental": data.get("instrumental", False),
+                    "source": "lrclib",
+                }
+    except Exception:
+        pass
+
+    # 2) Fallback: ask AI model to recall lyrics
+    if not result:
+        try:
+            from services.llm_provider import call_llm as _call_llm
+            user = request.state.user
+            allowed = auth_service.get_allowed_models(user)
+            provider = "claude-sonnet" if "claude-sonnet" in allowed else (
+                "claude-haiku" if "claude-haiku" in allowed else "ollama"
+            )
+
+            ai_text = await asyncio.to_thread(
+                _call_llm,
+                system_prompt=(
+                    "You are a lyrics assistant. Reproduce the full lyrics of the requested song "
+                    "as accurately as possible. Return ONLY the lyrics text, with blank lines "
+                    "between sections/verses. Do not add any commentary, headers, labels, or "
+                    "explanations — just the raw lyrics. If you don't know the lyrics or the "
+                    "song is instrumental, reply with exactly: [INSTRUMENTAL]"
+                ),
+                user_prompt=f'"{title}" by {artist}',
+                provider=provider,
+                max_tokens=2000,
+                anthropic_api_key=settings.anthropic_api_key,
+                ollama_base_url=settings.ollama_base_url,
+                ollama_model=settings.ollama_model,
+            )
+            ai_text = ai_text.strip()
+            if ai_text and ai_text != "[INSTRUMENTAL]":
+                result = {
+                    "found": True,
+                    "syncedLyrics": "",
+                    "plainLyrics": ai_text,
+                    "instrumental": False,
+                    "source": "ai",
+                }
+            elif ai_text == "[INSTRUMENTAL]":
+                result = {
+                    "found": True,
+                    "syncedLyrics": "",
+                    "plainLyrics": "",
+                    "instrumental": True,
+                    "source": "ai",
+                }
+        except Exception as e:
+            logger.warning("AI lyrics fallback failed for %s - %s: %s", artist, title, e)
+
+    if not result:
+        result = {"found": False, "syncedLyrics": "", "plainLyrics": "", "instrumental": False, "source": ""}
+
+    cache.set(cache_key, result, ttl=86400)
+    return result
+
+
+@app.get("/api/song-meaning")
+async def song_meaning_endpoint(
+    request: Request,
+    artist: str = Query(..., min_length=1, max_length=300),
+    title: str = Query(..., min_length=1, max_length=300),
+    album: str = Query("", max_length=300),
+):
+    """AI-generated song interpretation with mood/theme data for dynamic UI theming."""
+    user = request.state.user
+    cache_key = f"song_meaning:{artist.lower()}:{title.lower()}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    from services.llm_provider import call_llm as _call_llm
+
+    # Determine which AI model to use (user's allowed model)
+    allowed = auth_service.get_allowed_models(user)
+    provider = "ollama" if "ollama" in allowed else "claude-sonnet"
+    if "claude-sonnet" in allowed:
+        provider = "claude-sonnet"
+
+    album_ctx = f' from the album "{album}"' if album else ""
+
+    system_prompt = "You are a music analyst. Return ONLY valid JSON, no other text."
+    user_prompt = (
+        f'Analyze "{title}" by {artist}{album_ctx}.\n\n'
+        f"Return a JSON object with these keys:\n"
+        f'- "summary": 2-3 sentence interpretation of what the song is about\n'
+        f'- "themes": array of 2-4 emotional/lyrical themes (e.g. "heartbreak", "nostalgia", "rebellion")\n'
+        f'- "mood": single word mood (e.g. "melancholic", "euphoric", "aggressive", "dreamy", "energetic")\n'
+        f'- "genres": array of 1-3 genre tags\n'
+        f'- "artist_context": 1-2 sentences about what the artist has said about this song, or its cultural significance. If unknown, say "No known artist commentary."\n'
+        f'- "color_palette": object with "primary" (hex), "secondary" (hex), "accent" (hex) — colors that match the song\'s mood/vibe\n'
+        f'- "bg_gradient": CSS gradient string for the player background (use dark, atmospheric colors)\n'
+        f"\nReturn ONLY the JSON object."
+    )
+
+    try:
+        text = await asyncio.to_thread(
+            _call_llm,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            provider=provider,
+            max_tokens=800,
+            anthropic_api_key=settings.anthropic_api_key,
+            ollama_base_url=settings.ollama_base_url,
+            ollama_model=settings.ollama_model,
+        )
+
+        # Parse JSON from response
+        text = re.sub(r"```(?:json)?\s*\n?", "", text).strip()
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            data = json.loads(text[start:end + 1])
+        else:
+            data = json.loads(text)
+
+        result = {
+            "found": True,
+            "summary": data.get("summary", ""),
+            "themes": data.get("themes", []),
+            "mood": data.get("mood", ""),
+            "genres": data.get("genres", []),
+            "artist_context": data.get("artist_context", ""),
+            "color_palette": data.get("color_palette", {}),
+            "bg_gradient": data.get("bg_gradient", ""),
+        }
+    except Exception as e:
+        logger.warning("Song meaning failed for %s - %s: %s", artist, title, e)
+        result = {"found": False, "summary": "", "themes": [], "mood": "", "genres": [],
+                  "artist_context": "", "color_palette": {}, "bg_gradient": ""}
+
+    cache.set(cache_key, result, ttl=86400)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Recommendation Sources (Spotify / Upload)
 # ---------------------------------------------------------------------------
 
@@ -1446,11 +1733,7 @@ async def load_recommendation_tracks(request: Request):
     source_type = body.get("source_type", "")
 
     if source_type == "spotify":
-        if not spotify:
-            return JSONResponse(status_code=400, content={"error": "Spotify not configured."})
-
         url = body.get("url", "")
-        from services.spotify_service import SpotifyService
         playlist_id = SpotifyService.parse_playlist_url(url)
         if not playlist_id:
             return JSONResponse(status_code=400, content={"error": "Invalid Spotify URL"})

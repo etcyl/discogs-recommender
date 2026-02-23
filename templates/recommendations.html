@@ -25,12 +25,10 @@
             data-source="collection" onclick="switchSource('collection')">
         My Collection
     </button>
-    {% if spotify_enabled %}
     <button class="source-btn {% if source == 'spotify' %}source-active{% endif %}"
             data-source="spotify" onclick="switchSource('spotify')">
         Spotify Playlist
     </button>
-    {% endif %}
     <button class="source-btn {% if source == 'upload' %}source-active{% endif %}"
             data-source="upload" onclick="switchSource('upload')">
         Upload File

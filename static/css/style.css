@@ -1795,6 +1795,356 @@ progress {
     box-shadow: 0 0 12px rgba(232, 160, 62, 0.3);
 }
 
+/* ====================================================================
+   LYRICS & MEANING PANEL
+   ==================================================================== */
+
+.lyrics-panel {
+    width: 100%;
+    max-width: 380px;
+    aspect-ratio: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.lyrics-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.lyrics-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.6rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+.lyrics-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.lyrics-tab-active {
+    color: var(--dynamic-accent, var(--accent-color));
+    border-bottom-color: var(--dynamic-accent, var(--accent-color));
+}
+
+.lyrics-tab-content {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+}
+
+.lyrics-tab-visible {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Lyrics Container */
+.lyrics-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    scroll-behavior: smooth;
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 88%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 88%,
+        transparent 100%
+    );
+}
+
+.lyrics-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.lyrics-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+.lyrics-line {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    opacity: 0.25;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    cursor: pointer;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.lyrics-line:hover {
+    opacity: 0.6;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.lyrics-line.lyrics-active {
+    opacity: 1;
+    color: var(--dynamic-accent, var(--accent-color));
+    font-weight: 600;
+    font-size: 1.05rem;
+    text-shadow: 0 0 20px var(--dynamic-glow, rgba(232, 160, 62, 0.5));
+    transform: scale(1.02);
+}
+
+.lyrics-line.lyrics-near {
+    opacity: 0.55;
+}
+
+.lyrics-line.lyrics-passed {
+    opacity: 0.2;
+}
+
+.lyrics-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    opacity: 0.35;
+    font-size: 0.9rem;
+    font-style: italic;
+    padding: 2rem;
+    text-align: center;
+}
+
+.lyrics-source {
+    text-align: center;
+    font-size: 0.7rem;
+    opacity: 0.35;
+    font-style: italic;
+    padding: 0.5rem 1rem 0;
+}
+
+.lyrics-instrumental {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.5rem;
+    opacity: 0.5;
+}
+
+.lyrics-instrumental svg {
+    opacity: 0.4;
+}
+
+/* Plain lyrics (no timestamps) */
+.lyrics-plain {
+    white-space: pre-wrap;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    opacity: 0.6;
+    padding: 1.5rem 1rem;
+}
+
+/* Meaning Container */
+.meaning-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+}
+
+.meaning-section {
+    margin-bottom: 1.25rem;
+}
+
+.meaning-section-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.4;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.meaning-summary {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    opacity: 0.85;
+}
+
+.meaning-context {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    opacity: 0.7;
+    font-style: italic;
+    border-left: 2px solid var(--dynamic-accent, var(--accent-color));
+    padding-left: 0.75rem;
+}
+
+.meaning-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    opacity: 0.5;
+    font-size: 0.85rem;
+}
+
+/* Vibe Container */
+.vibe-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.vibe-mood-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--dynamic-accent-bg, rgba(232, 160, 62, 0.15));
+    color: var(--dynamic-accent, var(--accent-color));
+    border: 1px solid var(--dynamic-accent-border, rgba(232, 160, 62, 0.3));
+    text-transform: capitalize;
+    align-self: center;
+}
+
+.vibe-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+}
+
+.vibe-tag {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 1rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vibe-tag.genre-vibe {
+    background: rgba(100, 180, 255, 0.1);
+    color: rgba(150, 200, 255, 0.9);
+    border-color: rgba(100, 180, 255, 0.2);
+}
+
+.vibe-tag.theme-vibe {
+    background: var(--dynamic-accent-bg, rgba(232, 160, 62, 0.1));
+    color: var(--dynamic-accent, var(--accent-color));
+    border-color: var(--dynamic-accent-border, rgba(232, 160, 62, 0.2));
+}
+
+.vibe-color-preview {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.vibe-color-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 0.2rem;
+}
+
+.vibe-color-swatch span {
+    font-size: 0.55rem;
+    opacity: 0.8;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* ====================================================================
+   DYNAMIC SONG THEMING
+   ==================================================================== */
+
+.radio-player {
+    transition: background 1.5s ease, box-shadow 1.5s ease;
+}
+
+.radio-player.themed {
+    background: var(--dynamic-bg, transparent);
+    border-radius: 16px;
+    padding: 0.5rem;
+}
+
+.artwork-glow {
+    transition: background 1.5s ease;
+}
+
+.radio-player.themed .artwork-glow {
+    background: radial-gradient(
+        circle,
+        var(--dynamic-glow, rgba(232, 160, 62, 0.15)) 0%,
+        transparent 70%
+    );
+}
+
+.radio-player.themed .track-artist {
+    color: var(--dynamic-accent, var(--accent-color));
+    transition: color 1.5s ease;
+}
+
+.radio-player.themed .progress-fill {
+    background: linear-gradient(90deg, var(--dynamic-primary, var(--accent-color)), var(--dynamic-secondary, #e85d75));
+    transition: background 1.5s ease;
+}
+
+.radio-player.themed .play-btn {
+    background: linear-gradient(135deg, var(--dynamic-primary, var(--accent-color)), var(--dynamic-secondary, #e85d75));
+    box-shadow: 0 4px 20px var(--dynamic-glow, rgba(232, 160, 62, 0.4));
+    transition: background 1.5s ease, box-shadow 1.5s ease;
+}
+
+.radio-player.themed .like-btn.liked {
+    border-color: var(--dynamic-accent, #4CAF50);
+    color: var(--dynamic-accent, #4CAF50);
+    background: var(--dynamic-accent-bg, rgba(76, 175, 80, 0.2));
+}
+
+.radio-player.themed .similar-to-section {
+    border-left-color: var(--dynamic-accent, var(--accent-color));
+}
+
+.radio-player.themed .similar-to-album {
+    color: var(--dynamic-accent, var(--accent-color));
+}
+
 /* Source Selector (Recommendations page) */
 .source-selector {
     display: flex;
@@ -2014,7 +2364,8 @@ progress {
         font-size: 0.7rem;
     }
 
-    .mindmap-panel {
+    .mindmap-panel,
+    .lyrics-panel {
         max-width: 280px;
     }
 

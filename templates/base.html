@@ -17,6 +17,7 @@
             <li><a href="/collection" {% if active_page == 'collection' %}class="active"{% endif %}>Collection</a></li>
             <li><a href="/recommendations" {% if active_page == 'recommendations' %}class="active"{% endif %}>Recommendations</a></li>
             <li><a href="/radio" {% if active_page == 'radio' %}class="active"{% endif %}>Radio</a></li>
+            <li><a href="/radio/likes" {% if active_page == 'likes' %}class="active"{% endif %}>Likes</a></li>
             <li><a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a></li>
             {% if user %}
             {% if user.is_admin %}<li><a href="/admin">Admin</a></li>{% endif %}
