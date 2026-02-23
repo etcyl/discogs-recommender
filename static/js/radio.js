@@ -434,6 +434,10 @@ function updateTrackInfo(track) {
     } else {
         artwork.style.display = 'none';
     }
+
+    // Show/hide YouTube copy button based on videoId
+    const ytBtn = document.getElementById('btn-copy-youtube');
+    if (ytBtn) ytBtn.style.display = track.videoId ? '' : 'none';
 }
 
 // ---- Progress Bar ----
@@ -584,17 +588,26 @@ function renderQueue() {
         const idx = start + i;
         const item = document.createElement('div');
         item.className = 'queue-item' + (idx === currentIndex ? ' queue-current' : '');
+        const ytBtn = track.videoId
+            ? `<button class="queue-share-btn" data-action="youtube" data-idx="${idx}" title="Copy YouTube link">
+                <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M21.582 7.186a2.506 2.506 0 0 0-1.768-1.768C18.254 5 12 5 12 5s-6.254 0-7.814.418A2.506 2.506 0 0 0 2.418 7.186C2 8.746 2 12 2 12s0 3.254.418 4.814a2.506 2.506 0 0 0 1.768 1.768C5.746 19 12 19 12 19s6.254 0 7.814-.418a2.506 2.506 0 0 0 1.768-1.768C22 15.254 22 12 22 12s0-3.254-.418-4.814zM10 15.464V8.536L16 12l-6 3.464z"/></svg>
+               </button>` : '';
+        const spotifyBtn = `<button class="queue-share-btn" data-action="spotify" data-idx="${idx}" title="Copy Spotify link">
+                <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+               </button>`;
         item.innerHTML = `
             <span class="queue-num">${idx === currentIndex ? '&#9835;' : idx + 1}</span>
             <div class="queue-info">
                 <span class="queue-track-title">${track.title || '—'}</span>
                 <span class="queue-track-artist">${track.artist || '—'}</span>
             </div>
+            <div class="queue-share-group">${ytBtn}${spotifyBtn}</div>
             <span class="queue-duration">${track.duration || ''}</span>
         `;
         if (idx !== currentIndex) {
             item.style.cursor = 'pointer';
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.queue-share-btn')) return;
                 currentIndex = idx;
                 loadTrack(queue[currentIndex]);
             });
@@ -919,3 +932,72 @@ function updateMediaSession(track) {
     });
     navigator.mediaSession.playbackState = 'playing';
 }
+
+// ---- Copy / Share ----
+function showCopyToast(message) {
+    const toast = document.getElementById('copy-toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function copyToClipboard(text, label) {
+    navigator.clipboard.writeText(text).then(() => {
+        showCopyToast(`${label} copied!`);
+    }).catch(() => {
+        showCopyToast('Copy failed');
+    });
+}
+
+function getTrackText(track) {
+    let text = `${track.artist} — ${track.title}`;
+    if (track.album) text += ` (${track.album})`;
+    return text;
+}
+
+function getYouTubeUrl(track) {
+    return track.videoId ? `https://www.youtube.com/watch?v=${track.videoId}` : null;
+}
+
+function getSpotifySearchUrl(track) {
+    const q = encodeURIComponent(`${track.artist} ${track.title}`);
+    return `https://open.spotify.com/search/${q}`;
+}
+
+// Now-playing share buttons
+document.getElementById('btn-copy-text')?.addEventListener('click', () => {
+    const track = queue[currentIndex];
+    if (!track) return;
+    copyToClipboard(getTrackText(track), 'Song info');
+});
+
+document.getElementById('btn-copy-youtube')?.addEventListener('click', () => {
+    const track = queue[currentIndex];
+    if (!track) return;
+    const url = getYouTubeUrl(track);
+    if (url) copyToClipboard(url, 'YouTube link');
+});
+
+document.getElementById('btn-copy-spotify')?.addEventListener('click', () => {
+    const track = queue[currentIndex];
+    if (!track) return;
+    copyToClipboard(getSpotifySearchUrl(track), 'Spotify link');
+});
+
+// Queue share buttons (delegated)
+document.getElementById('queue-list')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.queue-share-btn');
+    if (!btn) return;
+    e.stopPropagation();
+    const idx = parseInt(btn.dataset.idx);
+    const track = queue[idx];
+    if (!track) return;
+
+    if (btn.dataset.action === 'youtube') {
+        const url = getYouTubeUrl(track);
+        if (url) copyToClipboard(url, 'YouTube link');
+    } else if (btn.dataset.action === 'spotify') {
+        copyToClipboard(getSpotifySearchUrl(track), 'Spotify link');
+    }
+});

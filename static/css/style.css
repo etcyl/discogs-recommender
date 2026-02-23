@@ -1034,6 +1034,86 @@ progress {
     line-height: 1.4;
 }
 
+/* Share / Copy Buttons (Now Playing) */
+.track-share-row {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem 0;
+}
+
+.share-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    padding: 0.35rem 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.share-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Queue share buttons */
+.queue-share-group {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.queue-item:hover .queue-share-group {
+    opacity: 1;
+}
+
+.queue-share-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 0.2rem 0.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.queue-share-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Copy toast notification */
+.copy-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(1rem);
+    background: rgba(30, 30, 30, 0.95);
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 9999;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+}
+
+.copy-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 /* Similar To Section */
 .similar-to-section {
     margin: 0 0 1.25rem 0;
