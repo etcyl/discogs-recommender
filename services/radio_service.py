@@ -1,17 +1,35 @@
-import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
-import anthropic
 from youtubesearchpython import VideosSearch
 
 from services.cache import cache
+from services.llm_provider import call_llm, parse_llm_json
 
 logger = logging.getLogger(__name__)
 
 
 class RadioService:
-    def __init__(self, api_key: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
+    def __init__(self, anthropic_api_key: str = "",
+                 ollama_base_url: str = "http://localhost:11434",
+                 ollama_model: str = "llama3.1:8b"):
+        self.anthropic_api_key = anthropic_api_key
+        self.ollama_base_url = ollama_base_url
+        self.ollama_model = ollama_model
+
+    def _call_and_parse(self, system_text: str, user_text: str,
+                        ai_model: str = "claude-sonnet",
+                        max_tokens: int = 6000) -> list[dict]:
+        """Call LLM and parse the JSON array response."""
+        text = call_llm(
+            system_prompt=system_text,
+            user_prompt=user_text,
+            provider=ai_model,
+            max_tokens=max_tokens,
+            anthropic_api_key=self.anthropic_api_key,
+            ollama_base_url=self.ollama_base_url,
+            ollama_model=self.ollama_model,
+        )
+        return parse_llm_json(text)
 
     def _discovery_guidance(self, discovery: int) -> str:
         """Return prompt guidance based on the discovery slider level (0-100)."""
@@ -60,8 +78,9 @@ class RadioService:
                           play_history_summary: str = "",
                           discovery: int = 30,
                           era_from: int | None = None,
-                          era_to: int | None = None) -> list[dict]:
-        """Ask Claude to generate a 40-song radio playlist (big batch to minimize API calls)."""
+                          era_to: int | None = None,
+                          ai_model: str = "claude-sonnet") -> list[dict]:
+        """Ask LLM to generate a 40-song radio playlist."""
         summary = self._build_profile_summary(profile, collection)
         discovery_guide = self._discovery_guidance(discovery)
         era_guide = self._era_guidance(era_from, era_to)
@@ -119,33 +138,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
 {discovery_guide}
 {era_guide}"""
 
-        message = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=8000,
-            system=[{
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_text}],
-        )
-
-        u = message.usage
-        cached = getattr(u, "cache_read_input_tokens", 0) or 0
-        logger.info("Radio playlist — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
-
-        text = message.content[0].text
-        try:
-            playlist = json.loads(text)
-        except json.JSONDecodeError:
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                playlist = json.loads(text[start:end])
-            else:
-                playlist = []
-
-        return playlist
+        return self._call_and_parse(system_text, user_text, ai_model=ai_model)
 
     def resolve_youtube_ids(self, playlist: list[dict]) -> list[dict]:
         """Find YouTube video IDs for each song in the playlist (parallel)."""
@@ -210,7 +203,8 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       play_history_summary: str = "",
                                       discovery: int = 30,
                                       era_from: int | None = None,
-                                      era_to: int | None = None) -> list[dict]:
+                                      era_to: int | None = None,
+                                      ai_model: str = "claude-sonnet") -> list[dict]:
         """Generate a 40-song playlist based on Spotify playlist tracks."""
         track_listing = self._build_track_listing(tracks)
         discovery_guide = self._discovery_guidance(discovery)
@@ -277,33 +271,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
 {discovery_guide}
 {era_guide}"""
 
-        message = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=8000,
-            system=[{
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_text}],
-        )
-
-        u = message.usage
-        cached = getattr(u, "cache_read_input_tokens", 0) or 0
-        logger.info("Radio from-tracks — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
-
-        text = message.content[0].text
-        try:
-            playlist = json.loads(text)
-        except json.JSONDecodeError:
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                playlist = json.loads(text[start:end])
-            else:
-                playlist = []
-
-        return playlist
+        return self._call_and_parse(system_text, user_text, ai_model=ai_model)
 
     def generate_themed_playlist(self, profile: dict, collection: list[dict],
                                     theme: str,
@@ -312,7 +280,8 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                     play_history_summary: str = "",
                                     discovery: int = 30,
                                     era_from: int | None = None,
-                                    era_to: int | None = None) -> list[dict]:
+                                    era_to: int | None = None,
+                                    ai_model: str = "claude-sonnet") -> list[dict]:
         """Generate a 40-song playlist themed around a user-defined mood/genre/vibe."""
         summary = self._build_profile_summary(profile, collection)
         discovery_guide = self._discovery_guidance(discovery)
@@ -368,33 +337,7 @@ DISCOVERY LEVEL: {discovery}/100
 {discovery_guide}
 {era_guide}"""
 
-        message = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=8000,
-            system=[{
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_text}],
-        )
-
-        u = message.usage
-        cached = getattr(u, "cache_read_input_tokens", 0) or 0
-        logger.info("Radio themed — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
-
-        text = message.content[0].text
-        try:
-            playlist = json.loads(text)
-        except json.JSONDecodeError:
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                playlist = json.loads(text[start:end])
-            else:
-                playlist = []
-
-        return playlist
+        return self._call_and_parse(system_text, user_text, ai_model=ai_model)
 
     def _build_track_listing(self, tracks: list[dict], max_tracks: int = 80) -> str:
         """Format Spotify tracks for the Claude prompt."""

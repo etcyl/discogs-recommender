@@ -7,27 +7,92 @@
 <hgroup>
     <h1>Recommendations</h1>
     <p>
-        {% if engine == 'claude' %}
+        {% if source in ('spotify', 'upload') %}
+        AI-powered suggestions based on your {{ 'Spotify playlist' if source == 'spotify' else 'uploaded file' }}
+        {% elif engine in ('claude', 'claude-haiku', 'ollama') %}
         AI-powered suggestions based on your collection
+        {% if engine == 'claude' %}(Claude Sonnet){% elif engine == 'claude-haiku' %}(Claude Haiku){% elif engine == 'ollama' %}(Ollama){% endif %}
         {% else %}
         Genre &amp; style-based matches from Discogs
         {% endif %}
     </p>
 </hgroup>
 
-<div class="engine-toggle">
+<!-- Source Selector -->
+<div class="source-selector">
+    <span class="source-label">Source:</span>
+    <button class="source-btn {% if source == 'collection' or not source %}source-active{% endif %}"
+            data-source="collection" onclick="switchSource('collection')">
+        My Collection
+    </button>
+    {% if spotify_enabled %}
+    <button class="source-btn {% if source == 'spotify' %}source-active{% endif %}"
+            data-source="spotify" onclick="switchSource('spotify')">
+        Spotify Playlist
+    </button>
+    {% endif %}
+    <button class="source-btn {% if source == 'upload' %}source-active{% endif %}"
+            data-source="upload" onclick="switchSource('upload')">
+        Upload File
+    </button>
+</div>
+
+<!-- Spotify input (hidden by default) -->
+<div id="spotify-source-fields" class="source-fields" style="{% if source != 'spotify' %}display:none;{% endif %}">
+    <div class="source-input-row">
+        <input type="url" id="rec-spotify-url" placeholder="https://open.spotify.com/playlist/...">
+        <button id="btn-load-spotify-recs" class="outline" onclick="loadSpotifyTracks()">Load Playlist</button>
+    </div>
+    <div id="rec-spotify-preview" class="playlist-preview" style="display:none;">
+        <div class="preview-info">
+            <strong id="rec-spotify-name"></strong>
+            <span id="rec-spotify-count"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Upload input (hidden by default) -->
+<div id="upload-source-fields" class="source-fields" style="{% if source != 'upload' %}display:none;{% endif %}">
+    <div class="source-input-row">
+        <input type="file" id="rec-upload-file" accept=".txt,.pdf,text/plain,application/pdf">
+        <button id="btn-upload-recs" class="outline" onclick="uploadRecFile()">Upload &amp; Parse</button>
+    </div>
+    <div id="rec-upload-preview" class="playlist-preview" style="display:none;">
+        <div class="preview-info">
+            <strong id="rec-upload-name"></strong>
+            <span id="rec-upload-count"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Engine toggle (only shown for collection source) -->
+<div class="engine-toggle" id="engine-toggle" {% if source in ('spotify', 'upload') %}style="display:none;"{% endif %}>
     <a href="/recommendations?engine=genre{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
-       role="button" {% if engine != 'claude' %}class="active-engine"{% else %}class="outline"{% endif %}>
-        Genre/Style Engine
+       role="button" {% if engine == 'genre' %}class="active-engine"{% else %}class="outline"{% endif %}>
+        Genre/Style
     </a>
+    {% if 'claude-sonnet' in allowed_models %}
     <a href="/recommendations?engine=claude{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
        role="button" {% if engine == 'claude' %}class="active-engine secondary"{% else %}class="outline secondary"{% endif %}>
-        Claude AI Engine
+        Claude Sonnet
     </a>
+    {% endif %}
+    {% if 'claude-haiku' in allowed_models %}
+    <a href="/recommendations?engine=claude-haiku{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
+       role="button" {% if engine == 'claude-haiku' %}class="active-engine secondary"{% else %}class="outline secondary"{% endif %}>
+        Claude Haiku
+    </a>
+    {% endif %}
+    {% if 'ollama' in allowed_models %}
+    <a href="/recommendations?engine=ollama{% if era_from %}&era_from={{ era_from }}{% endif %}{% if era_to %}&era_to={{ era_to }}{% endif %}"
+       role="button" {% if engine == 'ollama' %}class="active-engine secondary"{% else %}class="outline secondary"{% endif %}>
+        Ollama (Local)
+    </a>
+    {% endif %}
 </div>
 
 <div class="discovery-controls">
-    {% if engine != 'claude' %}
+    {% if engine == 'genre' and source == 'collection' %}
     <div class="discovery-slider-group">
         <span class="discovery-label">Familiar</span>
         <input type="range" id="discovery-slider" class="discovery-slider"
@@ -65,7 +130,7 @@
 
 {% if recommendations %}
 <div class="rec-list">
-    {% if engine == 'claude' %}
+    {% if engine in ('claude', 'claude-haiku', 'ollama') %}
         {% for rec in recommendations %}
         <article class="rec-card">
             <div class="rec-content">
@@ -118,6 +183,10 @@
                             Search on Discogs
                         </a>
                         {% endif %}
+                        <button class="outline small-btn mindmap-btn"
+                                onclick="showRecMindmap('{{ rec.artist | e }}', '{{ rec.album | e }}')">
+                            Show Connections
+                        </button>
                     </div>
                 </div>
             </div>
@@ -185,9 +254,19 @@
     <p>No recommendations found. Try adding more releases to your collection for better results.</p>
 </article>
 {% endif %}
+
+<!-- Mindmap Dialog -->
+<dialog id="rec-mindmap-dialog" class="mindmap-dialog">
+    <div class="mindmap-dialog-header">
+        <h3 id="rec-mindmap-title">Connections</h3>
+        <button onclick="closeRecMindmap()" class="outline">Close</button>
+    </div>
+    <canvas id="rec-mindmap-canvas" class="mindmap-canvas-large"></canvas>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/mindmap.js"></script>
 <script>
 const slider = document.getElementById('discovery-slider');
 const valueLabel = document.getElementById('discovery-value');
@@ -210,9 +289,10 @@ if (eraSelect) {
     });
 }
 
-// Apply custom era range on Enter or blur
 document.getElementById('era-from')?.addEventListener('change', () => refreshRecs());
 document.getElementById('era-to')?.addEventListener('change', () => refreshRecs());
+
+let currentSource = '{{ source | default("collection") }}';
 
 function getEraParams() {
     const sel = eraSelect ? eraSelect.value : '';
@@ -229,6 +309,80 @@ function getEraParams() {
     return '&era_from=' + from + '&era_to=' + to;
 }
 
+function switchSource(source) {
+    currentSource = source;
+    document.querySelectorAll('.source-btn').forEach(btn => {
+        btn.classList.toggle('source-active', btn.dataset.source === source);
+    });
+    document.getElementById('spotify-source-fields').style.display = source === 'spotify' ? '' : 'none';
+    document.getElementById('upload-source-fields').style.display = source === 'upload' ? '' : 'none';
+    document.getElementById('engine-toggle').style.display = source === 'collection' ? '' : 'none';
+
+    if (source === 'collection') {
+        window.location.href = '/recommendations?engine={{ engine }}' + getEraParams();
+    }
+}
+
+async function loadSpotifyTracks() {
+    const url = document.getElementById('rec-spotify-url').value.trim();
+    if (!url) return;
+    const btn = document.getElementById('btn-load-spotify-recs');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+
+    try {
+        const resp = await fetch('/api/recommendations/load-tracks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_type: 'spotify', url }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) { alert(data.error); return; }
+
+        document.getElementById('rec-spotify-name').textContent = data.name;
+        document.getElementById('rec-spotify-count').textContent = data.track_count + ' tracks loaded';
+        document.getElementById('rec-spotify-preview').style.display = 'flex';
+
+        window.location.href = '/recommendations?engine=claude&source=spotify' + getEraParams();
+    } catch (e) {
+        alert('Failed to load playlist');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Load Playlist';
+    }
+}
+
+async function uploadRecFile() {
+    const fileInput = document.getElementById('rec-upload-file');
+    const file = fileInput?.files[0];
+    if (!file) return;
+    const btn = document.getElementById('btn-upload-recs');
+    btn.disabled = true;
+    btn.textContent = 'Parsing...';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const resp = await fetch('/api/recommendations/upload-tracks', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await resp.json();
+        if (!resp.ok) { alert(data.error); return; }
+
+        document.getElementById('rec-upload-name').textContent = data.name;
+        document.getElementById('rec-upload-count').textContent = data.track_count + ' tracks parsed';
+        document.getElementById('rec-upload-preview').style.display = 'flex';
+
+        window.location.href = '/recommendations?engine=claude&source=upload' + getEraParams();
+    } catch (e) {
+        alert('Failed to upload file');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Upload & Parse';
+    }
+}
+
 async function refreshRecs() {
     const btn = document.getElementById('btn-refresh-recs');
     btn.disabled = true;
@@ -238,15 +392,62 @@ async function refreshRecs() {
         const engine = '{{ engine }}';
         const d = slider ? slider.value : 30;
         const eraParams = getEraParams();
-        if (engine === 'claude') {
-            window.location.href = '/recommendations?engine=claude' + eraParams;
-        } else {
+        const sourceParam = currentSource !== 'collection' ? '&source=' + currentSource : '';
+        if (engine === 'genre' && currentSource === 'collection') {
             window.location.href = '/recommendations?engine=genre&discovery=' + d + eraParams;
+        } else {
+            window.location.href = '/recommendations?engine=' + engine + eraParams + sourceParam;
         }
     } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Refresh';
     }
+}
+
+// ---- Mindmap ----
+let recMindmap = null;
+
+function closeRecMindmap() {
+    document.getElementById('rec-mindmap-dialog').close();
+    if (recMindmap) recMindmap.stop();
+}
+
+async function showRecMindmap(artist, album) {
+    const dialog = document.getElementById('rec-mindmap-dialog');
+    document.getElementById('rec-mindmap-title').textContent = artist + ' \u2014 ' + album;
+    dialog.showModal();
+
+    const canvas = document.getElementById('rec-mindmap-canvas');
+    if (!recMindmap) {
+        recMindmap = new ForceGraph(canvas);
+    } else {
+        recMindmap.clear();
+    }
+
+    recMindmap.addNode({ id: 'center', label: album, sublabel: artist, type: 'current', radius: 45, depth: 0 });
+    recMindmap.setCenter('center');
+
+    recMindmap.resize();
+    recMindmap.start();
+
+    try {
+        const resp = await fetch('/api/mindmap/expand?artist=' + encodeURIComponent(artist) + '&album=' + encodeURIComponent(album));
+        if (resp.ok) {
+            const data = await resp.json();
+            (data.related || []).forEach((rel, i) => {
+                const nodeId = 'rel-' + i;
+                recMindmap.addNode({
+                    id: nodeId,
+                    label: rel.album || '',
+                    sublabel: rel.artist,
+                    type: rel.in_collection ? 'collection' : 'recommended',
+                    radius: 30,
+                    depth: 1,
+                });
+                recMindmap.addEdge('center', nodeId, rel.why || '', 0.8);
+            });
+        }
+    } catch (e) { /* ignore */ }
 }
 </script>
 {% endblock %}

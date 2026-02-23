@@ -1,19 +1,26 @@
+import logging
 import re
+import secrets
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
     discogs_token: str
     discogs_username: str
-    anthropic_api_key: str
+    anthropic_api_key: str = ""
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3:latest"
     app_name: str = "DiscogsRecommender/1.0"
     cache_ttl_seconds: int = 3600
     max_thumbs_entries: int = 500
     max_cache_entries: int = 1000
+    secret_key: str = ""
 
     class Config:
         env_file = ".env"
@@ -37,8 +44,19 @@ class Settings(BaseSettings):
     @field_validator("anthropic_api_key")
     @classmethod
     def validate_anthropic_key(cls, v: str) -> str:
-        if not v or not v.startswith("sk-ant-"):
+        if v and not v.startswith("sk-ant-"):
             raise ValueError("anthropic_api_key must start with 'sk-ant-'")
+        return v
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if not v:
+            v = secrets.token_hex(32)
+            logger.warning(
+                "SECRET_KEY not set in .env — generated random key. "
+                "Sessions will not survive restarts."
+            )
         return v
 
 

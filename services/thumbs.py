@@ -18,6 +18,13 @@ MAX_HISTORY_ENTRIES = 2000
 MAX_REC_HISTORY_ENTRIES = 1000
 
 
+def _resolve_paths(data_dir: Path | None = None):
+    """Return (data_dir, thumbs, dislikes, history, rec_history) paths."""
+    d = data_dir or DATA_DIR
+    return (d, d / "thumbs.json", d / "dislikes.json",
+            d / "history.json", d / "rec_history.json")
+
+
 def _sanitize_string(value: str, max_length: int = MAX_FIELD_LENGTH) -> str:
     """Sanitize a string field: strip, truncate, remove control characters."""
     if not isinstance(value, str):
@@ -34,12 +41,13 @@ def _sanitize_string_list(items: list, max_items: int = MAX_LIST_ITEMS) -> list[
     return [_sanitize_string(item) for item in items[:max_items] if isinstance(item, str)]
 
 
-def load_thumbs() -> list[dict]:
+def load_thumbs(data_dir: Path | None = None) -> list[dict]:
     """Load all thumbed-up songs from disk."""
-    if not THUMBS_FILE.exists():
+    _, thumbs_file, _, _, _ = _resolve_paths(data_dir)
+    if not thumbs_file.exists():
         return []
     try:
-        raw = THUMBS_FILE.read_text(encoding="utf-8")
+        raw = thumbs_file.read_text(encoding="utf-8")
         if len(raw) > 5 * 1024 * 1024:  # 5 MB limit (CWE-400)
             return []
         data = json.loads(raw)
@@ -51,7 +59,8 @@ def load_thumbs() -> list[dict]:
 
 
 def save_thumb(artist: str, title: str, album: str = "",
-               genres: list[str] = None, styles: list[str] = None) -> dict:
+               genres: list[str] = None, styles: list[str] = None,
+               data_dir: Path | None = None) -> dict:
     """Append a thumbed-up song and return the entry."""
     # Sanitize all inputs (CWE-20)
     artist = _sanitize_string(artist)
@@ -63,8 +72,9 @@ def save_thumb(artist: str, title: str, album: str = "",
     if not artist or not title:
         raise ValueError("artist and title are required")
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    thumbs = load_thumbs()
+    d, thumbs_file, _, _, _ = _resolve_paths(data_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    thumbs = load_thumbs(data_dir)
 
     # Enforce max entries (CWE-400, CWE-770)
     if len(thumbs) >= MAX_THUMBS_ENTRIES:
@@ -87,15 +97,16 @@ def save_thumb(artist: str, title: str, album: str = "",
     thumbs.append(entry)
 
     # Atomic write to prevent corruption (CWE-367)
-    _atomic_write_json(THUMBS_FILE, thumbs)
+    _atomic_write_json(thumbs_file, thumbs)
 
     return entry
 
 
-def get_thumbs_summary(max_entries: int = 50) -> str:
+def get_thumbs_summary(max_entries: int = 50,
+                       data_dir: Path | None = None) -> str:
     """Format thumbs history for Claude prompt."""
     max_entries = min(max(1, max_entries), MAX_THUMBS_ENTRIES)
-    thumbs = load_thumbs()
+    thumbs = load_thumbs(data_dir)
     if not thumbs:
         return "No liked songs yet."
     recent = thumbs[-max_entries:]
@@ -128,13 +139,15 @@ def _load_json_file(filepath: Path) -> list[dict]:
         return []
 
 
-def load_dislikes() -> list[dict]:
+def load_dislikes(data_dir: Path | None = None) -> list[dict]:
     """Load all disliked songs from disk."""
-    return _load_json_file(DISLIKES_FILE)
+    _, _, dislikes_file, _, _ = _resolve_paths(data_dir)
+    return _load_json_file(dislikes_file)
 
 
 def save_dislike(artist: str, title: str, album: str = "",
-                 genres: list[str] = None, styles: list[str] = None) -> dict:
+                 genres: list[str] = None, styles: list[str] = None,
+                 data_dir: Path | None = None) -> dict:
     """Save a disliked song and return the entry."""
     artist = _sanitize_string(artist)
     title = _sanitize_string(title)
@@ -145,16 +158,17 @@ def save_dislike(artist: str, title: str, album: str = "",
     if not artist or not title:
         raise ValueError("artist and title are required")
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    dislikes = load_dislikes()
+    d, _, dislikes_file, _, _ = _resolve_paths(data_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    dislikes = load_dislikes(data_dir)
 
     if len(dislikes) >= MAX_DISLIKES_ENTRIES:
         dislikes = dislikes[-(MAX_DISLIKES_ENTRIES - 1):]
 
-    for d in dislikes:
-        if (d.get("artist", "").lower() == artist.lower()
-                and d.get("title", "").lower() == title.lower()):
-            return d
+    for dl in dislikes:
+        if (dl.get("artist", "").lower() == artist.lower()
+                and dl.get("title", "").lower() == title.lower()):
+            return dl
 
     entry = {
         "artist": artist,
@@ -165,14 +179,15 @@ def save_dislike(artist: str, title: str, album: str = "",
         "timestamp": datetime.now().isoformat(),
     }
     dislikes.append(entry)
-    _atomic_write_json(DISLIKES_FILE, dislikes)
+    _atomic_write_json(dislikes_file, dislikes)
     return entry
 
 
-def get_dislikes_summary(max_entries: int = 30) -> str:
+def get_dislikes_summary(max_entries: int = 30,
+                         data_dir: Path | None = None) -> str:
     """Format dislikes history for Claude prompt."""
     max_entries = min(max(1, max_entries), MAX_DISLIKES_ENTRIES)
-    dislikes = load_dislikes()
+    dislikes = load_dislikes(data_dir)
     if not dislikes:
         return ""
     recent = dislikes[-max_entries:]
@@ -186,13 +201,15 @@ def get_dislikes_summary(max_entries: int = 30) -> str:
 # Play History
 # ---------------------------------------------------------------------------
 
-def load_history() -> list[dict]:
+def load_history(data_dir: Path | None = None) -> list[dict]:
     """Load play history from disk."""
-    return _load_json_file(HISTORY_FILE)
+    _, _, _, history_file, _ = _resolve_paths(data_dir)
+    return _load_json_file(history_file)
 
 
 def save_play(artist: str, title: str, album: str = "",
-              genres: list[str] = None, styles: list[str] = None) -> dict:
+              genres: list[str] = None, styles: list[str] = None,
+              data_dir: Path | None = None) -> dict:
     """Record a played song in history."""
     artist = _sanitize_string(artist)
     title = _sanitize_string(title)
@@ -203,8 +220,9 @@ def save_play(artist: str, title: str, album: str = "",
     if not artist or not title:
         raise ValueError("artist and title are required")
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    history = load_history()
+    d, _, _, history_file, _ = _resolve_paths(data_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    history = load_history(data_dir)
 
     if len(history) >= MAX_HISTORY_ENTRIES:
         history = history[-(MAX_HISTORY_ENTRIES - 1):]
@@ -218,15 +236,16 @@ def save_play(artist: str, title: str, album: str = "",
         "played_at": datetime.now().isoformat(),
     }
     history.append(entry)
-    _atomic_write_json(HISTORY_FILE, history)
+    _atomic_write_json(history_file, history)
     return entry
 
 
 def get_play_history_summary(max_entries: int = 100,
-                             recent_days: int = 30) -> str:
+                             recent_days: int = 30,
+                             data_dir: Path | None = None) -> str:
     """Format recent play history for Claude prompt, deduped by artist+title."""
     max_entries = min(max(1, max_entries), MAX_HISTORY_ENTRIES)
-    history = load_history()
+    history = load_history(data_dir)
     if not history:
         return ""
 
@@ -262,18 +281,21 @@ def get_play_history_summary(max_entries: int = 100,
 # Recommendation History
 # ---------------------------------------------------------------------------
 
-def load_rec_history() -> list[dict]:
+def load_rec_history(data_dir: Path | None = None) -> list[dict]:
     """Load recommendation history from disk."""
-    return _load_json_file(REC_HISTORY_FILE)
+    _, _, _, _, rec_history_file = _resolve_paths(data_dir)
+    return _load_json_file(rec_history_file)
 
 
-def save_recommendations(items: list[dict], source: str = "genre") -> None:
+def save_recommendations(items: list[dict], source: str = "genre",
+                         data_dir: Path | None = None) -> None:
     """Record a batch of recommendations that were shown to the user."""
     if not items:
         return
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    rec_history = load_rec_history()
+    d, _, _, _, rec_history_file = _resolve_paths(data_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    rec_history = load_rec_history(data_dir)
 
     now = datetime.now().isoformat()
     for item in items:
@@ -293,12 +315,13 @@ def save_recommendations(items: list[dict], source: str = "genre") -> None:
     if len(rec_history) > MAX_REC_HISTORY_ENTRIES:
         rec_history = rec_history[-MAX_REC_HISTORY_ENTRIES:]
 
-    _atomic_write_json(REC_HISTORY_FILE, rec_history)
+    _atomic_write_json(rec_history_file, rec_history)
 
 
-def get_recently_recommended_artists(days: int = 14) -> set[str]:
+def get_recently_recommended_artists(days: int = 14,
+                                     data_dir: Path | None = None) -> set[str]:
     """Return set of lowercased artist names recommended in the last N days."""
-    rec_history = load_rec_history()
+    rec_history = load_rec_history(data_dir)
     if not rec_history:
         return set()
 
@@ -317,10 +340,11 @@ def get_recently_recommended_artists(days: int = 14) -> set[str]:
     return artists
 
 
-def get_rec_history_summary(max_entries: int = 50) -> str:
+def get_rec_history_summary(max_entries: int = 50,
+                            data_dir: Path | None = None) -> str:
     """Format recent recommendation history for Claude prompt."""
     max_entries = min(max(1, max_entries), MAX_REC_HISTORY_ENTRIES)
-    rec_history = load_rec_history()
+    rec_history = load_rec_history(data_dir)
     if not rec_history:
         return ""
 

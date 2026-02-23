@@ -97,6 +97,14 @@ function loadPlaylistSSE() {
             showLoading(false);
             renderQueue();
             playNext();
+            // Show "Curated by" badge
+            const badge = document.getElementById('curated-by-badge');
+            if (badge && data.ai_model) {
+                badge.textContent = `curated by ${data.ai_model}`;
+                badge.style.display = '';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
         } else {
             showError('No songs found. Try a different playlist or add more to your collection.');
         }
@@ -200,8 +208,10 @@ function toggleChannelTypeFields() {
     const selectedType = document.querySelector('input[name="channel-type"]:checked')?.value || 'themed';
     const themedFields = document.getElementById('themed-fields');
     const spotifyFields = document.getElementById('spotify-fields');
+    const uploadFields = document.getElementById('upload-fields');
     if (themedFields) themedFields.style.display = selectedType === 'themed' ? '' : 'none';
     if (spotifyFields) spotifyFields.style.display = selectedType === 'spotify' ? '' : 'none';
+    if (uploadFields) uploadFields.style.display = selectedType === 'upload' ? '' : 'none';
 }
 
 async function previewSpotifyPlaylist() {
@@ -242,28 +252,42 @@ async function createChannel(e) {
     const name = document.getElementById('channel-name-input').value.trim();
     if (!name) return;
 
-    let body;
-    if (channelType === 'themed') {
-        const theme = document.getElementById('theme-input')?.value.trim();
-        if (!theme) { alert('Please enter a theme or mood.'); return; }
-        body = { name, theme, mode: 'themed' };
-    } else {
-        const url = document.getElementById('spotify-url-input')?.value.trim();
-        const mode = document.querySelector('input[name="channel-mode"]:checked')?.value || 'similar_songs';
-        if (!url) { alert('Please enter a Spotify URL.'); return; }
-        body = { name, spotify_url: url, mode };
-    }
-
     const btn = document.getElementById('btn-create-channel');
     btn.disabled = true;
     btn.textContent = 'Creating...';
 
     try {
-        const resp = await fetch('/api/radio/channels', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
+        let resp;
+
+        if (channelType === 'upload') {
+            const fileInput = document.getElementById('upload-file-input');
+            const file = fileInput?.files[0];
+            if (!file) { alert('Please select a file.'); btn.disabled = false; btn.textContent = 'Create Channel'; return; }
+            const mode = document.querySelector('input[name="upload-mode"]:checked')?.value || 'similar_songs';
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', name);
+            formData.append('mode', mode);
+            resp = await fetch('/api/radio/upload-channel', { method: 'POST', body: formData });
+        } else if (channelType === 'themed') {
+            const theme = document.getElementById('theme-input')?.value.trim();
+            if (!theme) { alert('Please enter a theme or mood.'); btn.disabled = false; btn.textContent = 'Create Channel'; return; }
+            resp = await fetch('/api/radio/channels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, theme, mode: 'themed' }),
+            });
+        } else {
+            const url = document.getElementById('spotify-url-input')?.value.trim();
+            const mode = document.querySelector('input[name="channel-mode"]:checked')?.value || 'similar_songs';
+            if (!url) { alert('Please enter a Spotify URL.'); btn.disabled = false; btn.textContent = 'Create Channel'; return; }
+            resp = await fetch('/api/radio/channels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, spotify_url: url, mode }),
+            });
+        }
+
         const data = await resp.json();
         if (!resp.ok) {
             alert(data.error || 'Failed to create channel');
@@ -281,15 +305,32 @@ async function createChannel(e) {
     }
 }
 
+function _buildModelOptions(selected) {
+    const all = [
+        { value: 'claude-sonnet', label: 'Claude Sonnet' },
+        { value: 'claude-haiku', label: 'Claude Haiku (cheaper)' },
+        { value: 'ollama', label: 'Ollama (free, local)' },
+    ];
+    const allowed = typeof ALLOWED_MODELS !== 'undefined' ? ALLOWED_MODELS : all.map(m => m.value);
+    return all.filter(m => allowed.includes(m.value))
+        .map(m => `<option value="${m.value}"${selected === m.value ? ' selected' : ''}>${m.label}</option>`)
+        .join('');
+}
+
 function addChannelToSidebar(channel) {
     const list = document.getElementById('channel-list');
     const item = document.createElement('div');
     item.className = 'channel-item';
     item.dataset.channelId = channel.id;
     item.dataset.sourceType = channel.source_type;
+    const iconSvg = channel.source_type === 'spotify'
+        ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>'
+        : channel.source_type === 'upload'
+        ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>';
     item.innerHTML = `
         <span class="channel-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+            ${iconSvg}
         </span>
         <span class="channel-name">${channel.name}</span>
         <button class="channel-menu-btn" data-channel-id="${channel.id}" title="Channel options">&hellip;</button>
@@ -318,6 +359,11 @@ function addChannelToSidebar(channel) {
                 <span class="era-dash">&ndash;</span>
                 <input type="number" class="era-to-input" placeholder="To" min="1900" max="2099">
             </div>
+        </div>
+        <div class="channel-ai-model" data-channel-id="${channel.id}">
+            <select class="channel-ai-model-select" data-ai-model="${channel.ai_model || 'claude-sonnet'}">
+                ${_buildModelOptions(channel.ai_model || 'claude-sonnet')}
+            </select>
         </div>
     `;
     list.appendChild(item);
@@ -401,6 +447,7 @@ function loadTrack(track) {
     renderQueue();
     resetThumbButton(track);
     saveToHistory(track);
+    if (mindmapVisible) updateMindmapForCurrentTrack();
 }
 
 function updateTrackInfo(track) {
@@ -665,9 +712,10 @@ document.querySelectorAll('input[name="channel-type"]').forEach(r => {
 });
 
 document.getElementById('channel-list')?.addEventListener('click', (e) => {
-    // Ignore clicks on discovery slider or era picker areas
+    // Ignore clicks on discovery slider, era picker, or AI model areas
     if (e.target.closest('.channel-discovery')) return;
     if (e.target.closest('.channel-era')) return;
+    if (e.target.closest('.channel-ai-model')) return;
     const menuBtn = e.target.closest('.channel-menu-btn');
     if (menuBtn) {
         e.stopPropagation();
@@ -774,6 +822,41 @@ document.getElementById('channel-list')?.addEventListener('change', (e) => {
     const eraTo = toInput.value ? parseInt(toInput.value) : null;
     saveChannelEra(channelId, eraFrom, eraTo);
 });
+
+// ---- AI Model Select ----
+// Set initial selected value for all AI model selects on page load
+document.querySelectorAll('.channel-ai-model-select').forEach(sel => {
+    const model = sel.dataset.aiModel;
+    if (model) sel.value = model;
+});
+
+document.getElementById('channel-list')?.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('channel-ai-model-select')) return;
+    const wrapper = e.target.closest('.channel-ai-model');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const aiModel = e.target.value;
+    saveChannelAiModel(channelId, aiModel);
+});
+
+async function saveChannelAiModel(channelId, aiModel) {
+    try {
+        await fetch(`/api/radio/channels/${encodeURIComponent(channelId)}/ai-model`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ai_model: aiModel }),
+        });
+        // Auto-refresh if this is the active channel
+        if (channelId === activeChannelId) {
+            await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(channelId)}`);
+            showLoading(true);
+            resetLoadingUI();
+            loadPlaylistSSE();
+        }
+    } catch (err) {
+        console.error('Failed to save AI model:', err);
+    }
+}
 
 document.getElementById('btn-rename-channel')?.addEventListener('click', renameChannel);
 document.getElementById('btn-delete-channel')?.addEventListener('click', deleteChannel);
@@ -964,6 +1047,202 @@ function getSpotifySearchUrl(track) {
     const q = encodeURIComponent(`${track.artist} ${track.title}`);
     return `https://open.spotify.com/search/${q}`;
 }
+
+// ---- Mindmap Integration ----
+let mindmapGraph = null;
+let mindmapVisible = false;
+
+function initMindmap() {
+    const canvas = document.getElementById('mindmap-canvas');
+    if (!canvas || mindmapGraph) return;
+    mindmapGraph = new ForceGraph(canvas, { onNodeClick: onMindmapNodeClick });
+}
+
+function toggleMindmap() {
+    mindmapVisible = !mindmapVisible;
+    const panel = document.getElementById('mindmap-panel');
+    const artworkSection = document.querySelector('.player-artwork-section');
+    const btn = document.getElementById('btn-mindmap');
+
+    if (mindmapVisible) {
+        panel.style.display = '';
+        artworkSection.style.display = 'none';
+        btn.classList.add('mindmap-active');
+        initMindmap();
+        updateMindmapForCurrentTrack();
+        mindmapGraph.start();
+    } else {
+        panel.style.display = 'none';
+        artworkSection.style.display = '';
+        btn.classList.remove('mindmap-active');
+        if (mindmapGraph) mindmapGraph.stop();
+    }
+}
+
+function updateMindmapForCurrentTrack() {
+    if (!mindmapGraph || currentIndex < 0) return;
+    const track = queue[currentIndex];
+    if (!track) return;
+
+    mindmapGraph.clear();
+
+    const centerId = 'current';
+    mindmapGraph.addNode({
+        id: centerId,
+        label: track.title,
+        sublabel: track.artist,
+        imageUrl: track.thumbnail || '',
+        type: 'current',
+        radius: 45,
+    });
+    mindmapGraph.setCenter(centerId);
+
+    // Add similar_to connections from the playlist data (strongest connections)
+    const simNodes = [];
+    if (track.similar_to && track.similar_to.length > 0) {
+        track.similar_to.forEach((sim, i) => {
+            const nodeId = `sim-${i}`;
+            mindmapGraph.addNode({
+                id: nodeId,
+                label: sim.album || '',
+                sublabel: sim.artist || '',
+                type: 'collection',
+                radius: 32,
+                depth: 1,
+            });
+            mindmapGraph.addEdge(centerId, nodeId, sim.why || '', 0.9);
+            simNodes.push(nodeId);
+        });
+    }
+
+    // Connect nearby queue songs that share similar_to artists
+    const currentSimArtists = new Set(
+        (track.similar_to || []).map(s => (s.artist || '').toLowerCase())
+    );
+    queue.forEach((other, i) => {
+        if (i === currentIndex || !other.similar_to) return;
+        const shared = other.similar_to.find(s => currentSimArtists.has((s.artist || '').toLowerCase()));
+        if (shared && !mindmapGraph.nodes.has(`queue-${i}`)) {
+            mindmapGraph.addNode({
+                id: `queue-${i}`,
+                label: other.title,
+                sublabel: other.artist,
+                type: 'playlist',
+                radius: 24,
+                depth: 1,
+            });
+            mindmapGraph.addEdge(centerId, `queue-${i}`, `Both relate to ${shared.artist}`, 0.5);
+        }
+    });
+
+    mindmapGraph.resize();
+
+    // Auto-expand: fetch related artists for the current track
+    autoExpandMindmap(track, centerId, simNodes);
+}
+
+async function autoExpandMindmap(track, centerId, simNodes) {
+    // Expand the center node (current track) — strong connections
+    try {
+        const resp = await fetch(
+            `/api/mindmap/expand?artist=${encodeURIComponent(track.artist)}&album=${encodeURIComponent(track.album || track.title)}`
+        );
+        if (resp.ok) {
+            const data = await resp.json();
+            (data.related || []).forEach((rel, i) => {
+                const childId = `center-c${i}`;
+                const isDuplicate = mindmapGraph.nodes && Array.from(mindmapGraph.nodes.values()).some(
+                    n => n.sublabel && n.sublabel.toLowerCase() === (rel.artist || '').toLowerCase()
+                );
+                if (isDuplicate) return;
+                mindmapGraph.addNode({
+                    id: childId,
+                    label: rel.album || '',
+                    sublabel: rel.artist,
+                    type: rel.in_collection ? 'collection' : 'recommended',
+                    radius: 26,
+                    depth: 1,
+                });
+                mindmapGraph.addEdge(centerId, childId, rel.why || '', 0.7);
+            });
+        }
+    } catch (e) { /* ignore */ }
+
+    // Also expand each similar_to node — weaker (second-level) connections
+    for (const nodeId of simNodes) {
+        const node = mindmapGraph.nodes?.get(nodeId);
+        if (!node || node.expanded) continue;
+        node.expanded = true;
+        try {
+            const resp = await fetch(
+                `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}`
+            );
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            (data.related || []).forEach((rel, i) => {
+                const childId = `${nodeId}-c${i}`;
+                const isDuplicate = mindmapGraph.nodes && Array.from(mindmapGraph.nodes.values()).some(
+                    n => n.sublabel && n.sublabel.toLowerCase() === (rel.artist || '').toLowerCase()
+                );
+                if (isDuplicate) return;
+                mindmapGraph.addNode({
+                    id: childId,
+                    label: rel.album || '',
+                    sublabel: rel.artist,
+                    type: rel.in_collection ? 'collection' : 'recommended',
+                    radius: 20,
+                    depth: 2,
+                });
+                mindmapGraph.addEdge(nodeId, childId, rel.why || '', 0.35);
+            });
+        } catch (e) { /* ignore */ }
+    }
+}
+
+async function onMindmapNodeClick(node) {
+    if (node.expanded || node.id === 'current') return;
+    node.expanded = true;
+    const depth = (node.depth || 1) + 1;
+    const strength = Math.max(0.2, 0.7 - depth * 0.15);
+    try {
+        const resp = await fetch(
+            `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}`
+        );
+        if (!resp.ok) return;
+        const data = await resp.json();
+        (data.related || []).forEach((rel, i) => {
+            const childId = `${node.id}-c${i}`;
+            const isDuplicate = mindmapGraph.nodes && Array.from(mindmapGraph.nodes.values()).some(
+                n => n.sublabel && n.sublabel.toLowerCase() === (rel.artist || '').toLowerCase()
+            );
+            if (isDuplicate) return;
+            mindmapGraph.addNode({
+                id: childId,
+                label: rel.album || '',
+                sublabel: rel.artist,
+                type: rel.in_collection ? 'collection' : 'recommended',
+                radius: Math.max(16, 26 - depth * 4),
+                depth: depth,
+            });
+            mindmapGraph.addEdge(node.id, childId, rel.why || '', strength);
+        });
+    } catch (e) { /* ignore */ }
+}
+
+document.getElementById('btn-mindmap')?.addEventListener('click', toggleMindmap);
+
+// ---- Upload File Preview ----
+document.getElementById('upload-file-input')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('upload-preview-name').textContent = file.name;
+    document.getElementById('upload-preview-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('upload-preview').style.display = 'flex';
+    const nameInput = document.getElementById('channel-name-input');
+    if (!nameInput.value) {
+        nameInput.value = file.name.replace(/\.(txt|pdf)$/i, '');
+    }
+});
 
 // Now-playing share buttons
 document.getElementById('btn-copy-text')?.addEventListener('click', () => {

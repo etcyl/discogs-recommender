@@ -31,13 +31,25 @@ from services.discogs_service import _sanitize_search_input
 # Fixture: patched app with mocked services
 # ---------------------------------------------------------------------------
 
+MOCK_USER = {
+    "id": "test_admin_id",
+    "display_name": "testuser",
+    "discogs_username": None,
+    "discogs_token": None,
+    "is_admin": 1,
+    "created_at": "2024-01-01T00:00:00",
+}
+
+
 @pytest.fixture(autouse=True)
 def mock_services():
     with patch("app.discogs") as mock_discogs, \
          patch("app.claude") as mock_claude, \
          patch("app.radio") as mock_radio, \
          patch("app.cache") as mock_cache, \
-         patch("app.thumbs") as mock_thumbs:
+         patch("app.thumbs") as mock_thumbs, \
+         patch("app.channel_service") as mock_channels, \
+         patch("app.auth_service") as mock_auth:
         mock_cache.get.return_value = None
         mock_discogs.get_full_collection.return_value = [
             {"id": 1, "title": "Test", "year": 2020, "artists": ["A"],
@@ -45,21 +57,36 @@ def mock_services():
              "formats": ["Vinyl"], "thumb": "", "cover_image": "",
              "url": "https://www.discogs.com/release/1", "date_added": "2024-01-01"}
         ]
+        mock_discogs.username = "testuser"
         mock_thumbs.get_thumbs_summary.return_value = ""
+        mock_thumbs.get_dislikes_summary.return_value = ""
+        mock_thumbs.get_play_history_summary.return_value = ""
+        mock_thumbs.get_recently_recommended_artists.return_value = set()
+        mock_thumbs.load_thumbs.return_value = []
+        mock_thumbs.load_history.return_value = []
         mock_thumbs.save_thumb.return_value = {
             "artist": "X", "title": "Y", "album": "", "genres": [], "styles": [],
             "timestamp": "2024-01-01",
         }
+        mock_thumbs.save_dislike.return_value = {
+            "artist": "X", "title": "Y", "album": "", "genres": [], "styles": [],
+            "timestamp": "2024-01-01",
+        }
+        mock_auth.COOKIE_NAME = "session_id"
+        mock_auth.validate_session.return_value = MOCK_USER
+        mock_channels.load_channels.return_value = []
         yield {
             "discogs": mock_discogs, "claude": mock_claude, "radio": mock_radio,
-            "cache": mock_cache, "thumbs": mock_thumbs,
+            "cache": mock_cache, "thumbs": mock_thumbs, "auth": mock_auth,
         }
 
 
 @pytest.fixture
 def client():
     from app import app
-    return TestClient(app)
+    c = TestClient(app)
+    c.cookies.set("session_id", "test-session")
+    return c
 
 
 @pytest.fixture(autouse=True)

@@ -1,22 +1,27 @@
-import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import anthropic
+
+from services.llm_provider import call_llm, parse_llm_json
 
 logger = logging.getLogger(__name__)
 
 
 class ClaudeRecommender:
-    def __init__(self, api_key: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
+    def __init__(self, api_key: str = "",
+                 ollama_base_url: str = "http://localhost:11434",
+                 ollama_model: str = "llama3.1:8b"):
+        self.api_key = api_key
+        self.ollama_base_url = ollama_base_url
+        self.ollama_model = ollama_model
 
     def get_recommendations(self, profile: dict, collection: list[dict],
                             preferences: str = "",
                             play_history_summary: str = "",
                             rec_history_summary: str = "",
                             era_from: int | None = None,
-                            era_to: int | None = None) -> list[dict]:
-        """Ask Claude for music recommendations based on collection analysis."""
+                            era_to: int | None = None,
+                            ai_model: str = "claude-sonnet") -> list[dict]:
+        """Ask LLM for music recommendations based on collection analysis."""
         summary = self._build_summary(profile, collection)
 
         pref_line = f"\nUSER PREFERENCES: {preferences}" if preferences else ""
@@ -75,33 +80,17 @@ COLLECTION ANALYSIS:
 {era_line}
 {history_block}"""
 
-        message = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=3000,
-            system=[{
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_text}],
+        text = call_llm(
+            system_prompt=system_text,
+            user_prompt=user_text,
+            provider=ai_model,
+            max_tokens=2500,
+            anthropic_api_key=self.api_key,
+            ollama_base_url=self.ollama_base_url,
+            ollama_model=self.ollama_model,
         )
 
-        u = message.usage
-        cached = getattr(u, "cache_read_input_tokens", 0) or 0
-        logger.info("Claude recs — in:%d out:%d cached:%d", u.input_tokens, u.output_tokens, cached)
-
-        text = message.content[0].text
-        try:
-            recommendations = json.loads(text)
-        except json.JSONDecodeError:
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                recommendations = json.loads(text[start:end])
-            else:
-                recommendations = []
-
-        return recommendations
+        return parse_llm_json(text)
 
     def enrich_with_discogs(self, recommendations: list[dict],
                             discogs_service) -> list[dict]:
@@ -123,6 +112,62 @@ COLLECTION ANALYSIS:
                 futures[future]["discogs_match"] = future.result()
 
         return recommendations
+
+    def get_recommendations_from_tracks(self, tracks: list[dict],
+                                        era_from: int | None = None,
+                                        era_to: int | None = None,
+                                        ai_model: str = "claude-sonnet") -> list[dict]:
+        """Get album recommendations based on a list of tracks (from Spotify/upload)."""
+        track_listing = self._build_track_listing(tracks)
+
+        era_line = ""
+        if era_from and era_to:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released between {era_from} and {era_to}.\n"
+        elif era_from:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released from {era_from} onward.\n"
+        elif era_to:
+            era_line = f"\nERA CONSTRAINT: ONLY recommend albums released up to {era_to}.\n"
+
+        system_text = """You are a knowledgeable music curator and record collector.
+Based on a list of tracks the listener enjoys, recommend albums they would love.
+
+For each recommendation, provide:
+1. Artist - Album Title
+2. Year of release
+3. A brief reason why this fits (1-2 sentences)
+4. The genres/styles it falls under
+5. 2-3 standout tracks from the album
+
+Return as a JSON array with objects containing these exact keys:
+"artist", "album", "year", "reason", "genres", "styles", "tracks"
+The "tracks" field: array of {"title", "reason"}
+Return ONLY the JSON array."""
+
+        user_text = f"""Recommend 10-15 albums based on these tracks:
+
+TRACKS:
+{track_listing}
+{era_line}"""
+
+        text = call_llm(
+            system_prompt=system_text,
+            user_prompt=user_text,
+            provider=ai_model,
+            max_tokens=3000,
+            anthropic_api_key=self.api_key,
+            ollama_base_url=self.ollama_base_url,
+            ollama_model=self.ollama_model,
+        )
+
+        return parse_llm_json(text)
+
+    def _build_track_listing(self, tracks: list[dict], max_tracks: int = 80) -> str:
+        """Format tracks for LLM prompt."""
+        lines = []
+        for t in tracks[:max_tracks]:
+            year = f" ({t['year']})" if t.get("year") else ""
+            lines.append(f"  - {t.get('artist', '?')} - {t.get('title', '?')} [{t.get('album', '')}]{year}")
+        return "\n".join(lines)
 
     def _build_summary(self, profile: dict, collection: list[dict]) -> str:
         lines = [

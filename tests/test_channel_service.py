@@ -114,6 +114,44 @@ class TestRenameChannel:
             channel_service.rename_channel("nonexistent", "Name")
 
 
+class TestUpdateChannelAiModel:
+    def test_updates_ai_model(self):
+        ch = channel_service.create_channel("Test", "spotify", {}, "similar_songs")
+        updated = channel_service.update_channel_ai_model(ch["id"], "ollama")
+        assert updated["ai_model"] == "ollama"
+
+        # Verify persisted
+        reloaded = channel_service.get_channel(ch["id"])
+        assert reloaded["ai_model"] == "ollama"
+
+    def test_rejects_invalid_model(self):
+        ch = channel_service.create_channel("Test", "spotify", {}, "similar_songs")
+        with pytest.raises(ValueError, match="Invalid ai_model"):
+            channel_service.update_channel_ai_model(ch["id"], "gpt-4")
+
+    def test_rejects_missing_channel(self):
+        with pytest.raises(ValueError, match="not found"):
+            channel_service.update_channel_ai_model("nonexistent", "ollama")
+
+    def test_default_ai_model_on_create(self):
+        ch = channel_service.create_channel("Test", "spotify", {}, "similar_songs")
+        assert ch["ai_model"] == "claude-sonnet"
+
+    def test_ai_model_migration(self, tmp_channels_dir):
+        """Channels without ai_model field get migrated."""
+        data = [{
+            "id": "my-collection", "name": "My Collection",
+            "source_type": "discogs", "source_data": {},
+            "mode": "similar_songs", "discovery": 30,
+            "era_from": None, "era_to": None,
+            "created_at": "2026-01-01T00:00:00", "is_default": True,
+        }]
+        (tmp_channels_dir / "channels.json").write_text(json.dumps(data))
+
+        channels = channel_service.load_channels()
+        assert channels[0]["ai_model"] == "claude-sonnet"
+
+
 class TestDeleteChannel:
     def test_deletes_channel(self):
         ch = channel_service.create_channel("ToDelete", "spotify", {}, "similar_songs")

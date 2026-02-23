@@ -158,7 +158,7 @@ class CollectionAnalyzer:
         for artist in artists_to_search:
             try:
                 results = discogs_service.search(
-                    artist=artist, type="master", per_page=20, page=_rand_page(),
+                    artist=artist, type="release", per_page=20, page=_rand_page(),
                     **year_param)
                 _add_candidates(results)
             except Exception:

@@ -18,6 +18,11 @@
             <li><a href="/recommendations" {% if active_page == 'recommendations' %}class="active"{% endif %}>Recommendations</a></li>
             <li><a href="/radio" {% if active_page == 'radio' %}class="active"{% endif %}>Radio</a></li>
             <li><a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a></li>
+            {% if user %}
+            {% if user.is_admin %}<li><a href="/admin">Admin</a></li>{% endif %}
+            <li><small style="opacity:0.7">{{ user.display_name }}</small></li>
+            <li><a href="/logout">Logout</a></li>
+            {% endif %}
         </ul>
     </nav>
 

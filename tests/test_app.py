@@ -6,6 +6,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+MOCK_USER = {
+    "id": "test_admin_id",
+    "display_name": "testuser",
+    "discogs_username": None,
+    "discogs_token": None,
+    "is_admin": 1,
+    "created_at": "2024-01-01T00:00:00",
+}
+
+
 # Patch config before importing app
 @pytest.fixture(autouse=True)
 def mock_services():
@@ -14,7 +24,9 @@ def mock_services():
          patch("app.claude") as mock_claude, \
          patch("app.radio") as mock_radio, \
          patch("app.cache") as mock_cache, \
-         patch("app.thumbs") as mock_thumbs:
+         patch("app.thumbs") as mock_thumbs, \
+         patch("app.channel_service") as mock_channels, \
+         patch("app.auth_service") as mock_auth:
         # Default returns
         mock_cache.get.return_value = None
         mock_discogs.get_full_collection.return_value = [
@@ -27,24 +39,57 @@ def mock_services():
                 "date_added": "2024-01-01",
             }
         ]
+        mock_discogs.username = "testuser"
         mock_thumbs.get_thumbs_summary.return_value = "No liked songs yet."
+        mock_thumbs.get_dislikes_summary.return_value = ""
+        mock_thumbs.get_play_history_summary.return_value = ""
+        mock_thumbs.get_recently_recommended_artists.return_value = set()
+        mock_thumbs.load_thumbs.return_value = []
+        mock_thumbs.load_history.return_value = []
         mock_thumbs.save_thumb.return_value = {
             "artist": "Test", "title": "Song", "album": "",
             "genres": [], "styles": [], "timestamp": "2024-01-01",
         }
+        mock_thumbs.save_dislike.return_value = {
+            "artist": "Test", "title": "Song", "album": "",
+            "genres": [], "styles": [], "timestamp": "2024-01-01",
+        }
+        mock_thumbs.save_play.return_value = {
+            "artist": "Test", "title": "Song", "album": "",
+            "genres": [], "styles": [], "played_at": "2024-01-01",
+        }
+
+        # Auth mocking
+        mock_auth.COOKIE_NAME = "session_id"
+        mock_auth.validate_session.return_value = MOCK_USER
+
+        # Channel mocking
+        mock_channels.load_channels.return_value = [{
+            "id": "my-collection", "name": "My Collection",
+            "source_type": "discogs", "source_data": {},
+            "mode": "similar_songs", "discovery": 30,
+            "era_from": None, "era_to": None,
+            "ai_model": "claude-sonnet",
+            "created_at": "2026-01-01T00:00:00", "is_default": True,
+        }]
+
         yield {
             "discogs": mock_discogs,
             "claude": mock_claude,
             "radio": mock_radio,
             "cache": mock_cache,
             "thumbs": mock_thumbs,
+            "channels": mock_channels,
+            "auth": mock_auth,
         }
 
 
 @pytest.fixture
 def client():
     from app import app
-    return TestClient(app)
+    c = TestClient(app)
+    c.cookies.set("session_id", "test-session")
+    return c
 
 
 class TestSecurityHeaders:
@@ -65,6 +110,32 @@ class TestSecurityHeaders:
     def test_xss_protection(self, client):
         response = client.get("/")
         assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+
+
+class TestAuthMiddleware:
+    """Tests for auth middleware."""
+
+    def test_unauthenticated_redirects_to_login(self, mock_services):
+        mock_services["auth"].validate_session.return_value = None
+        from app import app
+        c = TestClient(app, follow_redirects=False)
+        response = c.get("/")
+        assert response.status_code == 302
+        assert "/login" in response.headers.get("location", "")
+
+    def test_static_files_bypass_auth(self, mock_services):
+        mock_services["auth"].validate_session.return_value = None
+        from app import app
+        c = TestClient(app, follow_redirects=False)
+        response = c.get("/static/css/style.css")
+        assert response.status_code != 302
+
+    def test_login_page_bypasses_auth(self, mock_services):
+        mock_services["auth"].validate_session.return_value = None
+        from app import app
+        c = TestClient(app)
+        response = c.get("/login")
+        assert response.status_code == 200
 
 
 class TestHomeRoute:

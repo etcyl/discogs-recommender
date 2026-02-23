@@ -9,62 +9,96 @@ from services.radio_service import RadioService
 
 @pytest.fixture
 def radio_svc():
-    """Create a RadioService with mocked Anthropic client."""
-    with patch("services.radio_service.anthropic.Anthropic") as mock_cls:
-        svc = RadioService(api_key="sk-ant-test-key")
-        yield svc
-
-
-@pytest.fixture
-def mock_claude_response():
-    def _make(text: str):
-        mock_msg = MagicMock()
-        mock_content = MagicMock()
-        mock_content.text = text
-        mock_msg.content = [mock_content]
-        return mock_msg
-    return _make
+    """Create a RadioService (no external clients needed)."""
+    return RadioService(anthropic_api_key="sk-ant-test-key")
 
 
 class TestGeneratePlaylist:
     """Tests for generate_playlist()."""
 
-    def test_valid_playlist(self, radio_svc, mock_claude_response, sample_profile, sample_collection):
+    @patch("services.radio_service.call_llm")
+    def test_valid_playlist(self, mock_llm, radio_svc, sample_profile, sample_collection):
         playlist = [
             {"artist": f"Artist{i}", "title": f"Song{i}", "album": f"Album{i}",
              "year": 2000, "reason": "great", "similar_to": []}
             for i in range(40)
         ]
-        radio_svc.client.messages.create.return_value = mock_claude_response(json.dumps(playlist))
+        mock_llm.return_value = json.dumps(playlist)
 
         result = radio_svc.generate_playlist(sample_profile, sample_collection)
         assert len(result) == 40
 
-    def test_embedded_json(self, radio_svc, mock_claude_response, sample_profile, sample_collection):
+    @patch("services.radio_service.call_llm")
+    def test_embedded_json(self, mock_llm, radio_svc, sample_profile, sample_collection):
         text = 'Sure, here is your playlist:\n[{"artist": "A", "title": "B", "album": "C", "year": 2020, "reason": "x", "similar_to": []}]'
-        radio_svc.client.messages.create.return_value = mock_claude_response(text)
+        mock_llm.return_value = text
 
         result = radio_svc.generate_playlist(sample_profile, sample_collection)
         assert len(result) == 1
 
-    def test_invalid_json_returns_empty(self, radio_svc, mock_claude_response, sample_profile, sample_collection):
-        radio_svc.client.messages.create.return_value = mock_claude_response("no json here")
+    @patch("services.radio_service.call_llm")
+    def test_invalid_json_returns_empty(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "no json here"
         result = radio_svc.generate_playlist(sample_profile, sample_collection)
         assert result == []
 
-    def test_thumbs_summary_included(self, radio_svc, mock_claude_response, sample_profile, sample_collection):
-        radio_svc.client.messages.create.return_value = mock_claude_response("[]")
+    @patch("services.radio_service.call_llm")
+    def test_thumbs_summary_included(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
         radio_svc.generate_playlist(sample_profile, sample_collection, thumbs_summary="Radiohead - Creep")
 
-        prompt = radio_svc.client.messages.create.call_args[1]["messages"][0]["content"]
-        assert "Radiohead - Creep" in prompt
+        call_kwargs = mock_llm.call_args[1]
+        assert "Radiohead - Creep" in call_kwargs["user_prompt"]
 
-    def test_empty_thumbs(self, radio_svc, mock_claude_response, sample_profile, sample_collection):
-        radio_svc.client.messages.create.return_value = mock_claude_response("[]")
+    @patch("services.radio_service.call_llm")
+    def test_empty_thumbs(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
         radio_svc.generate_playlist(sample_profile, sample_collection, thumbs_summary="")
 
-        prompt = radio_svc.client.messages.create.call_args[1]["messages"][0]["content"]
-        assert "first session" in prompt
+        call_kwargs = mock_llm.call_args[1]
+        assert "first session" in call_kwargs["user_prompt"]
+
+    @patch("services.radio_service.call_llm")
+    def test_ai_model_passed_through(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
+        radio_svc.generate_playlist(sample_profile, sample_collection, ai_model="ollama")
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "ollama"
+
+    @patch("services.radio_service.call_llm")
+    def test_default_ai_model_is_claude_sonnet(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
+        radio_svc.generate_playlist(sample_profile, sample_collection)
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "claude-sonnet"
+
+
+class TestGeneratePlaylistFromTracks:
+    """Tests for generate_playlist_from_tracks()."""
+
+    @patch("services.radio_service.call_llm")
+    def test_ai_model_passed_through(self, mock_llm, radio_svc):
+        mock_llm.return_value = "[]"
+        tracks = [{"artist": "A", "title": "B", "album": "C", "year": 2020}]
+        radio_svc.generate_playlist_from_tracks(tracks, ai_model="claude-haiku")
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "claude-haiku"
+
+
+class TestGenerateThemedPlaylist:
+    """Tests for generate_themed_playlist()."""
+
+    @patch("services.radio_service.call_llm")
+    def test_ai_model_passed_through(self, mock_llm, radio_svc, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
+        radio_svc.generate_themed_playlist(sample_profile, sample_collection,
+                                           "chill vibes", ai_model="ollama")
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "ollama"
 
 
 class TestResolveYoutubeIds:

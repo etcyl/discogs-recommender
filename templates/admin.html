@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Admin - Discogs Recommender{% endblock %}
+
+{% block content %}
+<h2>Admin Panel</h2>
+
+<!-- Invite Links Section -->
+<section>
+    <h3>Invite Links</h3>
+    <p>Generate invite links to let others use the app with their own isolated data.</p>
+
+    <div style="display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap;">
+        <div>
+            <label for="invite-label">Label (optional)</label>
+            <input type="text" id="invite-label" placeholder="e.g., Bob" maxlength="100" style="margin-bottom: 0;">
+        </div>
+        <button id="generate-invite-btn" onclick="generateInvite()" style="margin-bottom: 0;">Generate Invite Link</button>
+    </div>
+
+    <div id="invite-result" style="display:none; margin-top: 1rem;">
+        <label>Share this link:</label>
+        <input type="text" id="invite-url" readonly onclick="this.select()">
+        <button onclick="copyInvite()" class="outline" style="margin-top: 0.5rem;">Copy</button>
+    </div>
+
+    <table style="margin-top: 1rem;">
+        <thead>
+            <tr>
+                <th>Label</th>
+                <th>Token</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Used By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invites %}
+            <tr id="invite-row-{{ inv.token[:12] }}">
+                <td>
+                    <span class="label-display" id="label-{{ inv.token[:12] }}">{{ inv.label or "--" }}</span>
+                    <input type="text" class="label-edit" id="label-input-{{ inv.token[:12] }}"
+                           value="{{ inv.label or '' }}" maxlength="100"
+                           style="display:none; margin:0; padding:0.2rem 0.4rem; font-size:0.85rem; width:120px;"
+                           onkeydown="if(event.key==='Enter')saveLabel('{{ inv.token }}','{{ inv.token[:12] }}')">
+                </td>
+                <td><code>{{ inv.token[:12] }}...</code></td>
+                <td>{{ inv.created_at[:16] }}</td>
+                <td>
+                    {% if inv.used_by %}
+                        Used
+                    {% elif not inv.is_active %}
+                        Revoked
+                    {% else %}
+                        Active
+                    {% endif %}
+                </td>
+                <td>{{ inv.used_by_name or "--" }}</td>
+                <td style="white-space: nowrap;">
+                    <button class="outline secondary" style="padding:0.2rem 0.4rem; font-size:0.8rem;"
+                            onclick="editLabel('{{ inv.token[:12] }}')">Edit</button>
+                    {% if inv.is_active and not inv.used_by %}
+                    <button class="outline secondary" style="padding:0.2rem 0.4rem; font-size:0.8rem;"
+                            onclick="revokeInvite('{{ inv.token }}')">Revoke</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not invites %}
+            <tr><td colspan="6">No invites generated yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</section>
+
+<!-- Users Section -->
+<section style="margin-top: 2rem;">
+    <h3>Users</h3>
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Discogs Account</th>
+                <th>Joined</th>
+                <th>Status</th>
+                <th>AI Models</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr id="user-row-{{ u.id[:8] }}">
+                <td>
+                    <span class="name-display" id="name-{{ u.id[:8] }}">{{ u.display_name }}</span>
+                    <input type="text" class="name-edit" id="name-input-{{ u.id[:8] }}"
+                           value="{{ u.display_name }}" maxlength="100"
+                           style="display:none; margin:0; padding:0.2rem 0.4rem; font-size:0.85rem; width:120px;"
+                           onkeydown="if(event.key==='Enter')saveName('{{ u.id }}','{{ u.id[:8] }}')">
+                </td>
+                <td>{{ u.discogs_username or "Shared collection" }}</td>
+                <td>{{ u.created_at[:10] }}</td>
+                <td>
+                    {% if u.is_suspended %}
+                        <span style="color: var(--pico-del-color);">Suspended</span>
+                    {% else %}
+                        Active
+                    {% endif %}
+                </td>
+                <td>
+                    <select style="margin:0; padding:0.2rem 0.4rem; font-size:0.85rem; width:auto;"
+                            onchange="saveModelAccess('{{ u.id }}', this.value)">
+                        <option value="all" {% if (u.allowed_models or 'all') == 'all' %}selected{% endif %}>All Models</option>
+                        <option value="claude-sonnet,claude-haiku" {% if (u.allowed_models or 'all') == 'claude-sonnet,claude-haiku' %}selected{% endif %}>Claude Only</option>
+                        <option value="ollama" {% if (u.allowed_models or 'all') == 'ollama' %}selected{% endif %}>Ollama Only</option>
+                        <option value="claude-sonnet" {% if (u.allowed_models or 'all') == 'claude-sonnet' %}selected{% endif %}>Sonnet Only</option>
+                        <option value="claude-haiku" {% if (u.allowed_models or 'all') == 'claude-haiku' %}selected{% endif %}>Haiku Only</option>
+                    </select>
+                </td>
+                <td style="white-space: nowrap;">
+                    <button class="outline secondary" style="padding:0.2rem 0.4rem; font-size:0.8rem;"
+                            onclick="editName('{{ u.id[:8] }}')">Rename</button>
+                    {% if u.is_suspended %}
+                    <button class="outline" style="padding:0.2rem 0.4rem; font-size:0.8rem;"
+                            onclick="unsuspendUser('{{ u.id }}')">Unsuspend</button>
+                    {% else %}
+                    <button class="outline secondary" style="padding:0.2rem 0.4rem; font-size:0.8rem;"
+                            onclick="suspendUser('{{ u.id }}', '{{ u.display_name }}')">Suspend</button>
+                    {% endif %}
+                    <button class="outline" style="padding:0.2rem 0.4rem; font-size:0.8rem; color:var(--pico-del-color); border-color:var(--pico-del-color);"
+                            onclick="deleteUser('{{ u.id }}', '{{ u.display_name }}')">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No invited users yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generateInvite() {
+    const btn = document.getElementById('generate-invite-btn');
+    const label = document.getElementById('invite-label').value.trim();
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    try {
+        const resp = await fetch('/admin/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label }),
+        });
+        const data = await resp.json();
+        if (data.url) {
+            const fullUrl = window.location.origin + data.url;
+            document.getElementById('invite-url').value = fullUrl;
+            document.getElementById('invite-result').style.display = 'block';
+        }
+    } catch (e) {
+        alert('Failed to generate invite.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate Invite Link';
+}
+
+function copyInvite() {
+    const input = document.getElementById('invite-url');
+    input.select();
+    navigator.clipboard.writeText(input.value);
+}
+
+async function revokeInvite(token) {
+    if (!confirm('Revoke this invite?')) return;
+    await fetch('/admin/revoke-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+    });
+    location.reload();
+}
+
+function editLabel(shortToken) {
+    document.getElementById('label-' + shortToken).style.display = 'none';
+    const input = document.getElementById('label-input-' + shortToken);
+    input.style.display = 'inline-block';
+    input.focus();
+}
+
+async function saveLabel(fullToken, shortToken) {
+    const input = document.getElementById('label-input-' + shortToken);
+    const label = input.value.trim();
+    await fetch('/admin/update-invite-label', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: fullToken, label }),
+    });
+    document.getElementById('label-' + shortToken).textContent = label || '--';
+    document.getElementById('label-' + shortToken).style.display = 'inline';
+    input.style.display = 'none';
+}
+
+function editName(shortId) {
+    document.getElementById('name-' + shortId).style.display = 'none';
+    const input = document.getElementById('name-input-' + shortId);
+    input.style.display = 'inline-block';
+    input.focus();
+}
+
+async function saveName(fullId, shortId) {
+    const input = document.getElementById('name-input-' + shortId);
+    const name = input.value.trim();
+    if (!name) return;
+    await fetch('/admin/rename-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: fullId, name }),
+    });
+    document.getElementById('name-' + shortId).textContent = name;
+    document.getElementById('name-' + shortId).style.display = 'inline';
+    input.style.display = 'none';
+}
+
+async function suspendUser(userId, name) {
+    if (!confirm(`Suspend ${name}? They will be logged out and unable to access the app.`)) return;
+    await fetch('/admin/suspend-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+    });
+    location.reload();
+}
+
+async function unsuspendUser(userId) {
+    await fetch('/admin/unsuspend-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+    });
+    location.reload();
+}
+
+async function deleteUser(userId, name) {
+    if (!confirm(`Delete ${name}? This cannot be undone. Their data will remain on disk.`)) return;
+    await fetch('/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+    });
+    location.reload();
+}
+
+async function saveModelAccess(userId, allowedModels) {
+    await fetch('/admin/update-user-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, allowed_models: allowedModels }),
+    });
+}
+</script>
+{% endblock %}

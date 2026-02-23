@@ -10,76 +10,83 @@ from services.claude_recommender import ClaudeRecommender
 
 @pytest.fixture
 def recommender():
-    """Create a ClaudeRecommender with mocked Anthropic client."""
-    with patch("services.claude_recommender.anthropic.Anthropic") as mock_cls:
-        rec = ClaudeRecommender(api_key="sk-ant-test-key")
-        yield rec
-
-
-@pytest.fixture
-def mock_claude_response():
-    """Factory to create mock Claude API responses."""
-    def _make(text: str):
-        mock_msg = MagicMock()
-        mock_content = MagicMock()
-        mock_content.text = text
-        mock_msg.content = [mock_content]
-        return mock_msg
-    return _make
+    """Create a ClaudeRecommender (no external clients needed)."""
+    return ClaudeRecommender(api_key="sk-ant-test-key")
 
 
 class TestGetRecommendations:
     """Tests for get_recommendations()."""
 
-    def test_valid_json_response(self, recommender, mock_claude_response, sample_profile, sample_collection):
+    @patch("services.claude_recommender.call_llm")
+    def test_valid_json_response(self, mock_llm, recommender, sample_profile, sample_collection):
         valid_json = json.dumps([
             {"artist": "Boards of Canada", "album": "Music Has the Right to Children",
              "year": 1998, "reason": "Ambient electronic", "genres": ["Electronic"],
              "styles": ["IDM"], "tracks": [{"title": "Roygbiv", "reason": "dreamy synths"}]}
         ])
-        recommender.client.messages.create.return_value = mock_claude_response(valid_json)
+        mock_llm.return_value = valid_json
 
         result = recommender.get_recommendations(sample_profile, sample_collection)
         assert len(result) == 1
         assert result[0]["artist"] == "Boards of Canada"
 
-    def test_json_with_surrounding_text(self, recommender, mock_claude_response, sample_profile, sample_collection):
-        """CWE-502: Handle Claude returning JSON embedded in prose."""
+    @patch("services.claude_recommender.call_llm")
+    def test_json_with_surrounding_text(self, mock_llm, recommender, sample_profile, sample_collection):
+        """CWE-502: Handle LLM returning JSON embedded in prose."""
         text = 'Here are my recommendations:\n[{"artist": "Test", "album": "A", "year": 2020, "reason": "x", "genres": [], "styles": [], "tracks": []}]\nHope you enjoy!'
-        recommender.client.messages.create.return_value = mock_claude_response(text)
+        mock_llm.return_value = text
 
         result = recommender.get_recommendations(sample_profile, sample_collection)
         assert len(result) == 1
 
-    def test_invalid_json_returns_empty(self, recommender, mock_claude_response, sample_profile, sample_collection):
-        recommender.client.messages.create.return_value = mock_claude_response("not json at all")
+    @patch("services.claude_recommender.call_llm")
+    def test_invalid_json_returns_empty(self, mock_llm, recommender, sample_profile, sample_collection):
+        mock_llm.return_value = "not json at all"
         result = recommender.get_recommendations(sample_profile, sample_collection)
         assert result == []
 
-    def test_empty_response_returns_empty(self, recommender, mock_claude_response, sample_profile, sample_collection):
-        recommender.client.messages.create.return_value = mock_claude_response("")
+    @patch("services.claude_recommender.call_llm")
+    def test_empty_response_returns_empty(self, mock_llm, recommender, sample_profile, sample_collection):
+        mock_llm.return_value = ""
         result = recommender.get_recommendations(sample_profile, sample_collection)
         assert result == []
 
-    def test_multiple_recommendations(self, recommender, mock_claude_response, sample_profile, sample_collection):
+    @patch("services.claude_recommender.call_llm")
+    def test_multiple_recommendations(self, mock_llm, recommender, sample_profile, sample_collection):
         recs = [
             {"artist": f"Artist{i}", "album": f"Album{i}", "year": 2000 + i,
              "reason": "test", "genres": ["Rock"], "styles": ["Indie"],
              "tracks": [{"title": "Song", "reason": "good"}]}
             for i in range(15)
         ]
-        recommender.client.messages.create.return_value = mock_claude_response(json.dumps(recs))
+        mock_llm.return_value = json.dumps(recs)
 
         result = recommender.get_recommendations(sample_profile, sample_collection)
         assert len(result) == 15
 
-    def test_preferences_included_in_prompt(self, recommender, mock_claude_response, sample_profile, sample_collection):
-        recommender.client.messages.create.return_value = mock_claude_response("[]")
+    @patch("services.claude_recommender.call_llm")
+    def test_preferences_included_in_prompt(self, mock_llm, recommender, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
 
         recommender.get_recommendations(sample_profile, sample_collection, preferences="I love jazz")
-        call_args = recommender.client.messages.create.call_args
-        prompt_text = call_args[1]["messages"][0]["content"]
-        assert "I love jazz" in prompt_text
+        call_kwargs = mock_llm.call_args[1]
+        assert "I love jazz" in call_kwargs["user_prompt"]
+
+    @patch("services.claude_recommender.call_llm")
+    def test_ai_model_passed_through(self, mock_llm, recommender, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
+        recommender.get_recommendations(sample_profile, sample_collection, ai_model="ollama")
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "ollama"
+
+    @patch("services.claude_recommender.call_llm")
+    def test_default_ai_model_is_claude_sonnet(self, mock_llm, recommender, sample_profile, sample_collection):
+        mock_llm.return_value = "[]"
+        recommender.get_recommendations(sample_profile, sample_collection)
+
+        call_kwargs = mock_llm.call_args[1]
+        assert call_kwargs["provider"] == "claude-sonnet"
 
 
 class TestEnrichWithDiscogs:

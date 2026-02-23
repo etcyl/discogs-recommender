@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Login - Discogs Recommender{% endblock %}
+
+{% block content %}
+<article style="max-width: 500px; margin: 2rem auto;">
+    <header>
+        <h2>Discogs Recommender</h2>
+    </header>
+
+    {% if error %}
+    <p style="color: var(--pico-del-color);"><strong>{{ error }}</strong></p>
+    {% endif %}
+
+    <p>This app is invite-only. If someone shared a link with you, use that to join.</p>
+
+    <details>
+        <summary>Admin Login</summary>
+        <form method="post" action="/login" style="margin-top: 1rem;">
+            <label for="discogs_token">Discogs Personal Access Token</label>
+            <input type="password" id="discogs_token" name="discogs_token"
+                   placeholder="Enter your Discogs token" required>
+            <button type="submit">Login</button>
+        </form>
+    </details>
+</article>
+{% endblock %}
