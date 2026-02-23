@@ -233,11 +233,22 @@ def _template_context(request: Request, **kwargs) -> dict:
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """Show login page."""
+    """Show login page. Auto-login admin from localhost."""
     # If already logged in, redirect home
     session_id = request.cookies.get(auth_service.COOKIE_NAME)
     if session_id and auth_service.validate_session(session_id):
         return RedirectResponse(url="/", status_code=302)
+
+    # Auto-login admin when accessing from localhost (no token needed)
+    client_ip = request.client.host if request.client else ""
+    if client_ip in ("127.0.0.1", "::1", "localhost"):
+        admin = auth_service.get_admin_user()
+        if admin:
+            new_session = auth_service.create_session(admin["id"])
+            response = RedirectResponse(url="/", status_code=302)
+            auth_service.set_session_cookie(response, new_session)
+            return response
+
     return templates.TemplateResponse("login.html", {"request": request})
 
 
