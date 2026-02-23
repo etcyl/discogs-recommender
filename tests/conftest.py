@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 # Set environment variables BEFORE importing anything that reads config
+os.environ["TESTING"] = "1"
 os.environ.setdefault("DISCOGS_TOKEN", "test_token_1234567890")
 os.environ.setdefault("DISCOGS_USERNAME", "testuser")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-for-unit-tests")

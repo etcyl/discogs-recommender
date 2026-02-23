@@ -1,7 +1,11 @@
 import asyncio
+import hmac
 import json
 import logging
+import os
 import re
+import time
+from collections import defaultdict
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Query, UploadFile, File, Form
@@ -31,8 +35,13 @@ app = FastAPI(title="Discogs Recommender", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-# Trusted host middleware (CWE-346)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "*"])
+# Trusted host middleware (CWE-346) — allow localhost + any *.trycloudflare.com tunnel
+_ALLOWED_HOSTS = [
+    "localhost", "127.0.0.1", "*.trycloudflare.com",
+]
+if os.environ.get("TESTING"):
+    _ALLOWED_HOSTS.append("testserver")
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
 
 # Initialize services
 discogs = DiscogsService(settings.app_name, settings.discogs_token, settings.discogs_username)
@@ -123,7 +132,35 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "img-src 'self' data: https://i.discogs.com; "
+        "media-src 'self' https://*.googlevideo.com; "
+        "frame-src https://www.youtube.com https://www.youtube-nocookie.com; "
+        "connect-src 'self'"
+    )
     return response
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (in-memory, resets on restart)
+# ---------------------------------------------------------------------------
+
+_rate_limits: dict[str, list[float]] = defaultdict(list)
+
+
+def _is_rate_limited(key: str, max_requests: int = 10, window_seconds: int = 60) -> bool:
+    """Return True if the key has exceeded max_requests in the time window."""
+    now = time.time()
+    timestamps = _rate_limits[key]
+    # Remove expired entries
+    _rate_limits[key] = [t for t in timestamps if now - t < window_seconds]
+    if len(_rate_limits[key]) >= max_requests:
+        return True
+    _rate_limits[key].append(now)
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -239,9 +276,10 @@ async def login_page(request: Request):
     if session_id and auth_service.validate_session(session_id):
         return RedirectResponse(url="/", status_code=302)
 
-    # Auto-login admin when accessing from localhost (no token needed)
+    # Auto-login admin when accessing directly from localhost (not through proxy)
     client_ip = request.client.host if request.client else ""
-    if client_ip in ("127.0.0.1", "::1", "localhost"):
+    is_proxied = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
+    if not is_proxied and client_ip in ("127.0.0.1", "::1"):
         admin = auth_service.get_admin_user()
         if admin:
             new_session = auth_service.create_session(admin["id"])
@@ -255,6 +293,12 @@ async def login_page(request: Request):
 @app.post("/login")
 async def login_submit(request: Request):
     """Admin login with Discogs token."""
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(f"login:{client_ip}", max_requests=5, window_seconds=60):
+        return templates.TemplateResponse("login.html", {
+            "request": request, "error": "Too many login attempts. Please wait a minute.",
+        })
+
     form = await request.form()
     token = str(form.get("discogs_token", "")).strip()
 
@@ -264,7 +308,7 @@ async def login_submit(request: Request):
         })
 
     admin = auth_service.get_admin_user()
-    if admin and admin.get("discogs_token") == token:
+    if admin and hmac.compare_digest(admin.get("discogs_token", ""), token):
         session_id = auth_service.create_session(admin["id"])
         response = RedirectResponse(url="/", status_code=302)
         auth_service.set_session_cookie(response, session_id)
@@ -292,6 +336,12 @@ async def invite_page(request: Request, token: str):
 @app.post("/invite/{token}")
 async def invite_accept(request: Request, token: str):
     """Process invite acceptance: create user, set session, redirect."""
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(f"invite:{client_ip}", max_requests=5, window_seconds=60):
+        return templates.TemplateResponse("login.html", {
+            "request": request, "error": "Too many attempts. Please wait a minute.",
+        })
+
     form = await request.form()
     display_name = str(form.get("display_name", "")).strip()[:100]
     discogs_username = str(form.get("discogs_username", "")).strip()[:100]

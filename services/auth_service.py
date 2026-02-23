@@ -1,3 +1,4 @@
+import hmac
 import logging
 import secrets
 import shutil
@@ -26,7 +27,7 @@ def set_session_cookie(response: Response, session_id: str) -> None:
         key=COOKIE_NAME,
         value=session_id,
         httponly=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         max_age=COOKIE_MAX_AGE,
         path="/",
@@ -184,7 +185,7 @@ def cleanup_expired_sessions() -> None:
 # ---------------------------------------------------------------------------
 
 def create_invite(created_by: str, expires_hours: int = 72, label: str = "") -> str:
-    token = secrets.token_urlsafe(16)
+    token = secrets.token_urlsafe(32)
     now = datetime.utcnow()
     expires = now + timedelta(hours=expires_hours)
     conn = get_db()
@@ -359,10 +360,32 @@ def update_user_allowed_models(user_id: str, allowed_models: str) -> None:
 # ---------------------------------------------------------------------------
 
 def ensure_admin_exists() -> dict:
-    """Auto-create admin user from .env config on first run. Returns admin user."""
+    """Auto-create admin user from .env config on first run.
+
+    If admin already exists, sync credentials from .env so changes
+    to DISCOGS_USERNAME/DISCOGS_TOKEN take effect without DB edits.
+    """
     from config import settings
     admin = get_admin_user()
     if admin:
+        # Sync credentials from .env in case they changed
+        if (admin.get("discogs_username") != settings.discogs_username
+                or admin.get("discogs_token") != settings.discogs_token):
+            conn = get_db()
+            try:
+                conn.execute(
+                    "UPDATE users SET display_name = ?, discogs_username = ?, discogs_token = ? "
+                    "WHERE id = ?",
+                    (settings.discogs_username, settings.discogs_username,
+                     settings.discogs_token, admin["id"]),
+                )
+                conn.commit()
+                logger.info("Synced admin credentials from .env")
+            finally:
+                conn.close()
+            admin["display_name"] = settings.discogs_username
+            admin["discogs_username"] = settings.discogs_username
+            admin["discogs_token"] = settings.discogs_token
         return admin
     return create_admin_user(
         display_name=settings.discogs_username,
