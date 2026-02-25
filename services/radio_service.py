@@ -1,4 +1,5 @@
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from youtubesearchpython import VideosSearch
 
@@ -49,13 +50,42 @@ class RadioService:
         "\nFocus on classic and influential tracks.",
     ]
 
+    @staticmethod
+    def _spread_artists(songs: list[dict]) -> list[dict]:
+        """Reorder songs so no two consecutive tracks share the same artist.
+
+        Uses a greedy approach: pick the next song whose artist differs from the
+        previous one.  Falls back to allowing a repeat only when no other option
+        remains (e.g. a single artist dominates the list).
+        """
+        if len(songs) <= 1:
+            return songs
+
+        remaining = list(songs)
+        result: list[dict] = [remaining.pop(0)]
+
+        while remaining:
+            last_artist = result[-1].get("artist", "").lower().strip()
+            # Find first candidate whose artist differs
+            for i, song in enumerate(remaining):
+                if song.get("artist", "").lower().strip() != last_artist:
+                    result.append(remaining.pop(i))
+                    break
+            else:
+                # Every remaining song is the same artist — just take one
+                result.append(remaining.pop(0))
+
+        return result
+
     def _batched_generate(self, build_prompts, num_songs: int,
                           ai_model: str = "claude-sonnet",
-                          on_batch=None) -> list[dict]:
+                          on_batch=None,
+                          exclude_tracks: list[dict] | None = None) -> list[dict]:
         """Generate songs using parallel LLM calls, then dedup.
 
         Fires multiple requests simultaneously for speed, each with a
         different variety hint to encourage diversity, then deduplicates.
+        exclude_tracks: optional list of source tracks to filter out (e.g. from Spotify input).
         """
         is_ollama = ai_model == "ollama"
         is_haiku = ai_model == "claude-haiku"
@@ -72,7 +102,7 @@ class RadioService:
 
         def _max_tokens_for(batch_size):
             if is_ollama:
-                return max(2000, batch_size * 60)
+                return max(3000, batch_size * 150)
             elif is_haiku:
                 return max(4000, batch_size * 150)
             return max(4000, batch_size * 150)
@@ -90,6 +120,12 @@ class RadioService:
 
         all_songs: list[dict] = []
         seen: set[tuple[str, str]] = set()
+
+        # Pre-seed seen set with source tracks so generated songs don't duplicate them
+        if exclude_tracks:
+            for t in exclude_tracks:
+                seen.add((t.get("artist", "").lower().strip(),
+                          t.get("title", "").lower().strip()))
 
         with ThreadPoolExecutor(max_workers=num_workers) as pool:
             futures = [pool.submit(_run_one, i) for i in range(num_workers)]
@@ -130,7 +166,7 @@ class RadioService:
                         all_songs.append(song)
                 logger.info("Top-up: total unique %d/%d", len(all_songs), num_songs)
 
-        return all_songs[:num_songs]
+        return self._spread_artists(all_songs[:num_songs])
 
     def _discovery_guidance(self, discovery: int) -> str:
         """Return prompt guidance based on the discovery slider level (0-100)."""
@@ -209,7 +245,11 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
         def build_prompts(batch_size, already_picked):
             if is_ollama or is_haiku:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs.
-Return a JSON array of objects with keys: artist, title, album, year
+IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
+Return a JSON array of objects with keys: artist, title, album, year, reason, similar_to
+The "reason" should be 1 short sentence about why this song fits.
+The "similar_to" should be an array of 1-2 artist names from the listener's collection that connect to this pick.
+Example: "similar_to": ["Radiohead", "Massive Attack"]
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Recommend {batch_size} songs for a listener with this taste:
@@ -218,6 +258,7 @@ Return ONLY the JSON array, no other text."""
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 {f"Recently played (DO NOT repeat): {play_history_summary}" if play_history_summary else ""}
 Discovery: {discovery}/100 (0=familiar, 100=adventurous)
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
 {discovery_guide}
 {era_guide}{already_picked}"""
             else:
@@ -234,6 +275,8 @@ CURATION PHILOSOPHY:
 - If they have thumbs-up history, lean INTO those preferences but still push boundaries
 - NEVER repeat a song from the thumbs-up history or the disliked list
 - Avoid overly obvious hits — dig for the deeper cuts
+- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
+  Spread picks across different genres, decades, labels, and countries.
 
 For EACH song, include a "similar_to" field: an array of 1-3 specific
 artist+album combos FROM THE LISTENER'S COLLECTION that this song connects to,
@@ -248,6 +291,7 @@ The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Create a radio playlist of {batch_size} SONGS based on this listener's Discogs collection.
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
 
 COLLECTION PROFILE:
 {summary}
@@ -289,6 +333,13 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
             resolved = [r for r in results if r is not None]
         return resolved
 
+    # Patterns that indicate a live performance — skip these YouTube results
+    _LIVE_PATTERNS = re.compile(
+        r'\b(?:live\s+at|live\s+from|live\s+on|live\s+in|live\s+session'
+        r'|bbc\s+session|peel\s+session|concert|live\))',
+        re.IGNORECASE,
+    )
+
     def _find_youtube_video(self, artist: str, title: str) -> dict | None:
         """Search YouTube for a song, return video info with backup IDs. Cached 24hr."""
         cache_key = f"yt:{artist.lower()}:{title.lower()}"
@@ -298,10 +349,10 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
 
         all_results = []
         try:
-            search = VideosSearch(f"{artist} {title} official audio", limit=5)
+            search = VideosSearch(f"{artist} {title} official audio", limit=8)
             all_results = search.result().get("result", [])
             if not all_results:
-                search = VideosSearch(f"{artist} {title}", limit=5)
+                search = VideosSearch(f"{artist} {title}", limit=8)
                 all_results = search.result().get("result", [])
         except Exception:
             pass
@@ -309,14 +360,49 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
         if not all_results:
             return None
 
-        best = all_results[0]
+        def _duration_seconds(d: str) -> int:
+            """Parse '3:45' or '1:02:30' to seconds. Returns -1 if unparseable."""
+            if not d:
+                return -1
+            try:
+                parts = d.split(":")
+                if len(parts) == 3:
+                    return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                if len(parts) == 2:
+                    return int(parts[0]) * 60 + int(parts[1])
+            except (ValueError, AttributeError):
+                pass
+            return -1
+
+        MAX_DURATION = 420  # 7 minutes — filter out long videos / full albums
+
+        def _is_acceptable(r) -> bool:
+            """Return True if the result isn't too long and isn't a live recording."""
+            dur = _duration_seconds(r.get("duration", ""))
+            if dur > MAX_DURATION:
+                return False
+            yt_title = r.get("title", "")
+            if self._LIVE_PATTERNS.search(yt_title):
+                return False
+            return True
+
+        filtered = [r for r in all_results
+                     if 0 < _duration_seconds(r.get("duration", "")) and _is_acceptable(r)]
+        # Fall back: try duration-only filter (allow live if nothing else)
+        if not filtered:
+            filtered = [r for r in all_results
+                         if 0 < _duration_seconds(r.get("duration", "")) <= MAX_DURATION]
+        # Last resort: take the first result
+        candidates = filtered or all_results[:1]
+
+        best = candidates[0]
         info = {
             "videoId": best["id"],
             "thumbnail": (best.get("thumbnails", [{}])[-1].get("url", "")
                           if best.get("thumbnails") else ""),
             "duration": best.get("duration", ""),
             "ytTitle": best.get("title", ""),
-            "altVideoIds": [r["id"] for r in all_results[1:]],
+            "altVideoIds": [r["id"] for r in candidates[1:]],
         }
         cache.set(cache_key, info, ttl=86400)
         return info
@@ -376,13 +462,17 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
             if is_ollama or is_haiku:
                 mode_hint = "new discoveries from different genres" if mode == "new_discoveries" else "similar songs"
                 system_text = f"""You are a music curator. Recommend {batch_size} {mode_hint}.
-Return a JSON array of objects with keys: artist, title, album, year
+IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
+Return a JSON array of objects with keys: artist, title, album, year, reason, similar_to
+The "reason" should be 1 short sentence about why this song fits.
+The "similar_to" should be an array of 1-2 artist names from the input playlist that connect to this pick.
 Do NOT repeat songs from the input playlist. Return ONLY the JSON array."""
 
                 user_text = f"""Recommend {batch_size} songs based on this playlist:
 {track_listing}
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 Discovery: {discovery}/100
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
 {era_guide}{already_picked}"""
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
@@ -391,6 +481,8 @@ Discovery: {discovery}/100
 RULES:
 - Do NOT repeat any song from the input playlist.
 - NEVER repeat a song from the disliked list.
+- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
+  Spread picks across different genres, decades, labels, and countries.
 - For EACH song, include a "similar_to" field referencing 1-3 songs from the INPUT playlist
   that this recommendation connects to, and briefly why.
 
@@ -402,6 +494,7 @@ The "similar_to" should be an array like: [{{"artist": "Tame Impala", "album": "
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Create a radio playlist of {batch_size} SONGS based on this Spotify playlist.
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
 
 PLAYLIST TRACKS:
 {track_listing}
@@ -417,7 +510,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
             return system_text, user_text
 
         return self._batched_generate(build_prompts, num_songs, ai_model=ai_model,
-                                      on_batch=on_batch)
+                                      on_batch=on_batch, exclude_tracks=tracks)
 
     def generate_themed_playlist(self, profile: dict, collection: list[dict],
                                     theme: str,
@@ -455,7 +548,11 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
         def build_prompts(batch_size, already_picked):
             if is_ollama or is_haiku:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs matching the theme: "{theme}"
-Return a JSON array of objects with keys: artist, title, album, year
+IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
+Return a JSON array of objects with keys: artist, title, album, year, reason, similar_to
+The "reason" should be 1 short sentence about why this song fits.
+The "similar_to" should be an array of 1-2 artist names from the listener's collection that connect to this pick.
+Example: "similar_to": ["Radiohead", "Massive Attack"]
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Recommend {batch_size} songs matching "{theme}" for a listener with this taste:
@@ -463,6 +560,7 @@ Return ONLY the JSON array, no other text."""
 {f"Liked: {thumbs_summary}" if thumbs_summary else ""}
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 Discovery: {discovery}/100
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
 {era_guide}{already_picked}"""
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
@@ -477,6 +575,8 @@ CURATION PHILOSOPHY:
 - Create flow: sequence songs so each transition feels intentional
 - NEVER repeat a song from the disliked list
 - Avoid overly obvious hits — dig for the deeper cuts
+- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
+  Spread picks across different genres, decades, labels, and countries.
 
 For EACH song, include a "similar_to" field: an array of 1-3 specific
 artist+album combos FROM THE LISTENER'S COLLECTION that this song connects to.
@@ -489,6 +589,7 @@ The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Create a themed radio playlist based on this listener's collection.
+IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
 
 COLLECTION PROFILE:
 {summary}

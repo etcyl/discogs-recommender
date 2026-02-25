@@ -16,6 +16,11 @@ let activeChannelId = 'my-collection';
 let menuTargetChannelId = null;
 let activeEventSource = null;
 
+function getActiveAiModel() {
+    const sel = document.querySelector(`.channel-ai-model[data-channel-id="${activeChannelId}"] .channel-ai-model-select`);
+    return sel ? sel.value : 'claude-sonnet';
+}
+
 // ---- YouTube IFrame API ----
 const tag = document.createElement('script');
 tag.src = 'https://www.youtube.com/iframe_api';
@@ -78,70 +83,152 @@ function onPlayerStateChange(event) {
     }
 }
 
+// ---- Inline Progress Bar ----
+let isRefreshing = false;
+
+function showInlineProgress(show) {
+    const bar = document.getElementById('inline-progress');
+    if (bar) bar.style.display = show ? 'flex' : 'none';
+    isRefreshing = show;
+}
+
+function updateInlineProgress(message, percent) {
+    const text = document.getElementById('inline-progress-text');
+    const fill = document.getElementById('inline-progress-fill');
+    if (text) text.textContent = message;
+    if (fill) fill.style.width = percent + '%';
+}
+
 // ---- Playlist Loading (SSE with progress) ----
-function loadPlaylistSSE() {
+function loadPlaylistSSE(isRefreshMode = false) {
     // Close any existing SSE connection
     if (activeEventSource) {
         activeEventSource.close();
         activeEventSource = null;
     }
 
-    showLoading(true);
+    let sseFinished = false;
+    let songsReceived = 0;
+    const isFirstLoad = queue.length === 0 && !isRefreshMode;
+
+    if (isFirstLoad) {
+        // First time: show full-screen overlay
+        showLoading(true);
+    } else {
+        // Refresh: keep player visible, show inline progress
+        showInlineProgress(true);
+        updateInlineProgress('Starting refresh...', 0);
+    }
+
+    // On refresh, save current song and clear upcoming queue
+    const savedCurrentTrack = isRefreshMode && currentIndex >= 0 ? queue[currentIndex] : null;
+    if (isRefreshMode) {
+        // Keep only the currently playing song
+        if (savedCurrentTrack) {
+            queue = [savedCurrentTrack];
+            currentIndex = 0;
+        } else {
+            queue = [];
+            currentIndex = -1;
+        }
+        renderQueue();
+    }
+
     const url = `/api/radio/playlist-stream?channel_id=${encodeURIComponent(activeChannelId)}`;
     const es = new EventSource(url);
     activeEventSource = es;
-    let sseFinished = false;  // Track whether we got a terminal event
 
     es.addEventListener('progress', (e) => {
         const data = JSON.parse(e.data);
-        updateLoadingProgress(data.message, data.percent);
+        if (isFirstLoad) {
+            updateLoadingProgress(data.message, data.percent);
+        } else {
+            updateInlineProgress(data.message, data.percent);
+        }
+    });
+
+    // Progressive song streaming — songs arrive in batches
+    es.addEventListener('song', (e) => {
+        const data = JSON.parse(e.data);
+        if (!data.songs || data.songs.length === 0) return;
+
+        // Append new songs to queue
+        queue.push(...data.songs);
+        songsReceived += data.songs.length;
+        renderQueue();
+
+        // Start playback if this is the first batch
+        if (isFirstLoad && currentIndex === -1) {
+            showLoading(false);
+            currentIndex = -1;
+            playNext();
+        } else if (isRefreshMode && currentIndex === -1) {
+            currentIndex = -1;
+            playNext();
+        }
     });
 
     es.addEventListener('complete', (e) => {
         sseFinished = true;
         es.close();
         activeEventSource = null;
+        showInlineProgress(false);
+
+        if (isFirstLoad) showLoading(false);
+
         const data = JSON.parse(e.data);
-        if (data.playlist && data.playlist.length > 0) {
-            queue = data.playlist;
-            currentIndex = -1;
-            showLoading(false);
-            renderQueue();
-            playNext();
-            // Show "Curated by" badge
-            const badge = document.getElementById('curated-by-badge');
-            if (badge && data.ai_model) {
-                badge.textContent = `curated by ${data.ai_model}`;
-                badge.style.display = '';
-            } else if (badge) {
-                badge.style.display = 'none';
+
+        // Show "Curated by" badge
+        const badge = document.getElementById('curated-by-badge');
+        if (badge && data.ai_model) {
+            badge.textContent = `curated by ${data.ai_model}`;
+            badge.style.display = '';
+        } else if (badge && !data.ai_model) {
+            badge.style.display = 'none';
+        }
+
+        renderQueue();
+
+        // If no songs at all
+        if (queue.length === 0 || (isRefreshMode && songsReceived === 0)) {
+            if (isFirstLoad) {
+                showError('No songs found. Try a different playlist or add more to your collection.');
+            } else {
+                showToast('No new songs found');
             }
-        } else {
-            showError('No songs found. Try a different playlist or add more to your collection.');
         }
     });
 
     // Server-sent "event: error" from our backend
     es.addEventListener('error', (e) => {
-        if (!e.data) return;  // Not a server-sent event — handled by onerror
+        if (!e.data) return;
         sseFinished = true;
+        showInlineProgress(false);
         try {
             const data = JSON.parse(e.data);
-            showError(data.message || 'Failed to load playlist.');
+            if (isFirstLoad) {
+                showError(data.message || 'Failed to load playlist.');
+            } else {
+                showToast(data.message || 'Refresh failed');
+            }
         } catch {
-            showError('Failed to load playlist.');
+            if (isFirstLoad) showError('Failed to load playlist.');
+            else showToast('Refresh failed');
         }
         es.close();
         activeEventSource = null;
     });
 
-    // Connection-level error (network drop, stream ended unexpectedly)
+    // Connection-level error
     es.onerror = () => {
-        if (sseFinished) return;  // Already handled by complete/error event
-        // EventSource will try to reconnect (readyState=CONNECTING).
-        // Only show error if the connection is fully dead.
+        if (sseFinished) return;
         if (es.readyState === EventSource.CLOSED) {
-            showError('Connection lost. Try refreshing the page.');
+            showInlineProgress(false);
+            if (isFirstLoad && queue.length === 0) {
+                showError('Connection lost. Try refreshing the page.');
+            } else {
+                showToast('Connection lost');
+            }
             activeEventSource = null;
         }
     };
@@ -153,21 +240,36 @@ function stopLoading() {
         activeEventSource = null;
     }
     showLoading(false);
-    // Show player with whatever was previously loaded
+    showInlineProgress(false);
     if (queue.length === 0) {
         showError('Generation stopped.');
     }
 }
 
+// Brief toast notification (non-blocking)
+function showToast(msg, duration = 3000) {
+    let toast = document.getElementById('radio-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'radio-toast';
+        toast.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);' +
+            'background:rgba(0,0,0,0.85);color:#fff;padding:0.6rem 1.2rem;border-radius:8px;' +
+            'font-size:0.85rem;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, duration);
+}
+
 function loadPlaylist() {
-    loadPlaylistSSE();
+    loadPlaylistSSE(false);
 }
 
 async function refreshPlaylist() {
-    showLoading(true);
-    resetLoadingUI();
     await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(activeChannelId)}`);
-    loadPlaylistSSE();
+    loadPlaylistSSE(true);
 }
 
 function updateLoadingProgress(message, percent) {
@@ -469,6 +571,8 @@ function playNext() {
     if (currentIndex + 1 < queue.length) {
         currentIndex++;
         loadTrack(queue[currentIndex]);
+    } else if (isRefreshing) {
+        showToast('Loading more songs...');
     }
 }
 
@@ -525,12 +629,23 @@ function updateTrackInfo(track) {
     const similarList = document.getElementById('similar-to-list');
     if (similarSection && similarList) {
         if (track.similar_to && track.similar_to.length > 0) {
-            similarList.innerHTML = track.similar_to.map(s =>
-                `<div class="similar-to-item">
-                    <span class="similar-to-album">${s.artist} — ${s.album}</span>
-                    <span class="similar-to-why">${s.why || ''}</span>
-                </div>`
-            ).join('');
+            const isStringArray = typeof track.similar_to[0] === 'string';
+            if (isStringArray) {
+                // Ollama/Haiku format: ["Radiohead", "Massive Attack"]
+                similarList.innerHTML = track.similar_to.map(name =>
+                    `<div class="similar-to-item">
+                        <span class="similar-to-album">${name}</span>
+                    </div>`
+                ).join('');
+            } else {
+                // Sonnet format: [{artist, album, why}]
+                similarList.innerHTML = track.similar_to.map(s =>
+                    `<div class="similar-to-item">
+                        <span class="similar-to-album">${s.artist} — ${s.album}</span>
+                        <span class="similar-to-why">${s.why || ''}</span>
+                    </div>`
+                ).join('');
+            }
             similarSection.style.display = '';
         } else {
             similarSection.style.display = 'none';
@@ -692,7 +807,7 @@ function renderQueue() {
     list.innerHTML = '';
 
     const start = Math.max(currentIndex, 0);
-    const upcoming = queue.slice(start, start + 10);
+    const upcoming = queue.slice(start);
 
     upcoming.forEach((track, i) => {
         const idx = start + i;
@@ -771,6 +886,7 @@ document.getElementById('btn-cancel-channel')?.addEventListener('click', () => {
     document.getElementById('new-channel-dialog').close();
 });
 document.getElementById('btn-stop-loading')?.addEventListener('click', stopLoading);
+document.getElementById('btn-cancel-refresh')?.addEventListener('click', stopLoading);
 document.querySelectorAll('input[name="channel-type"]').forEach(r => {
     r.addEventListener('change', toggleChannelTypeFields);
 });
@@ -1203,28 +1319,33 @@ function updateMindmapForCurrentTrack() {
     // Add similar_to connections from the playlist data (strongest connections)
     const simNodes = [];
     if (track.similar_to && track.similar_to.length > 0) {
+        const isStringArr = typeof track.similar_to[0] === 'string';
         track.similar_to.forEach((sim, i) => {
             const nodeId = `sim-${i}`;
+            const label = isStringArr ? '' : (sim.album || '');
+            const sublabel = isStringArr ? sim : (sim.artist || '');
+            const why = isStringArr ? '' : (sim.why || '');
             mindmapGraph.addNode({
                 id: nodeId,
-                label: sim.album || '',
-                sublabel: sim.artist || '',
+                label: label,
+                sublabel: sublabel,
                 type: 'collection',
                 radius: 32,
                 depth: 1,
             });
-            mindmapGraph.addEdge(centerId, nodeId, sim.why || '', 0.9);
+            mindmapGraph.addEdge(centerId, nodeId, why, 0.9);
             simNodes.push(nodeId);
         });
     }
 
     // Connect nearby queue songs that share similar_to artists
+    const _getArtist = (s) => typeof s === 'string' ? s : (s.artist || '');
     const currentSimArtists = new Set(
-        (track.similar_to || []).map(s => (s.artist || '').toLowerCase())
+        (track.similar_to || []).map(s => _getArtist(s).toLowerCase())
     );
     queue.forEach((other, i) => {
         if (i === currentIndex || !other.similar_to) return;
-        const shared = other.similar_to.find(s => currentSimArtists.has((s.artist || '').toLowerCase()));
+        const shared = other.similar_to.find(s => currentSimArtists.has(_getArtist(s).toLowerCase()));
         if (shared && !mindmapGraph.nodes.has(`queue-${i}`)) {
             mindmapGraph.addNode({
                 id: `queue-${i}`,
@@ -1234,7 +1355,7 @@ function updateMindmapForCurrentTrack() {
                 radius: 24,
                 depth: 1,
             });
-            mindmapGraph.addEdge(centerId, `queue-${i}`, `Both relate to ${shared.artist}`, 0.5);
+            mindmapGraph.addEdge(centerId, `queue-${i}`, `Both relate to ${_getArtist(shared)}`, 0.5);
         }
     });
 
@@ -1246,9 +1367,10 @@ function updateMindmapForCurrentTrack() {
 
 async function autoExpandMindmap(track, centerId, simNodes) {
     // Expand the center node (current track) — strong connections
+    const _aiModel = encodeURIComponent(getActiveAiModel());
     try {
         const resp = await fetch(
-            `/api/mindmap/expand?artist=${encodeURIComponent(track.artist)}&album=${encodeURIComponent(track.album || track.title)}`
+            `/api/mindmap/expand?artist=${encodeURIComponent(track.artist)}&album=${encodeURIComponent(track.album || track.title)}&ai_model=${_aiModel}`
         );
         if (resp.ok) {
             const data = await resp.json();
@@ -1278,7 +1400,7 @@ async function autoExpandMindmap(track, centerId, simNodes) {
         node.expanded = true;
         try {
             const resp = await fetch(
-                `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}`
+                `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}&ai_model=${_aiModel}`
             );
             if (!resp.ok) continue;
             const data = await resp.json();
@@ -1309,7 +1431,7 @@ async function onMindmapNodeClick(node) {
     const strength = Math.max(0.2, 0.7 - depth * 0.15);
     try {
         const resp = await fetch(
-            `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}`
+            `/api/mindmap/expand?artist=${encodeURIComponent(node.sublabel)}&album=${encodeURIComponent(node.label)}&ai_model=${encodeURIComponent(getActiveAiModel())}`
         );
         if (!resp.ok) return;
         const data = await resp.json();
@@ -1456,7 +1578,7 @@ async function fetchLyricsForTrack(track) {
     container.innerHTML = '<div class="lyrics-placeholder">Loading lyrics...</div>';
 
     try {
-        const resp = await fetch(`/api/lyrics?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}`);
+        const resp = await fetch(`/api/lyrics?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}&ai_model=${encodeURIComponent(getActiveAiModel())}`);
         const data = await resp.json();
         lyricsCache[key] = data;
 
@@ -1605,7 +1727,7 @@ async function fetchMeaningForTrack(track) {
 
     try {
         const resp = await fetch(
-            `/api/song-meaning?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}&album=${encodeURIComponent(track.album || '')}`
+            `/api/song-meaning?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}&album=${encodeURIComponent(track.album || '')}&ai_model=${encodeURIComponent(getActiveAiModel())}`
         );
         const data = await resp.json();
         meaningCache[key] = data;

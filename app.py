@@ -825,7 +825,8 @@ async def radio_playlist_stream(request: Request,
         cache_key = f"radio_playlist:{user['id']}:{channel_id}"
         playlist = cache.get(cache_key)
         if playlist:
-            yield _sse("complete", {"playlist": playlist, "cached": True, "ai_model": ""})
+            yield _sse("song", {"songs": playlist, "total_expected": len(playlist)})
+            yield _sse("complete", {"cached": True, "ai_model": ""})
             return
 
         try:
@@ -1022,7 +1023,7 @@ async def radio_playlist_stream(request: Request,
                 yield _sse("error", {"message": "Unknown channel type."})
                 return
 
-            # Resolve YouTube IDs in chunks
+            # Resolve YouTube IDs in chunks, streaming each batch to the client
             total = len(playlist)
             resolved = []
             chunk_size = 5
@@ -1037,14 +1038,17 @@ async def radio_playlist_stream(request: Request,
                 _task = asyncio.ensure_future(asyncio.to_thread(radio.resolve_youtube_ids, chunk))
                 async for _p in _keepalive_loop(_task):
                     yield _p
-                resolved.extend(_task.result())
+                batch_resolved = _task.result()
+                if batch_resolved:
+                    resolved.extend(batch_resolved)
+                    yield _sse("song", {"songs": batch_resolved, "total_expected": total})
 
             if resolved:
                 thumbs.save_recommendations(resolved, source="radio", data_dir=user_dir)
                 cache.set(cache_key, resolved, ttl=28800)
 
             yield _sse("progress", {"message": "Ready!", "percent": 100})
-            yield _sse("complete", {"playlist": resolved, "cached": False, "ai_model": model_label})
+            yield _sse("complete", {"cached": False, "ai_model": model_label})
 
         except Exception as e:
             yield _sse("error", {"message": str(e)})
@@ -1493,6 +1497,7 @@ async def mindmap_expand(
     request: Request,
     artist: str = Query(..., min_length=1, max_length=300),
     album: str = Query("", max_length=300),
+    ai_model: str = Query("", max_length=20),
 ):
     """Return 3-5 related artists/albums for mindmap expansion."""
     user = request.state.user
@@ -1513,6 +1518,15 @@ async def mindmap_expand(
 
     from services.llm_provider import call_llm as _call_llm
 
+    # Use the requested model if allowed, otherwise fall back
+    allowed = auth_service.get_allowed_models(user)
+    if ai_model and ai_model in allowed:
+        provider = ai_model
+    else:
+        provider = "claude-sonnet" if "claude-sonnet" in allowed else (
+            "claude-haiku" if "claude-haiku" in allowed else "ollama"
+        )
+
     prompt_system = "You suggest closely related artists and albums based on deep music connections."
     prompt_user = (
         f'Given the artist "{artist}" and album "{album}", suggest 3-5 closely related '
@@ -1528,9 +1542,11 @@ async def mindmap_expand(
             _call_llm,
             system_prompt=prompt_system,
             user_prompt=prompt_user,
-            provider="claude-sonnet",
+            provider=provider,
             max_tokens=500,
             anthropic_api_key=settings.anthropic_api_key,
+            ollama_base_url=settings.ollama_base_url,
+            ollama_model=settings.ollama_model,
         )
 
         result = parse_llm_json(text)
@@ -1554,6 +1570,7 @@ async def lyrics_endpoint(
     request: Request,
     artist: str = Query(..., min_length=1, max_length=300),
     title: str = Query(..., min_length=1, max_length=300),
+    ai_model: str = Query("", max_length=20),
 ):
     """Fetch synced/plain lyrics from lrclib.net, fall back to AI recall."""
     cache_key = f"lyrics:{artist.lower()}:{title.lower()}"
@@ -1592,9 +1609,12 @@ async def lyrics_endpoint(
             from services.llm_provider import call_llm as _call_llm
             user = request.state.user
             allowed = auth_service.get_allowed_models(user)
-            provider = "claude-sonnet" if "claude-sonnet" in allowed else (
-                "claude-haiku" if "claude-haiku" in allowed else "ollama"
-            )
+            if ai_model and ai_model in allowed:
+                provider = ai_model
+            else:
+                provider = "claude-sonnet" if "claude-sonnet" in allowed else (
+                    "claude-haiku" if "claude-haiku" in allowed else "ollama"
+                )
 
             ai_text = await asyncio.to_thread(
                 _call_llm,
@@ -1645,6 +1665,7 @@ async def song_meaning_endpoint(
     artist: str = Query(..., min_length=1, max_length=300),
     title: str = Query(..., min_length=1, max_length=300),
     album: str = Query("", max_length=300),
+    ai_model: str = Query("", max_length=20),
 ):
     """AI-generated song interpretation with mood/theme data for dynamic UI theming."""
     user = request.state.user
@@ -1655,11 +1676,14 @@ async def song_meaning_endpoint(
 
     from services.llm_provider import call_llm as _call_llm
 
-    # Determine which AI model to use (user's allowed model)
+    # Use the requested model if allowed, otherwise fall back
     allowed = auth_service.get_allowed_models(user)
-    provider = "ollama" if "ollama" in allowed else "claude-sonnet"
-    if "claude-sonnet" in allowed:
-        provider = "claude-sonnet"
+    if ai_model and ai_model in allowed:
+        provider = ai_model
+    else:
+        provider = "claude-sonnet" if "claude-sonnet" in allowed else (
+            "claude-haiku" if "claude-haiku" in allowed else "ollama"
+        )
 
     album_ctx = f' from the album "{album}"' if album else ""
 
