@@ -364,33 +364,41 @@ def ensure_admin_exists() -> dict:
 
     If admin already exists, sync credentials from .env so changes
     to DISCOGS_USERNAME/DISCOGS_TOKEN take effect without DB edits.
+    If no Discogs credentials are configured, creates a local admin user.
     """
     from config import settings
     admin = get_admin_user()
     if admin:
         # Sync credentials from .env in case they changed
-        if (admin.get("discogs_username") != settings.discogs_username
-                or admin.get("discogs_token") != settings.discogs_token):
+        new_username = settings.discogs_username or admin.get("discogs_username") or "local"
+        new_token = settings.discogs_token or admin.get("discogs_token") or ""
+        new_display = settings.discogs_username or admin.get("display_name") or "Local User"
+        if (admin.get("discogs_username") != new_username
+                or admin.get("discogs_token") != new_token):
             conn = get_db()
             try:
                 conn.execute(
                     "UPDATE users SET display_name = ?, discogs_username = ?, discogs_token = ? "
                     "WHERE id = ?",
-                    (settings.discogs_username, settings.discogs_username,
-                     settings.discogs_token, admin["id"]),
+                    (new_display, new_username, new_token, admin["id"]),
                 )
                 conn.commit()
                 logger.info("Synced admin credentials from .env")
             finally:
                 conn.close()
-            admin["display_name"] = settings.discogs_username
-            admin["discogs_username"] = settings.discogs_username
-            admin["discogs_token"] = settings.discogs_token
+            admin["display_name"] = new_display
+            admin["discogs_username"] = new_username
+            admin["discogs_token"] = new_token
         return admin
+
+    # Create admin — use Discogs creds if available, otherwise local user
+    display_name = settings.discogs_username or "Local User"
+    username = settings.discogs_username or "local"
+    token = settings.discogs_token or ""
     return create_admin_user(
-        display_name=settings.discogs_username,
-        discogs_username=settings.discogs_username,
-        discogs_token=settings.discogs_token,
+        display_name=display_name,
+        discogs_username=username,
+        discogs_token=token,
     )
 
 

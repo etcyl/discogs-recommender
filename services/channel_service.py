@@ -12,12 +12,12 @@ CHANNELS_FILE = DATA_DIR / "channels.json"
 MAX_CHANNELS = 20
 MAX_NAME_LENGTH = 100
 
-VALID_SOURCE_TYPES = {"discogs", "spotify", "upload"}
+VALID_SOURCE_TYPES = {"discogs", "spotify", "youtube", "upload"}
 VALID_MODES = {"play_playlist", "similar_songs", "new_discoveries", "themed"}
 
 VALID_AI_MODELS = {"claude-sonnet", "claude-haiku", "ollama"}
 
-DEFAULT_CHANNEL = {
+DEFAULT_CHANNEL_DISCOGS = {
     "id": "my-collection",
     "name": "My Collection",
     "source_type": "discogs",
@@ -28,6 +28,21 @@ DEFAULT_CHANNEL = {
     "era_to": None,
     "ai_model": "claude-sonnet",
     "num_songs": 50,
+    "created_at": "2026-01-01T00:00:00",
+    "is_default": True,
+}
+
+DEFAULT_CHANNEL_NO_DISCOGS = {
+    "id": "discover",
+    "name": "Discover Music",
+    "source_type": "discogs",
+    "source_data": {"theme": "eclectic mix of great music across genres and decades"},
+    "mode": "themed",
+    "discovery": 50,
+    "era_from": None,
+    "era_to": None,
+    "ai_model": "ollama",
+    "num_songs": 25,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -45,13 +60,25 @@ def _resolve_channels_file(data_dir: Path | None = None) -> Path:
     return d / "channels.json"
 
 
-def load_channels(data_dir: Path | None = None) -> list[dict]:
+def load_channels(data_dir: Path | None = None,
+                   discogs_configured: bool = True) -> list[dict]:
     """Load channels from disk. Ensures default channel always exists."""
     channels_file = _resolve_channels_file(data_dir)
     channels = _load_json_file(channels_file)
     dirty = False
-    if not any(c.get("id") == "my-collection" for c in channels):
-        channels.insert(0, DEFAULT_CHANNEL.copy())
+
+    # Choose appropriate default channel based on Discogs availability
+    if discogs_configured:
+        default_id = "my-collection"
+        default_channel = DEFAULT_CHANNEL_DISCOGS
+    else:
+        default_id = "discover"
+        default_channel = DEFAULT_CHANNEL_NO_DISCOGS
+
+    if not any(c.get("id") == default_id for c in channels):
+        # Remove old default if switching modes
+        channels = [c for c in channels if not c.get("is_default")]
+        channels.insert(0, default_channel.copy())
         dirty = True
     # Migrate: add missing fields
     for ch in channels:

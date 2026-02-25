@@ -10,6 +10,7 @@ youtube-search-python>=1.6.6
 httpx>=0.25.0,<0.28.0  # youtube-search-python uses deprecated proxies kwarg removed in httpx 0.28
 pdfplumber>=0.10.0
 python-multipart>=0.0.6
+yt-dlp>=2024.1.0  # YouTube playlist import (metadata only, no download)
 
 # Testing
 pytest>=8.0.0

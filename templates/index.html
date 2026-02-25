@@ -6,7 +6,7 @@
 {% block content %}
 <hgroup>
     <h1>Welcome, {{ username }}</h1>
-    <p>Your Discogs collection at a glance</p>
+    <p>{% if profile %}Your Discogs collection at a glance{% else %}Discover new music{% endif %}</p>
 </hgroup>
 
 {% if profile %}
@@ -97,6 +97,45 @@
     <a href="/recommendations?engine=claude" role="button" class="secondary">AI Recommendations</a>
     <button id="refresh-btn" class="outline" onclick="refreshCollection()">Refresh Collection</button>
 </div>
+
+{% elif not discogs_configured is defined or not discogs_configured %}
+<hgroup>
+    <h2>Get Started</h2>
+    <p>No API keys needed to start discovering music</p>
+</hgroup>
+
+<div class="grid">
+    <article>
+        <header><h3>Radio</h3></header>
+        <p>Start listening right away. Import a Spotify or YouTube playlist, or create a themed station.</p>
+        <a href="/radio" role="button">Open Radio</a>
+    </article>
+    <article>
+        <header><h3>Spotify Import</h3></header>
+        <p>Paste any public Spotify playlist URL to get AI-powered recommendations based on your taste.</p>
+        <a href="/radio" role="button" class="secondary">Import Playlist</a>
+    </article>
+    <article>
+        <header><h3>YouTube Import</h3></header>
+        <p>Import a YouTube playlist to discover similar music and expand your horizons.</p>
+        <a href="/radio" role="button" class="secondary">Import Playlist</a>
+    </article>
+</div>
+
+<details style="margin-top:2rem;">
+    <summary>Optional: Connect Discogs for collection-based recommendations</summary>
+    <p style="margin-top:1rem;">To unlock collection-based features, add these to your <code>.env</code> file:</p>
+    <pre><code>DISCOGS_TOKEN=your_discogs_personal_access_token
+DISCOGS_USERNAME=your_discogs_username</code></pre>
+    <p>Get your token at <a href="https://www.discogs.com/settings/developers" target="_blank">discogs.com/settings/developers</a></p>
+</details>
+
+<details>
+    <summary>Optional: Add an Anthropic API key for Claude AI</summary>
+    <p style="margin-top:1rem;">For cloud-based AI recommendations, add to <code>.env</code>:</p>
+    <pre><code>ANTHROPIC_API_KEY=sk-ant-your_key_here</code></pre>
+    <p>Without this, the app uses Ollama (free, local AI). <a href="https://ollama.com" target="_blank">Install Ollama</a></p>
+</details>
 
 {% else %}
 <article>

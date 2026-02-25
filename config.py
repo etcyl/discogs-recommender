@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    discogs_token: str
-    discogs_username: str
+    discogs_token: str = ""
+    discogs_username: str = ""
     anthropic_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3:latest"
@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     @field_validator("discogs_username")
     @classmethod
     def validate_username(cls, v: str) -> str:
-        if not v or len(v) > 100:
+        if not v:
+            return v  # Allow empty — Discogs is optional
+        if len(v) > 100:
             raise ValueError("discogs_username must be 1-100 characters")
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
             raise ValueError("discogs_username contains invalid characters")
@@ -35,7 +37,9 @@ class Settings(BaseSettings):
     @field_validator("discogs_token")
     @classmethod
     def validate_discogs_token(cls, v: str) -> str:
-        if not v or len(v) < 10:
+        if not v:
+            return v  # Allow empty — Discogs is optional
+        if len(v) < 10:
             raise ValueError("discogs_token appears invalid")
         return v
 
@@ -56,6 +60,14 @@ class Settings(BaseSettings):
                 "Sessions will not survive restarts."
             )
         return v
+
+    @property
+    def discogs_configured(self) -> bool:
+        return bool(self.discogs_token and self.discogs_username)
+
+    @property
+    def anthropic_configured(self) -> bool:
+        return bool(self.anthropic_api_key)
 
 
 def _load_settings() -> Settings:

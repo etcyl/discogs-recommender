@@ -1,16 +1,54 @@
 # Discogs Recommender
 
-A web app that analyzes your Discogs vinyl/CD collection and recommends new albums using genre/style matching, AI-powered suggestions from Claude, and an AI-curated radio player with YouTube integration.
+A web app for discovering music through AI-curated radio, Spotify/YouTube playlist import, and Discogs collection analysis. Works out of the box with zero configuration — no API keys required.
+
+## Quick Start
+
+```bash
+git clone <repository-url>
+cd discogs_recommender
+python -m venv venv
+
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn app:app --port 8000
+```
+
+Open [http://localhost:8000](http://localhost:8000). That's it — no `.env` file needed.
+
+### Optional: Local AI with Ollama (free)
+
+Install [Ollama](https://ollama.com), then pull a model:
+
+```bash
+ollama pull llama3.1:8b
+```
+
+The app auto-detects Ollama running on `localhost:11434` and uses it for AI recommendations. No API key needed.
+
+### Optional: Docker
+
+```bash
+docker compose up
+```
+
+See [Docker setup](#docker) for details.
 
 ## Features
 
-- **Collection Dashboard** -- Overview of your collection with top genres, styles, artists, and labels
-- **Collection Browser** -- Paginated grid view of all your releases with cover art
-- **Genre/Style Recommendations** -- Algorithmic scoring based on collection profile overlap, with a discovery slider (0-100%) to control how adventurous results are
-- **AI Recommendations** -- Claude-powered suggestions with explanations, standout tracks, and Discogs links
-- **Radio Mode** -- Claude generates 40-song playlists with YouTube playback, visualizer, queue management, and thumbs-up tracking
-- **Discogs Search** -- Multi-field search across releases, artists, genres, styles, and labels
-- **Release Details** -- Full metadata, tracklist, and marketplace info for any release
+- **Radio Mode** — AI-generated playlists with YouTube playback, audio visualizer, queue management, and thumbs-up tracking
+- **Spotify Playlist Import** — Use any Spotify playlist as a seed for AI recommendations (no Spotify account required)
+- **YouTube Playlist Import** — Import YouTube playlists via yt-dlp (no API key required)
+- **Collection Dashboard** — Overview of your Discogs collection with top genres, styles, artists, and labels
+- **Collection Browser** — Paginated grid view of all your releases with cover art
+- **Genre/Style Recommendations** — Algorithmic scoring based on collection profile overlap, with a discovery slider
+- **AI Recommendations** — Claude or Ollama-powered suggestions with explanations and standout tracks
+- **Hardware Detection** — Auto-detects system resources and recommends appropriate AI models
+- **Zero-Config Deployment** — Works without any API keys; features unlock progressively as keys are added
 
 ## Screenshots
 
@@ -42,94 +80,134 @@ Browser (HTML/JS)
 FastAPI (app.py)
     |
     +-- services/
-    |   +-- discogs_service.py    Discogs API wrapper with rate limiting
-    |   +-- recommendation.py     Genre/style scoring engine
-    |   +-- claude_recommender.py Claude AI recommendations
-    |   +-- radio_service.py      Playlist generation + YouTube resolution
-    |   +-- thumbs.py             User preference persistence (JSON)
-    |   +-- cache.py              In-memory TTL cache with size limits
+    |   +-- discogs_service.py          Discogs API wrapper with rate limiting
+    |   +-- recommendation.py           Genre/style scoring engine
+    |   +-- claude_recommender.py       AI recommendations (Claude or Ollama)
+    |   +-- radio_service.py            Playlist generation + YouTube resolution
+    |   +-- channel_service.py          Radio channel management
+    |   +-- youtube_playlist_service.py YouTube playlist import (yt-dlp)
+    |   +-- hardware_service.py         Cross-platform hardware detection
+    |   +-- auth_service.py             User auth + auto-login
+    |   +-- thumbs.py                   User preference persistence (JSON)
+    |   +-- cache.py                    In-memory TTL cache with size limits
     |
-    +-- templates/                Jinja2 HTML templates
-    +-- static/css/, static/js/   Frontend assets
+    +-- templates/                      Jinja2 HTML templates
+    +-- static/css/, static/js/         Frontend assets
 ```
 
-## Setup
+## Configuration
 
-### Prerequisites
-
-- Python 3.10+
-- A Discogs account with releases in your collection
-- A [Discogs personal access token](https://www.discogs.com/settings/developers)
-- An [Anthropic API key](https://console.anthropic.com/)
-
-### 1. Clone the repository
+All configuration is optional. The app works with no `.env` file at all.
 
 ```bash
-git clone <repository-url>
-cd discogs_recommender
+cp .env.example .env   # optional
 ```
 
-### 2. Create and activate a virtual environment
-
-```bash
-python -m venv venv
-
-# Windows:
-venv\Scripts\activate
-
-# macOS/Linux:
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-This installs both runtime dependencies (FastAPI, Anthropic SDK, Discogs client, etc.) and testing dependencies (pytest, pytest-cov).
-
-### 4. Configure environment variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and fill in your values:
-
-```
-DISCOGS_TOKEN=your_discogs_token_here
-DISCOGS_USERNAME=your_discogs_username_here
-ANTHROPIC_API_KEY=sk-ant-your_key_here
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DISCOGS_TOKEN` | No | Enables collection-based features. Get one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) |
+| `DISCOGS_USERNAME` | No | Your Discogs username (needed with token) |
+| `ANTHROPIC_API_KEY` | No | Enables Claude AI recommendations. Get one at [console.anthropic.com](https://console.anthropic.com) |
+| `OLLAMA_BASE_URL` | No | Ollama API URL (default: `http://localhost:11434`) |
+| `OLLAMA_MODEL` | No | Ollama model name (default: `llama3.1:8b`) |
+| `SECRET_KEY` | No | Session secret; auto-generated if not set (sessions won't survive restarts without it) |
 
 > **Security note:** Never commit your `.env` file. It is already listed in `.gitignore`.
 
-### 5. Run the app
+### What works without any keys
 
-```bash
-uvicorn app:app --reload --port 8000
-```
+| Feature | No keys | + Ollama | + Discogs | + Claude |
+|---------|---------|----------|-----------|----------|
+| Spotify playlist import | Play only | AI recommendations | + collection matching | + Claude quality |
+| YouTube playlist import | Play only | AI recommendations | + collection matching | + Claude quality |
+| Themed radio channels | — | Full AI curation | + taste-aware | + Claude quality |
+| Collection dashboard | — | — | Full features | Full features |
+| Genre recommendations | — | — | Full features | Full features |
+| AI recommendations | — | Ollama-powered | + collection context | Claude-powered |
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
-
-## How the Recommendation Engines Work
-
-### Genre/Style Engine
-
-Analyzes your collection to build a profile of your top genres, styles, artists, and labels. Searches Discogs for releases matching those traits, scores each candidate by how well it overlaps with your profile, and filters out anything you already own. The **discovery slider** (0-100%) controls how adventurous results are:
-
-- **0%** -- Safe favorites: emphasizes known artists and top styles
-- **50%** -- Balanced: mixes familiar and new territory
-- **100%** -- Full discovery: searches broadly by genre, adds random jitter to scores, reduces artist weight
-
-### Claude AI Engine
-
-Sends a summary of your collection profile plus a sample of 30 releases to Claude, which returns 10-15 contextual recommendations with explanations and standout tracks. Each recommendation is cross-referenced with Discogs to provide direct links.
+## How It Works
 
 ### Radio Mode
 
-Claude generates a 40-song playlist curated to your taste: 60% familiar territory, 40% genuine discoveries. Songs are resolved to YouTube videos for playback. Features include a canvas-based audio visualizer, queue management, keyboard shortcuts (Space/arrows), and thumbs-up tracking that influences future playlists.
+AI generates a 40-song playlist curated to your taste: 60% familiar territory, 40% genuine discoveries. Songs are resolved to YouTube videos for playback. Features include a canvas-based audio visualizer, queue management, keyboard shortcuts (Space/arrows), and thumbs-up tracking that influences future playlists.
+
+**Channel types:**
+- **Discogs Collection** — Uses your vinyl/CD collection as the seed
+- **Spotify Playlist** — Import any public Spotify playlist URL
+- **YouTube Playlist** — Import any public YouTube playlist URL
+- **Themed** — Describe a mood, genre, or vibe and AI builds a playlist
+
+**Modes:**
+- **Play Playlist** — Plays imported tracks directly (no AI needed)
+- **Similar Songs** — AI finds songs similar to the imported tracks
+- **New Discoveries** — AI uses the playlist as a jumping-off point for exploration
+
+### Genre/Style Engine
+
+Analyzes your collection to build a profile of your top genres, styles, artists, and labels. Searches Discogs for releases matching those traits, scores each candidate by how well it overlaps with your profile, and filters out anything you already own. The **discovery slider** (0-100%) controls how adventurous results are.
+
+### Claude AI Engine
+
+Sends a summary of your collection profile plus a sample of 30 releases to Claude (or Ollama), which returns 10-15 contextual recommendations with explanations and standout tracks.
+
+## Hardware Detection
+
+On first visit, the app checks your system and shows advisory banners:
+
+- **RAM < 8 GB** — "Local AI may be slow on this system"
+- **No GPU detected** — "Ollama will use CPU (slower but functional)"
+- **Ollama not installed** — Links to installation guide
+
+The hardware endpoint (`/api/system/hardware`) reports CPU cores, RAM tier, GPU presence, and Ollama status. No serial numbers, paths, or sensitive data is exposed.
+
+### Recommended Ollama Models by Hardware
+
+| RAM | GPU | Recommended Model |
+|-----|-----|-------------------|
+| 16 GB+ | Yes | `llama3.1:8b` |
+| 16 GB+ | No | `llama3.1:8b` (slower) |
+| 8-16 GB | Any | `llama3.2:3b` or `phi3:mini` |
+| < 8 GB | Any | `phi3:mini` or use Claude API |
+
+## Docker
+
+### Basic (app only)
+
+```bash
+docker compose up
+```
+
+The app runs on port 8000 with no `.env` required.
+
+### With Ollama (free local AI)
+
+Uncomment the Ollama service in `docker-compose.yml`:
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+```
+
+Then:
+
+```bash
+docker compose up -d
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+### Environment variables in Docker
+
+Pass API keys via environment or `.env`:
+
+```bash
+docker compose up -e ANTHROPIC_API_KEY=sk-ant-xxx
+# or create .env file (optional)
+```
 
 ## Rate Limits
 
@@ -207,44 +285,38 @@ The test suite validates protections against these vulnerability classes:
 | CWE-770 | Resource Allocation Without Limits | Max cache entries, max thumbs entries, per-page limits on API calls |
 | CWE-918 | Server-Side Request Forgery | Search params passed to API, not fetched as URLs; release ID is integer-only |
 
-### Interpreting test results
+## Security Hardening
 
-A successful run looks like:
+- **Input validation** — All user inputs are sanitized: null bytes stripped, control characters removed, strings truncated to max lengths, types enforced via Pydantic models
+- **Error message sanitization** — API keys and tokens are redacted from error messages before they reach the user
+- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `X-XSS-Protection` headers on all responses
+- **API docs disabled** — Swagger UI and ReDoc are disabled (`docs_url=None, redoc_url=None`)
+- **Atomic file writes** — Thumbs data written via temp file + rename to prevent corruption
+- **Resource limits** — Cache size capped, thumbs file size limited, input field lengths bounded
+- **Request validation** — Pydantic `BaseModel` with `Field` constraints validates all POST request bodies
+- **Non-root Docker** — Container runs as unprivileged `appuser`
+- **Hardware endpoint** — Only exposes aggregate system info (core count, RAM tier, GPU yes/no); no serial numbers, paths, or process lists
 
-```
-====================== 265 passed, 0 failed in ~3s =======================
-```
+## API Endpoints
 
-If any tests fail, the output shows:
-- Which test failed and in which file
-- The assertion that didn't hold
-- A short traceback pointing to the exact line
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/system/status` | GET | No | Service availability (Discogs, Claude, Ollama) |
+| `/api/system/hardware` | GET | Yes | Hardware info and AI model recommendations |
+| `/api/radio/channels` | GET/POST | Yes | List or create radio channels |
+| `/api/radio/playlist-stream` | GET | Yes | SSE stream for playlist generation |
+| `/api/radio/youtube-preview` | POST | Yes | Preview a YouTube playlist |
+| `/api/radio/youtube-channel` | POST | Yes | Create channel from YouTube playlist |
+| `/api/radio/spotify-preview` | POST | Yes | Preview a Spotify playlist |
+| `/api/radio/feedback` | POST | Yes | Submit track feedback |
 
-Example of investigating a failure:
-
-```bash
-# Run just the failing test with full traceback
-python -m pytest tests/test_security.py::TestCWE20_InputValidation::test_cache_key_validation -v --tb=long
-```
-
-## Security hardening
-
-The following security measures are implemented in the application code:
-
-- **Input validation** -- All user inputs are sanitized: null bytes stripped, control characters removed, strings truncated to max lengths, types enforced via Pydantic models
-- **Error message sanitization** -- API keys and tokens are redacted from error messages before they reach the user
-- **Security headers** -- `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `X-XSS-Protection` headers on all responses
-- **API docs disabled** -- Swagger UI and ReDoc are disabled (`docs_url=None, redoc_url=None`)
-- **Atomic file writes** -- Thumbs data written via temp file + rename to prevent corruption
-- **Resource limits** -- Cache size capped, thumbs file size limited, input field lengths bounded
-- **Request validation** -- Pydantic `BaseModel` with `Field` constraints validates all POST request bodies
-- **Search type whitelist** -- Only allowed Discogs search types (`release`, `master`, `artist`, `label`) are accepted
-
-## Project configuration
+## Project Configuration
 
 | File | Purpose |
 |------|---------|
-| `.env.example` | Template for environment variables |
+| `.env.example` | Template for environment variables (all optional) |
 | `.gitignore` | Excludes `.env`, `__pycache__`, `venv`, test artifacts |
 | `pytest.ini` | Pytest configuration (test paths, verbosity) |
 | `requirements.txt` | Python dependencies (runtime + testing) |
+| `Dockerfile` | Container build with healthcheck and non-root user |
+| `docker-compose.yml` | Multi-service deployment (app + optional Ollama) |

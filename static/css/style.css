@@ -33,6 +33,91 @@ nav a.active {
     opacity: 0.7;
 }
 
+.app-version {
+    margin-left: 0.5rem;
+    opacity: 0.5;
+    font-size: 0.75rem;
+}
+
+/* ---- System Alerts ---- */
+.system-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.system-alert {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    animation: alertSlideIn 0.3s ease;
+}
+
+.system-alert code {
+    background: rgba(255,255,255,0.1);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+@keyframes alertSlideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.system-alert-info {
+    background: rgba(56, 142, 210, 0.15);
+    border: 1px solid rgba(56, 142, 210, 0.3);
+    color: #8ec8f0;
+}
+
+.system-alert-warning {
+    background: rgba(232, 160, 62, 0.15);
+    border: 1px solid rgba(232, 160, 62, 0.3);
+    color: #e8c87e;
+}
+
+.system-alert-text {
+    flex: 1;
+    margin-right: 1rem;
+}
+
+.system-alert-text a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.system-alert-dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 0.25rem;
+    min-width: auto;
+    margin: 0;
+}
+
+.system-alert-dismiss:hover {
+    opacity: 1;
+}
+
+[data-theme="light"] .system-alert-info {
+    background: rgba(56, 142, 210, 0.1);
+    color: #2a6fa0;
+}
+
+[data-theme="light"] .system-alert-warning {
+    background: rgba(232, 160, 62, 0.1);
+    color: #8a6020;
+}
+
 /* ---- Dashboard ---- */
 .stat-number {
     font-size: 2.5rem;
@@ -612,12 +697,18 @@ progress {
 
 .channel-discovery-labels {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.3);
-    margin-top: 0.1rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 0.15rem;
     pointer-events: none;
     user-select: none;
+}
+
+.discovery-tier-name {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: default;
 }
 
 /* Per-channel era picker */
@@ -1075,8 +1166,71 @@ progress {
     font-size: 0.85rem;
     font-style: italic;
     opacity: 0.6;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 0.75rem 0;
     line-height: 1.4;
+}
+
+/* Match Score & Attributes Section */
+.match-info-section {
+    margin: 0 0 1rem 0;
+    padding: 0.5rem 0.7rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.match-score-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.match-score-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.match-score-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.match-score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease, background 0.4s ease;
+    width: 0%;
+}
+
+.match-score-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 7rem;
+    text-align: right;
+}
+
+.match-attributes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.45rem;
+}
+
+.match-attr-tag {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
 }
 
 /* Share / Copy Buttons (Now Playing) */
@@ -1530,6 +1684,14 @@ progress {
     border-left: 3px solid var(--accent-color);
 }
 
+.queue-item.queue-feedback-added {
+    border-left: 2px solid #60a5fa;
+}
+
+.queue-item.queue-feedback-added.queue-current {
+    border-left: 3px solid var(--accent-color);
+}
+
 .queue-num {
     width: 2rem;
     text-align: center;
@@ -1571,6 +1733,15 @@ progress {
     font-size: 0.8rem;
     opacity: 0.4;
     flex-shrink: 0;
+}
+
+.queue-match-score {
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    min-width: 1.5rem;
+    text-align: center;
+    opacity: 0.7;
 }
 
 /* YouTube Player - completely hidden, audio only */
@@ -2151,6 +2322,36 @@ progress {
     background: var(--dynamic-bg, transparent);
     border-radius: 16px;
     padding: 0.5rem;
+}
+
+/* Text readability on dynamic themed backgrounds */
+.radio-player.themed .track-title {
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.4);
+}
+
+.radio-player.themed .track-artist {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
+.radio-player.themed .now-playing-label {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.radio-player.themed .track-reason {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.radio-player.themed .similar-to-label {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.radio-player.themed .similar-to-album {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.radio-player.themed .time-current,
+.radio-player.themed .time-total {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 
 .artwork-glow {

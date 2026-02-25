@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false  # App works without .env (zero-config mode)
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    # Uncomment to connect to Ollama running on the host:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    # environment:
+    #   - OLLAMA_BASE_URL=http://host.docker.internal:11434
+
+  # Uncomment to run Ollama as a container (free local AI):
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+  #   # After starting, pull a model: docker exec -it <container> ollama pull llama3.1:8b
+
+# volumes:
+#   ollama_data:

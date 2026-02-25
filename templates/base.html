@@ -28,6 +28,9 @@
     </nav>
 
     <main class="container">
+        <!-- Dismissible system alerts -->
+        <div id="system-alerts" class="system-alerts"></div>
+
         {% if error %}
         <article class="error-banner">
             <p><strong>Error:</strong> {{ error }}</p>
@@ -42,6 +45,7 @@
         <p class="footer-text">
             Powered by <a href="https://www.discogs.com/developers/" target="_blank">Discogs API</a>
             &amp; <a href="https://www.anthropic.com" target="_blank">Claude</a>
+            <span class="app-version">v{{ app_version }}</span>
         </p>
     </footer>
 

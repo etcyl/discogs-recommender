@@ -11,6 +11,12 @@ let isSeeking = false;
 let likedSet = new Set();
 let dislikedSet = new Set();
 
+// ---- Session Feedback State ----
+let sessionFeedback = { liked: [], disliked: [], skipped: [] };
+let isGeneratingReplacements = false;
+let feedbackDebounceTimer = null;
+let trackStartTime = null;
+
 // ---- Channel State ----
 let activeChannelId = 'my-collection';
 let menuTargetChannelId = null;
@@ -160,8 +166,9 @@ function loadPlaylistSSE(isRefreshMode = false) {
         // Start playback if this is the first batch
         if (isFirstLoad && currentIndex === -1) {
             showLoading(false);
-            currentIndex = -1;
-            playNext();
+            // Show first song without auto-playing — let user press Play or Next
+            currentIndex = 0;
+            loadTrack(queue[0], false);
         } else if (isRefreshMode && currentIndex === -1) {
             currentIndex = -1;
             playNext();
@@ -268,6 +275,9 @@ function loadPlaylist() {
 }
 
 async function refreshPlaylist() {
+    sessionFeedback = { liked: [], disliked: [], skipped: [] };
+    isGeneratingReplacements = false;
+    clearTimeout(feedbackDebounceTimer);
     await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(activeChannelId)}`);
     loadPlaylistSSE(true);
 }
@@ -300,6 +310,11 @@ function getStepHint(percent) {
 function switchChannel(channelId) {
     if (channelId === activeChannelId) return;
     activeChannelId = channelId;
+
+    // Reset session feedback
+    sessionFeedback = { liked: [], disliked: [], skipped: [] };
+    isGeneratingReplacements = false;
+    clearTimeout(feedbackDebounceTimer);
 
     // Update sidebar highlighting
     document.querySelectorAll('.channel-item').forEach(el => {
@@ -335,8 +350,14 @@ function openNewChannelDialog() {
     if (spotifyInput) spotifyInput.value = '';
     const preview = document.getElementById('playlist-preview');
     if (preview) preview.style.display = 'none';
+    const youtubeInput = document.getElementById('youtube-url-input');
+    if (youtubeInput) youtubeInput.value = '';
+    const ytPreview = document.getElementById('youtube-preview');
+    if (ytPreview) ytPreview.style.display = 'none';
     const modeRadio = document.querySelector('input[name="channel-mode"][value="similar_songs"]');
     if (modeRadio) modeRadio.checked = true;
+    const ytModeRadio = document.querySelector('input[name="youtube-mode"][value="similar_songs"]');
+    if (ytModeRadio) ytModeRadio.checked = true;
     // Default to themed
     const typeRadio = document.querySelector('input[name="channel-type"][value="themed"]');
     if (typeRadio) typeRadio.checked = true;
@@ -348,9 +369,11 @@ function toggleChannelTypeFields() {
     const selectedType = document.querySelector('input[name="channel-type"]:checked')?.value || 'themed';
     const themedFields = document.getElementById('themed-fields');
     const spotifyFields = document.getElementById('spotify-fields');
+    const youtubeFields = document.getElementById('youtube-fields');
     const uploadFields = document.getElementById('upload-fields');
     if (themedFields) themedFields.style.display = selectedType === 'themed' ? '' : 'none';
     if (spotifyFields) spotifyFields.style.display = selectedType === 'spotify' ? '' : 'none';
+    if (youtubeFields) youtubeFields.style.display = selectedType === 'youtube' ? '' : 'none';
     if (uploadFields) uploadFields.style.display = selectedType === 'upload' ? '' : 'none';
 }
 
@@ -378,6 +401,38 @@ async function previewSpotifyPlaylist() {
             img.style.display = 'none';
         }
         document.getElementById('playlist-preview').style.display = 'flex';
+
+        const nameInput = document.getElementById('channel-name-input');
+        if (!nameInput.value) {
+            nameInput.value = data.name;
+        }
+    } catch (e) {}
+}
+
+async function previewYouTubePlaylist() {
+    const urlInput = document.getElementById('youtube-url-input');
+    const url = urlInput.value.trim();
+    if (!url || (!url.includes('youtube') && !url.includes('youtu.be'))) return;
+
+    try {
+        const resp = await fetch('/api/radio/youtube-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        document.getElementById('youtube-preview-name').textContent = data.name;
+        document.getElementById('youtube-preview-count').textContent = `${data.track_count} tracks`;
+        const img = document.getElementById('youtube-preview-image');
+        if (data.image_url) {
+            img.src = data.image_url;
+            img.style.display = '';
+        } else {
+            img.style.display = 'none';
+        }
+        document.getElementById('youtube-preview').style.display = 'flex';
 
         const nameInput = document.getElementById('channel-name-input');
         if (!nameInput.value) {
@@ -416,6 +471,15 @@ async function createChannel(e) {
             formData.append('era', era);
             formData.append('num_songs', numSongs);
             resp = await fetch('/api/radio/upload-channel', { method: 'POST', body: formData });
+        } else if (channelType === 'youtube') {
+            const url = document.getElementById('youtube-url-input')?.value.trim();
+            const mode = document.querySelector('input[name="youtube-mode"]:checked')?.value || 'similar_songs';
+            if (!url) { alert('Please enter a YouTube playlist URL.'); btn.disabled = false; btn.textContent = 'Create Channel'; return; }
+            resp = await fetch('/api/radio/youtube-channel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, url, mode, ai_model: aiModel, era, num_songs: numSongs }),
+            });
         } else if (channelType === 'themed') {
             const theme = document.getElementById('theme-input')?.value.trim();
             if (!theme) { alert('Please enter a theme or mood.'); btn.disabled = false; btn.textContent = 'Create Channel'; return; }
@@ -472,6 +536,8 @@ function addChannelToSidebar(channel) {
     item.dataset.sourceType = channel.source_type;
     const iconSvg = channel.source_type === 'spotify'
         ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>'
+        : channel.source_type === 'youtube'
+        ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21.582 7.186a2.506 2.506 0 0 0-1.768-1.768C18.254 5 12 5 12 5s-6.254 0-7.814.418A2.506 2.506 0 0 0 2.418 7.186C2 8.746 2 12 2 12s0 3.254.418 4.814a2.506 2.506 0 0 0 1.768 1.768C5.746 19 12 19 12 19s6.254 0 7.814-.418a2.506 2.506 0 0 0 1.768-1.768C22 15.254 22 12 22 12s0-3.254-.418-4.814zM10 15.464V8.536L16 12l-6 3.464z"/></svg>'
         : channel.source_type === 'upload'
         ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>'
         : '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>';
@@ -485,12 +551,11 @@ function addChannelToSidebar(channel) {
             <input type="range" class="channel-discovery-slider" min="0" max="100" step="5"
                    value="${channel.discovery || 30}" title="Discovery: ${channel.discovery || 30}%">
             <div class="channel-discovery-labels">
-                <span>Familiar</span>
-                <span>Adventurous</span>
+                <span class="discovery-tier-name" data-channel-id="${channel.id}"></span>
             </div>
         </div>
         <div class="channel-era" data-channel-id="${channel.id}">
-            <select class="channel-era-select" data-era-from="" data-era-to="">
+            <select class="channel-era-select" data-era-from="${channel.era_from || ''}" data-era-to="${channel.era_to || ''}">
                 <option value="" selected>All Eras</option>
                 <option value="1960-1969">60s</option>
                 <option value="1970-1979">70s</option>
@@ -519,6 +584,9 @@ function addChannelToSidebar(channel) {
         </div>
     `;
     list.appendChild(item);
+    // Initialize discovery tier label for the new slider
+    const newSlider = item.querySelector('.channel-discovery-slider');
+    if (newSlider) updateDiscoveryLabel(newSlider);
 }
 
 function openChannelMenu(channelId) {
@@ -568,6 +636,21 @@ async function deleteChannel() {
 
 // ---- Playback Controls ----
 function playNext() {
+    // Detect early skip (< 30s) as implicit negative signal
+    if (currentIndex >= 0 && currentIndex < queue.length && trackStartTime) {
+        const playedMs = Date.now() - trackStartTime;
+        const track = queue[currentIndex];
+        const key = `${track.artist}-${track.title}`.toLowerCase();
+        if (playedMs < 30000 && !dislikedSet.has(key) && !likedSet.has(key)) {
+            sessionFeedback.skipped.push({
+                artist: track.artist || '',
+                title: track.title || '',
+                match_attributes: track.match_attributes || [],
+                reason: track.reason || '',
+            });
+            scheduleFeedbackGeneration();
+        }
+    }
     if (currentIndex + 1 < queue.length) {
         currentIndex++;
         loadTrack(queue[currentIndex]);
@@ -592,8 +675,11 @@ function togglePlay() {
     }
 }
 
-function loadTrack(track) {
+function loadTrack(track, autoplay = true) {
     if (!track) return;
+
+    // Record start time for skip detection
+    trackStartTime = Date.now();
 
     // Always update UI even if YouTube player hasn't loaded yet
     updateTrackInfo(track);
@@ -612,9 +698,64 @@ function loadTrack(track) {
     fetchMeaningForTrack(track);
 
     if (player && track.videoId) {
-        player.loadVideoById(track.videoId);
+        if (autoplay) {
+            player.loadVideoById(track.videoId);
+        } else {
+            // Cue without auto-playing — user can press Play when ready
+            player.cueVideoById(track.videoId);
+            isPlaying = false;
+            showPlayIcon();
+        }
         updateMediaSession(track);
     }
+}
+
+// Discovery tier definitions (mirrors backend RadioService.DISCOVERY_TIERS)
+const DISCOVERY_TIERS = [
+    { max: 15, name: "Comfort Zone", label: "Deep cuts from artists you already love" },
+    { max: 30, name: "Familiar Ground", label: "Same scenes, labels, and close collaborators" },
+    { max: 50, name: "Near Orbit", label: "Adjacent genres, shared producers, related movements" },
+    { max: 70, name: "Explorer", label: "Cross-genre connections, unexpected bridges" },
+    { max: 85, name: "Adventurer", label: "Different eras, countries, and sonic territories" },
+    { max: 100, name: "Deep Space", label: "Wildcard picks with only a thin thread back to your taste" },
+];
+
+function getDiscoveryTier(value) {
+    for (const tier of DISCOVERY_TIERS) {
+        if (value <= tier.max) return tier;
+    }
+    return DISCOVERY_TIERS[DISCOVERY_TIERS.length - 1];
+}
+
+function updateDiscoveryLabel(slider) {
+    const value = parseInt(slider.value);
+    const tier = getDiscoveryTier(value);
+    const wrapper = slider.closest('.channel-discovery');
+    if (!wrapper) return;
+    const label = wrapper.querySelector('.discovery-tier-name');
+    if (label) {
+        label.textContent = tier.name;
+        label.title = tier.label;
+    }
+}
+
+// Initialize all discovery slider labels on load
+document.querySelectorAll('.channel-discovery-slider').forEach(updateDiscoveryLabel);
+
+function getMatchScoreColor(score) {
+    if (score >= 90) return '#4ade80';
+    if (score >= 70) return '#60a5fa';
+    if (score >= 50) return '#facc15';
+    if (score >= 30) return '#fb923c';
+    return '#f87171';
+}
+
+function getMatchScoreLabel(score) {
+    if (score >= 90) return 'Near-perfect';
+    if (score >= 70) return 'Strong';
+    if (score >= 50) return 'Moderate';
+    if (score >= 30) return 'Adventurous';
+    return 'Wildcard';
 }
 
 function updateTrackInfo(track) {
@@ -625,20 +766,46 @@ function updateTrackInfo(track) {
         : '';
     document.getElementById('track-reason').textContent = track.reason || '';
 
+    // Match score + attributes section
+    const matchInfo = document.getElementById('match-info');
+    if (matchInfo) {
+        const score = track.match_score;
+        if (score && typeof score === 'number') {
+            const bar = document.getElementById('match-score-bar');
+            const val = document.getElementById('match-score-value');
+            const color = getMatchScoreColor(score);
+            bar.style.width = `${score}%`;
+            bar.style.background = color;
+            val.textContent = `${score} — ${getMatchScoreLabel(score)}`;
+            val.style.color = color;
+
+            const attrsEl = document.getElementById('match-attributes');
+            if (track.match_attributes && track.match_attributes.length > 0) {
+                attrsEl.innerHTML = track.match_attributes.map(attr =>
+                    `<span class="match-attr-tag">${attr}</span>`
+                ).join('');
+                attrsEl.style.display = '';
+            } else {
+                attrsEl.style.display = 'none';
+            }
+            matchInfo.style.display = '';
+        } else {
+            matchInfo.style.display = 'none';
+        }
+    }
+
     const similarSection = document.getElementById('similar-to');
     const similarList = document.getElementById('similar-to-list');
     if (similarSection && similarList) {
         if (track.similar_to && track.similar_to.length > 0) {
             const isStringArray = typeof track.similar_to[0] === 'string';
             if (isStringArray) {
-                // Ollama/Haiku format: ["Radiohead", "Massive Attack"]
                 similarList.innerHTML = track.similar_to.map(name =>
                     `<div class="similar-to-item">
                         <span class="similar-to-album">${name}</span>
                     </div>`
                 ).join('');
             } else {
-                // Sonnet format: [{artist, album, why}]
                 similarList.innerHTML = track.similar_to.map(s =>
                     `<div class="similar-to-item">
                         <span class="similar-to-album">${s.artist} — ${s.album}</span>
@@ -653,8 +820,9 @@ function updateTrackInfo(track) {
     }
 
     const artwork = document.getElementById('track-artwork');
-    if (track.thumbnail) {
-        artwork.src = track.thumbnail;
+    const artSrc = track.albumArt || track.thumbnail;
+    if (artSrc) {
+        artwork.src = artSrc;
         artwork.style.display = 'block';
     } else {
         artwork.style.display = 'none';
@@ -735,6 +903,16 @@ async function thumbsUp() {
             }),
         });
     } catch (e) {}
+
+    // Session feedback: positive reinforcement
+    sessionFeedback.liked.push({
+        artist: track.artist || '',
+        title: track.title || '',
+        match_attributes: track.match_attributes || [],
+        reason: track.reason || '',
+        similar_to: track.similar_to || [],
+    });
+    boostSimilarSongs(track);
 }
 
 // ---- Thumbs Down ----
@@ -763,6 +941,17 @@ async function thumbsDown() {
             }),
         });
     } catch (e) {}
+
+    // Session feedback: negative signal + queue adjustment
+    sessionFeedback.disliked.push({
+        artist: track.artist || '',
+        title: track.title || '',
+        match_attributes: track.match_attributes || [],
+        reason: track.reason || '',
+        similar_to: track.similar_to || [],
+    });
+    const removed = removeSimilarFromQueue(track);
+    scheduleFeedbackGeneration(removed);
 
     setTimeout(() => playNext(), 300);
 }
@@ -800,6 +989,110 @@ async function saveToHistory(track) {
     } catch (e) {}
 }
 
+// ---- Feedback: Similarity & Queue Manipulation ----
+function getSimilarityScore(refTrack, candidate) {
+    let score = 0;
+    if ((candidate.artist || '').toLowerCase().trim() === (refTrack.artist || '').toLowerCase().trim()) {
+        score += 100;
+    }
+    const refAttrs = new Set(refTrack.match_attributes || []);
+    (candidate.match_attributes || []).forEach(a => { if (refAttrs.has(a)) score += 15; });
+    const simArtists = (t) => new Set(
+        (t.similar_to || []).map(s => (typeof s === 'string' ? s : (s.artist || '')).toLowerCase())
+    );
+    const refSim = simArtists(refTrack);
+    simArtists(candidate).forEach(a => { if (refSim.has(a)) score += 20; });
+    return score;
+}
+
+function removeSimilarFromQueue(dislikedTrack) {
+    let removed = 0;
+    const kept = [];
+    for (let i = 0; i < queue.length; i++) {
+        if (i <= currentIndex) { kept.push(queue[i]); continue; }
+        if (getSimilarityScore(dislikedTrack, queue[i]) >= 50) { removed++; }
+        else { kept.push(queue[i]); }
+    }
+    queue = kept;
+    renderQueue();
+    return removed;
+}
+
+function boostSimilarSongs(likedTrack) {
+    const upcoming = [];
+    for (let i = currentIndex + 1; i < queue.length; i++) {
+        upcoming.push({ idx: i, score: getSimilarityScore(likedTrack, queue[i]) });
+    }
+    const best = upcoming.filter(s => s.score >= 20 && s.score < 100)
+                         .sort((a, b) => b.score - a.score)[0];
+    if (!best) return;
+    const moveBy = Math.min(3, best.idx - currentIndex - 1);
+    if (moveBy > 0) {
+        const [song] = queue.splice(best.idx, 1);
+        queue.splice(best.idx - moveBy, 0, song);
+        renderQueue();
+    }
+}
+
+function scheduleFeedbackGeneration(removedCount = 0) {
+    if (isGeneratingReplacements) return;
+    clearTimeout(feedbackDebounceTimer);
+    feedbackDebounceTimer = setTimeout(() => {
+        const remaining = queue.length - currentIndex - 1;
+        const negativeCount = sessionFeedback.disliked.length + sessionFeedback.skipped.length;
+        if (removedCount > 0 || remaining <= 5 || negativeCount >= 2) {
+            generateReplacements(Math.max(removedCount, 5));
+        }
+    }, 2000);
+}
+
+async function generateReplacements(numReplacements = 8) {
+    if (isGeneratingReplacements) return;
+    isGeneratingReplacements = true;
+    showToast('Adjusting your playlist...', 5000);
+
+    const upcomingQueue = queue.slice(currentIndex + 1).map(t => ({
+        artist: t.artist || '', title: t.title || '',
+        match_attributes: t.match_attributes || [],
+    }));
+
+    try {
+        const resp = await fetch('/api/radio/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                channel_id: activeChannelId,
+                session_liked: sessionFeedback.liked.slice(-10),
+                session_disliked: [...sessionFeedback.disliked, ...sessionFeedback.skipped].slice(-10),
+                current_queue: upcomingQueue,
+                num_replacements: Math.min(numReplacements, 10),
+            }),
+        });
+        if (!resp.ok) { console.warn('Feedback generation failed:', resp.status); return; }
+        const data = await resp.json();
+        if (data.songs && data.songs.length > 0) {
+            insertReplacements(data.songs);
+            showToast(`Added ${data.songs.length} songs based on your feedback`);
+        }
+    } catch (e) {
+        console.warn('Feedback generation error:', e);
+    } finally {
+        isGeneratingReplacements = false;
+    }
+}
+
+function insertReplacements(newSongs) {
+    const insertStart = Math.min(currentIndex + 3, queue.length);
+    let insertIdx = insertStart;
+    for (const song of newSongs) {
+        song._feedbackAdded = true;
+        queue.splice(insertIdx, 0, song);
+        insertIdx += 3;
+        if (insertIdx > queue.length) insertIdx = queue.length;
+    }
+    renderQueue();
+}
+
 // ---- Queue Rendering ----
 function renderQueue() {
     const list = document.getElementById('queue-list');
@@ -812,7 +1105,9 @@ function renderQueue() {
     upcoming.forEach((track, i) => {
         const idx = start + i;
         const item = document.createElement('div');
-        item.className = 'queue-item' + (idx === currentIndex ? ' queue-current' : '');
+        item.className = 'queue-item'
+            + (idx === currentIndex ? ' queue-current' : '')
+            + (track._feedbackAdded ? ' queue-feedback-added' : '');
         const ytBtn = track.videoId
             ? `<button class="queue-share-btn" data-action="youtube" data-idx="${idx}" title="Copy YouTube link">
                 <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M21.582 7.186a2.506 2.506 0 0 0-1.768-1.768C18.254 5 12 5 12 5s-6.254 0-7.814.418A2.506 2.506 0 0 0 2.418 7.186C2 8.746 2 12 2 12s0 3.254.418 4.814a2.506 2.506 0 0 0 1.768 1.768C5.746 19 12 19 12 19s6.254 0 7.814-.418a2.506 2.506 0 0 0 1.768-1.768C22 15.254 22 12 22 12s0-3.254-.418-4.814zM10 15.464V8.536L16 12l-6 3.464z"/></svg>
@@ -820,12 +1115,14 @@ function renderQueue() {
         const spotifyBtn = `<button class="queue-share-btn" data-action="spotify" data-idx="${idx}" title="Copy Spotify link">
                 <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
                </button>`;
+        const scoreTag = track.match_score ? `<span class="queue-match-score" style="color:${getMatchScoreColor(track.match_score)}">${track.match_score}</span>` : '';
         item.innerHTML = `
             <span class="queue-num">${idx === currentIndex ? '&#9835;' : idx + 1}</span>
             <div class="queue-info">
                 <span class="queue-track-title">${track.title || '—'}</span>
                 <span class="queue-track-artist">${track.artist || '—'}</span>
             </div>
+            ${scoreTag}
             <div class="queue-share-group">${ytBtn}${spotifyBtn}</div>
             <span class="queue-duration">${track.duration || ''}</span>
         `;
@@ -882,6 +1179,7 @@ document.getElementById('btn-refresh')?.addEventListener('click', refreshPlaylis
 document.getElementById('btn-new-channel')?.addEventListener('click', openNewChannelDialog);
 document.getElementById('new-channel-form')?.addEventListener('submit', createChannel);
 document.getElementById('spotify-url-input')?.addEventListener('blur', previewSpotifyPlaylist);
+document.getElementById('youtube-url-input')?.addEventListener('blur', previewYouTubePlaylist);
 document.getElementById('btn-cancel-channel')?.addEventListener('click', () => {
     document.getElementById('new-channel-dialog').close();
 });
@@ -917,7 +1215,7 @@ document.getElementById('channel-list')?.addEventListener('input', (e) => {
     if (!wrapper) return;
     const channelId = wrapper.dataset.channelId;
     const value = parseInt(e.target.value);
-    e.target.title = `Discovery: ${value}%`;
+    updateDiscoveryLabel(e.target);
 
     clearTimeout(discoveryDebounce);
     discoveryDebounce = setTimeout(async () => {
@@ -962,9 +1260,7 @@ async function saveChannelEra(channelId, eraFrom, eraTo) {
             // Auto-refresh if this is the active channel
             if (channelId === activeChannelId) {
                 await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(channelId)}`);
-                loadPlaylistSSE();
-                showLoading(true);
-                resetLoadingUI();
+                loadPlaylistSSE(true);
             }
         } catch (err) {}
     }, 500);
@@ -1030,9 +1326,7 @@ async function saveChannelAiModel(channelId, aiModel) {
         // Auto-refresh if this is the active channel
         if (channelId === activeChannelId) {
             await fetch(`/api/radio/refresh-playlist?channel_id=${encodeURIComponent(channelId)}`);
-            showLoading(true);
-            resetLoadingUI();
-            loadPlaylistSSE();
+            loadPlaylistSSE(true);
         }
     } catch (err) {
         console.error('Failed to save AI model:', err);
@@ -1223,7 +1517,7 @@ function updateMediaSession(track) {
         title: track.title || '',
         artist: track.artist || '',
         album: track.album || '',
-        artwork: track.thumbnail ? [{ src: track.thumbnail, sizes: '480x360', type: 'image/jpeg' }] : [],
+        artwork: (track.albumArt || track.thumbnail) ? [{ src: track.albumArt || track.thumbnail, sizes: '480x360', type: 'image/jpeg' }] : [],
     });
     navigator.mediaSession.playbackState = 'playing';
 }
@@ -1310,7 +1604,7 @@ function updateMindmapForCurrentTrack() {
         id: centerId,
         label: track.title,
         sublabel: track.artist,
-        imageUrl: track.thumbnail || '',
+        imageUrl: track.albumArt || track.thumbnail || '',
         type: 'current',
         radius: 45,
     });
@@ -1824,9 +2118,14 @@ function applyDynamicTheme(data) {
     playerEl.classList.add('themed');
 
     const cp = data.color_palette || {};
-    const primary = cp.primary || '#e8a03e';
-    const secondary = cp.secondary || '#e85d75';
-    const accent = cp.accent || primary;
+    const rawPrimary = cp.primary || '#e8a03e';
+    const rawSecondary = cp.secondary || '#e85d75';
+    const rawAccent = cp.accent || rawPrimary;
+
+    // Ensure accent/text colors are light enough to read on dark backgrounds
+    const primary = ensureLightColor(rawPrimary);
+    const secondary = ensureLightColor(rawSecondary);
+    const accent = ensureLightColor(rawAccent);
 
     // Set CSS custom properties on the player element
     playerEl.style.setProperty('--dynamic-primary', primary);
@@ -1836,9 +2135,9 @@ function applyDynamicTheme(data) {
     playerEl.style.setProperty('--dynamic-accent-bg', hexToRgba(accent, 0.15));
     playerEl.style.setProperty('--dynamic-accent-border', hexToRgba(accent, 0.3));
 
-    // Background gradient
+    // Background gradient — force dark colors so text stays readable
     if (data.bg_gradient) {
-        playerEl.style.setProperty('--dynamic-bg', data.bg_gradient);
+        playerEl.style.setProperty('--dynamic-bg', darkenGradient(data.bg_gradient));
     } else {
         playerEl.style.setProperty('--dynamic-bg',
             `radial-gradient(ellipse at 20% 50%, ${hexToRgba(primary, 0.1)} 0%, transparent 70%),
@@ -1862,30 +2161,93 @@ function applyDynamicTheme(data) {
 
 let vizBaseHue = 200; // default
 
-function hexToRgba(hex, alpha) {
+function hexToRgb(hex) {
     hex = hex.replace('#', '');
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
+    return {
+        r: parseInt(hex.substring(0, 2), 16),
+        g: parseInt(hex.substring(2, 4), 16),
+        b: parseInt(hex.substring(4, 6), 16)
+    };
+}
+
+function hexToRgba(hex, alpha) {
+    const {r, g, b} = hexToRgb(hex);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function hexToHue(hex) {
-    hex = hex.replace('#', '');
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    const r = parseInt(hex.substring(0, 2), 16) / 255;
-    const g = parseInt(hex.substring(2, 4), 16) / 255;
-    const b = parseInt(hex.substring(4, 6), 16) / 255;
+function relativeLuminance({r, g, b}) {
+    const [rs, gs, bs] = [r, g, b].map(c => {
+        c = c / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0;
+    let h = 0, s = 0, l = (max + min) / 2;
     if (max !== min) {
         const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
         else if (max === g) h = ((b - r) / d + 2) / 6;
         else h = ((r - g) / d + 4) / 6;
     }
-    return Math.round(h * 360);
+    return {h: h * 360, s, l};
+}
+
+function hslToHex(h, s, l) {
+    h /= 360;
+    const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+    };
+    let r, g, b;
+    if (s === 0) { r = g = b = l; } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    return '#' + [r, g, b].map(c => Math.round(c * 255).toString(16).padStart(2, '0')).join('');
+}
+
+/** Ensure a hex color is light enough to read on a dark background (min luminance 0.18) */
+function ensureLightColor(hex) {
+    const rgb = hexToRgb(hex);
+    const lum = relativeLuminance(rgb);
+    if (lum >= 0.18) return hex;
+    const {h, s, l} = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    // Boost lightness until luminance is sufficient
+    let newL = l;
+    for (let i = 0; i < 20 && newL < 0.95; i++) {
+        newL = Math.min(newL + 0.05, 0.95);
+        const test = hslToHex(h, s, newL);
+        if (relativeLuminance(hexToRgb(test)) >= 0.18) return test;
+    }
+    return hslToHex(h, Math.max(s, 0.5), 0.75);
+}
+
+/** Force a bg_gradient to be dark by clamping lightness of any hex colors found */
+function darkenGradient(gradientStr) {
+    return gradientStr.replace(/#([0-9a-fA-F]{3,6})\b/g, (match) => {
+        const rgb = hexToRgb(match);
+        const {h, s, l} = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        if (l > 0.35) return hslToHex(h, s, Math.min(l, 0.25));
+        return match;
+    });
+}
+
+function hexToHue(hex) {
+    const {r, g, b} = hexToRgb(hex);
+    const {h} = rgbToHsl(r, g, b);
+    return Math.round(h);
 }
 
 function clearDynamicTheme() {

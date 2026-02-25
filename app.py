@@ -32,6 +32,7 @@ from services import auth_service
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
+APP_VERSION = (BASE_DIR / "VERSION").read_text().strip()
 
 app = FastAPI(title="Discogs Recommender", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -45,8 +46,13 @@ if os.environ.get("TESTING"):
     _ALLOWED_HOSTS.append("testserver")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
 
-# Initialize services
-discogs = DiscogsService(settings.app_name, settings.discogs_token, settings.discogs_username)
+# Initialize services (Discogs is optional — app works without it)
+if settings.discogs_configured:
+    discogs = DiscogsService(settings.app_name, settings.discogs_token, settings.discogs_username)
+else:
+    discogs = None
+    logger.info("No Discogs credentials configured — collection features disabled. "
+                "Add DISCOGS_TOKEN and DISCOGS_USERNAME to .env to enable.")
 claude = ClaudeRecommender(
     api_key=settings.anthropic_api_key,
     ollama_base_url=settings.ollama_base_url,
@@ -67,6 +73,10 @@ AI_MODEL_LABELS = {
 # Spotify (no credentials needed — scrapes public embed pages)
 from services.spotify_service import SpotifyService
 spotify = SpotifyService()
+
+# YouTube playlist import (no credentials needed — uses yt-dlp)
+from services.youtube_playlist_service import YouTubePlaylistService, YouTubeServiceError
+youtube_playlist = YouTubePlaylistService()
 
 # Initialize database and bootstrap admin user
 init_db()
@@ -90,6 +100,32 @@ class ThumbRequest(BaseModel):
     @classmethod
     def validate_lists(cls, v: list[str]) -> list[str]:
         return [s[:200] for s in v[:20] if isinstance(s, str)]
+
+
+class FeedbackSongItem(BaseModel):
+    artist: str = Field("", max_length=500)
+    title: str = Field("", max_length=500)
+    reason: str = Field("", max_length=1000)
+    match_attributes: list[str] = Field(default_factory=list)
+    similar_to: list = Field(default_factory=list)
+
+    @field_validator("match_attributes")
+    @classmethod
+    def validate_attrs(cls, v: list) -> list[str]:
+        return [str(s)[:200] for s in v[:10] if s]
+
+
+class FeedbackRequest(BaseModel):
+    channel_id: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$", max_length=50)
+    session_liked: list[FeedbackSongItem] = Field(default_factory=list)
+    session_disliked: list[FeedbackSongItem] = Field(default_factory=list)
+    current_queue: list[FeedbackSongItem] = Field(default_factory=list)
+    num_replacements: int = Field(8, ge=3, le=15)
+
+    @field_validator("session_liked", "session_disliked", "current_queue")
+    @classmethod
+    def limit_list_size(cls, v: list) -> list:
+        return v[:50]
 
 
 class ChannelCreateRequest(BaseModel):
@@ -174,7 +210,7 @@ def _is_rate_limited(key: str, max_requests: int = 10, window_seconds: int = 60)
 # Auth middleware
 # ---------------------------------------------------------------------------
 
-PUBLIC_PATHS = {"/login", "/favicon.ico"}
+PUBLIC_PATHS = {"/login", "/favicon.ico", "/api/system/status"}
 PUBLIC_PREFIXES = ("/invite/", "/static/")
 
 
@@ -187,6 +223,14 @@ async def auth_middleware(request: Request, call_next):
     if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
         request.state.user = None
         return await call_next(request)
+
+    # Auto-login mode: when no Discogs credentials are configured,
+    # automatically authenticate all visitors as the local admin (single-user mode)
+    if not settings.discogs_configured:
+        admin = auth_service.get_admin_user()
+        if admin:
+            request.state.user = admin
+            return await call_next(request)
 
     # Check session cookie
     session_id = request.cookies.get(auth_service.COOKIE_NAME)
@@ -229,9 +273,9 @@ def _parse_era(era: str) -> tuple:
 def _sanitize_error(error: Exception) -> str:
     """Return a safe error message without leaking internals (CWE-209)."""
     msg = str(error)
-    sensitive_patterns = [
-        settings.discogs_token,
-    ]
+    sensitive_patterns = []
+    if settings.discogs_token:
+        sensitive_patterns.append(settings.discogs_token)
     if settings.anthropic_api_key:
         sensitive_patterns.append(settings.anthropic_api_key)
     for pattern in sensitive_patterns:
@@ -247,8 +291,9 @@ def _get_user_data_dir(user: dict) -> Path:
     return user_dir
 
 
-def _get_user_discogs(user: dict) -> DiscogsService:
-    """Return a DiscogsService for this user. Falls back to admin's if no creds."""
+def _get_user_discogs(user: dict) -> DiscogsService | None:
+    """Return a DiscogsService for this user. Falls back to admin's if no creds.
+    Returns None if no Discogs credentials are configured anywhere."""
     if user.get("discogs_username") and user.get("discogs_token"):
         cache_key = f"discogs_service:{user['id']}"
         svc = cache.get(cache_key)
@@ -257,12 +302,15 @@ def _get_user_discogs(user: dict) -> DiscogsService:
                                  user["discogs_username"])
             cache.set(cache_key, svc, ttl=3600)
         return svc
-    return discogs
+    return discogs  # May be None if no Discogs configured
 
 
 def _get_user_collection(user: dict) -> list[dict]:
-    """Cached collection fetch, scoped to user's Discogs account."""
+    """Cached collection fetch, scoped to user's Discogs account.
+    Returns empty list if no Discogs credentials configured."""
     svc = _get_user_discogs(user)
+    if svc is None:
+        return []
     cache_key = f"collection:{svc.username}"
     collection = cache.get(cache_key)
     if collection is None:
@@ -273,7 +321,10 @@ def _get_user_collection(user: dict) -> list[dict]:
 
 def _get_user_username(user: dict) -> str:
     """Get the effective Discogs username for display."""
-    return user.get("discogs_username") or settings.discogs_username
+    username = user.get("discogs_username") or settings.discogs_username
+    if username and username != "local":
+        return username
+    return user.get("display_name", "User")
 
 
 def _get_analyzer(collection: list[dict]) -> CollectionAnalyzer:
@@ -282,7 +333,7 @@ def _get_analyzer(collection: list[dict]) -> CollectionAnalyzer:
 
 def _template_context(request: Request, **kwargs) -> dict:
     """Build standard template context with user info."""
-    ctx = {"request": request}
+    ctx = {"request": request, "app_version": APP_VERSION}
     user = getattr(request.state, "user", None)
     if user:
         ctx["user"] = user
@@ -523,6 +574,32 @@ async def admin_update_user_models(request: Request):
 
 
 # ---------------------------------------------------------------------------
+# System Status & Hardware Detection
+# ---------------------------------------------------------------------------
+
+@app.get("/api/system/status")
+async def system_status():
+    """Return which services are configured (for frontend alerts)."""
+    from services.hardware_service import _check_ollama
+    ollama_info = _check_ollama(settings.ollama_base_url)
+    return {
+        "discogs_configured": settings.discogs_configured,
+        "anthropic_configured": settings.anthropic_configured,
+        "ollama_available": ollama_info["running"],
+        "ollama_models": ollama_info["models"],
+        "ollama_installed": ollama_info["installed"],
+    }
+
+
+@app.get("/api/system/hardware")
+async def system_hardware(request: Request):
+    """Return hardware info for local model recommendations."""
+    from services.hardware_service import get_hardware_info
+    info = await asyncio.to_thread(get_hardware_info, settings.ollama_base_url)
+    return info
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -530,18 +607,22 @@ async def admin_update_user_models(request: Request):
 async def home(request: Request):
     """Dashboard with collection profile summary."""
     user = request.state.user
-    try:
-        collection = await asyncio.to_thread(_get_user_collection, user)
-        analyzer = _get_analyzer(collection)
-        profile = analyzer.get_profile()
-        error = None
-    except Exception as e:
-        collection = []
-        profile = None
-        error = _sanitize_error(e)
+    profile = None
+    error = None
+    discogs_configured = settings.discogs_configured
+
+    if discogs_configured:
+        try:
+            collection = await asyncio.to_thread(_get_user_collection, user)
+            if collection:
+                analyzer = _get_analyzer(collection)
+                profile = analyzer.get_profile()
+        except Exception as e:
+            error = _sanitize_error(e)
 
     return templates.TemplateResponse("index.html",
-                                      _template_context(request, profile=profile, error=error))
+                                      _template_context(request, profile=profile, error=error,
+                                                        discogs_configured=discogs_configured))
 
 
 @app.get("/collection", response_class=HTMLResponse)
@@ -743,11 +824,13 @@ async def radio_page(request: Request):
     """Radio player page."""
     user = request.state.user
     user_dir = _get_user_data_dir(user)
-    channels = channel_service.load_channels(data_dir=user_dir)
+    channels = channel_service.load_channels(
+        data_dir=user_dir, discogs_configured=settings.discogs_configured)
     allowed_models = list(auth_service.get_allowed_models(user))
     return templates.TemplateResponse("radio.html",
                                       _template_context(request, channels=channels,
-                                                        allowed_models=allowed_models))
+                                                        allowed_models=allowed_models,
+                                                        discogs_configured=settings.discogs_configured))
 
 
 @app.get("/api/radio/playlist")
@@ -846,6 +929,9 @@ async def radio_playlist_stream(request: Request,
                 return
 
             if source_type == "discogs":
+                if not settings.discogs_configured and not (user.get("discogs_username") and user.get("discogs_token")):
+                    yield _sse("error", {"message": "No Discogs account connected. Add DISCOGS_TOKEN and DISCOGS_USERNAME to your .env file, or create a Spotify/YouTube/themed channel instead."})
+                    return
                 yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
                 _task = asyncio.ensure_future(asyncio.to_thread(_get_user_collection, user))
                 async for _p in _keepalive_loop(_task):
@@ -1019,6 +1105,63 @@ async def radio_playlist_stream(request: Request,
                     yield _sse("error", {"message": "No songs generated."})
                     return
 
+            elif source_type == "youtube":
+                tracks = channel.get("source_data", {}).get("tracks", [])
+                if not tracks:
+                    yield _sse("error", {"message": "YouTube channel has no tracks."})
+                    return
+
+                mode = channel.get("mode", "similar_songs")
+
+                if mode == "play_playlist":
+                    yield _sse("progress", {"message": "Preparing YouTube playlist...", "percent": 25})
+                    playlist = [
+                        {
+                            "artist": t["artist"],
+                            "title": t["title"],
+                            "album": t.get("album", ""),
+                            "year": t.get("year", ""),
+                            "reason": "From your YouTube playlist",
+                            "similar_to": [],
+                            "videoId": t.get("videoId", ""),
+                        }
+                        for t in tracks
+                    ]
+                else:
+                    mode_label_text = "similar songs" if mode == "similar_songs" else "new discoveries"
+                    discovery = channel.get("discovery", 30)
+                    era_from = channel.get("era_from")
+                    era_to = channel.get("era_to")
+                    yield _sse("progress", {
+                        "message": f"{model_label} is finding {mode_label_text} from your YouTube playlist...",
+                        "percent": 25,
+                    })
+                    thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
+                    dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
+                    play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+                    try:
+                        pq = queue_mod.Queue()
+                        def _on_batch_yt(collected, total):
+                            pct = 25 + int(5 * collected / max(total, 1))
+                            pq.put(_sse("progress", {"message": f"{model_label}: {collected}/{total} songs generated...", "percent": pct}))
+                        _task = asyncio.ensure_future(asyncio.to_thread(
+                            radio.generate_playlist_from_tracks,
+                            tracks, mode, thumbs_summary, dislikes_summary,
+                            play_history_summary, discovery,
+                            era_from=era_from, era_to=era_to,
+                            ai_model=ai_model, num_songs=num_songs,
+                            on_batch=_on_batch_yt))
+                        async for _p in _keepalive_loop(_task, progress_q=pq):
+                            yield _p
+                        playlist = _task.result()
+                    except LLMError as e:
+                        yield _sse("error", {"message": str(e)})
+                        return
+
+                if not playlist:
+                    yield _sse("error", {"message": "No songs generated."})
+                    return
+
             else:
                 yield _sse("error", {"message": "Unknown channel type."})
                 return
@@ -1176,6 +1319,82 @@ async def radio_refresh(request: Request,
     cache_key = f"radio_playlist:{user['id']}:{channel_id}"
     cache.invalidate(cache_key)
     return {"status": "ok"}
+
+
+@app.post("/api/radio/feedback")
+async def radio_feedback(request: Request):
+    """Generate replacement songs based on in-session feedback."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+    try:
+        body = await request.json()
+        data = FeedbackRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    channel = channel_service.get_channel(data.channel_id, data_dir=user_dir)
+    if not channel:
+        return JSONResponse(status_code=404, content={"error": "Channel not found"})
+
+    channel_context = {
+        "discovery": channel.get("discovery", 30),
+        "era_from": channel.get("era_from"),
+        "era_to": channel.get("era_to"),
+        "theme": channel.get("source_data", {}).get("theme", ""),
+        "source_type": channel.get("source_type", "discogs"),
+    }
+
+    # Use haiku for speed; fall back to channel model if unavailable
+    allowed = auth_service.get_allowed_models(user)
+    ai_model = channel.get("ai_model", "claude-sonnet")
+    feedback_model = "claude-haiku" if "claude-haiku" in allowed else ai_model
+
+    # Build compact collection summary for context (discogs channels only)
+    collection_summary = ""
+    if channel_context["source_type"] == "discogs":
+        try:
+            collection_data = await asyncio.to_thread(_get_user_collection, user)
+            if collection_data:
+                analyzer = _get_analyzer(collection_data)
+                profile = analyzer.get_profile()
+                collection_summary = radio._build_profile_summary(
+                    profile, collection_data, compact=True)
+        except Exception:
+            pass
+
+    # Convert pydantic models to dicts for the service
+    liked = [s.model_dump() for s in data.session_liked]
+    disliked = [s.model_dump() for s in data.session_disliked]
+    queue_songs = [s.model_dump() for s in data.current_queue]
+
+    try:
+        playlist = await asyncio.to_thread(
+            radio.generate_replacements,
+            session_liked=liked,
+            session_disliked=disliked,
+            current_queue=queue_songs,
+            channel_context=channel_context,
+            collection_summary=collection_summary,
+            num_songs=data.num_replacements,
+            ai_model=feedback_model,
+        )
+    except Exception as e:
+        logger.warning("Feedback generation failed: %s", e)
+        return {"songs": [], "replaced": 0}
+
+    if not playlist:
+        return {"songs": [], "replaced": 0}
+
+    # Resolve YouTube IDs
+    try:
+        resolved = await asyncio.to_thread(radio.resolve_youtube_ids, playlist)
+    except Exception:
+        resolved = playlist  # return without YouTube if resolution fails
+
+    if resolved:
+        thumbs.save_recommendations(resolved, source="radio-feedback", data_dir=user_dir)
+
+    return {"songs": resolved, "replaced": len(resolved)}
 
 
 # ---------------------------------------------------------------------------
@@ -1408,6 +1627,95 @@ async def spotify_preview(request: Request):
         return info
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Could not fetch playlist. Is it public?"})
+
+
+# ---------------------------------------------------------------------------
+# YouTube Playlist Preview & Channel Creation
+# ---------------------------------------------------------------------------
+
+class YouTubePreviewRequest(BaseModel):
+    url: str = Field(..., min_length=10, max_length=500)
+
+
+@app.post("/api/radio/youtube-preview")
+async def youtube_preview(request: Request):
+    """Validate a YouTube URL and return playlist metadata."""
+    try:
+        body = await request.json()
+        data = YouTubePreviewRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    playlist_id = YouTubePlaylistService.parse_playlist_url(data.url)
+    if not playlist_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid YouTube playlist URL. Use a URL with ?list=..."})
+
+    try:
+        info = await asyncio.to_thread(youtube_playlist.get_playlist_info, data.url)
+        return info
+    except YouTubeServiceError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Could not fetch playlist."})
+
+
+class YouTubeChannelRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    url: str = Field(..., min_length=10, max_length=500)
+    mode: str = Field("similar_songs", pattern=r"^(play_playlist|similar_songs|new_discoveries)$")
+    ai_model: str = Field("ollama", pattern=r"^(claude-sonnet|claude-haiku|ollama)$")
+    era: str = Field("", max_length=20)
+    num_songs: int = Field(50, ge=5, le=100)
+
+
+@app.post("/api/radio/youtube-channel")
+async def create_youtube_channel(request: Request):
+    """Create a channel from a YouTube playlist."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+
+    try:
+        body = await request.json()
+        data = YouTubeChannelRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    playlist_id = YouTubePlaylistService.parse_playlist_url(data.url)
+    if not playlist_id:
+        return JSONResponse(status_code=400, content={"error": "Invalid YouTube playlist URL"})
+
+    try:
+        tracks = await asyncio.to_thread(youtube_playlist.get_playlist_tracks, data.url)
+    except YouTubeServiceError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Failed to fetch playlist."})
+
+    if not tracks:
+        return JSONResponse(status_code=400, content={"error": "Playlist is empty or private."})
+
+    era_from, era_to = _parse_era(data.era)
+
+    try:
+        channel = channel_service.create_channel(
+            name=data.name,
+            source_type="youtube",
+            source_data={
+                "playlist_id": playlist_id,
+                "url": data.url,
+                "tracks": tracks,
+                "track_count": len(tracks),
+            },
+            mode=data.mode,
+            ai_model=data.ai_model,
+            era_from=era_from,
+            era_to=era_to,
+            num_songs=data.num_songs,
+            data_dir=user_dir,
+        )
+        return {"status": "ok", "channel": channel, "track_count": len(tracks)}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 
 # ---------------------------------------------------------------------------
@@ -1696,8 +2004,8 @@ async def song_meaning_endpoint(
         f'- "mood": single word mood (e.g. "melancholic", "euphoric", "aggressive", "dreamy", "energetic")\n'
         f'- "genres": array of 1-3 genre tags\n'
         f'- "artist_context": 1-2 sentences about what the artist has said about this song, or its cultural significance. If unknown, say "No known artist commentary."\n'
-        f'- "color_palette": object with "primary" (hex), "secondary" (hex), "accent" (hex) — colors that match the song\'s mood/vibe\n'
-        f'- "bg_gradient": CSS gradient string for the player background (use dark, atmospheric colors)\n'
+        f'- "color_palette": object with "primary" (hex), "secondary" (hex), "accent" (hex) — bright, vivid colors that match the song\'s mood/vibe. These are used as text colors on a dark background, so they MUST be light/bright enough to read (avoid dark or muted colors like #333, #1a1a2e, #2d1b4e — use bright ones like #e8a03e, #64b4ff, #ff6b9d)\n'
+        f'- "bg_gradient": CSS gradient string for the player background. MUST use very dark colors (lightness below 25%) so white text remains readable. Example: linear-gradient(135deg, #1a0a0a 0%, #0d1117 50%, #1a0d1e 100%)\n'
         f"\nReturn ONLY the JSON object."
     )
 
