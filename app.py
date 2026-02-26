@@ -947,6 +947,8 @@ async def radio_playlist_stream(request: Request,
                 thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                 dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                 play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+                exclude_set = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                exclude_set.update(thumbs.get_dislikes_set(data_dir=user_dir))
                 discovery = channel.get("discovery", 30)
                 era_from = channel.get("era_from")
                 era_to = channel.get("era_to")
@@ -963,14 +965,16 @@ async def radio_playlist_stream(request: Request,
                         coro = asyncio.to_thread(
                             radio.generate_themed_playlist, profile, collection_data,
                             theme, thumbs_summary, dislikes_summary, play_history_summary,
-                            discovery, era_from=era_from, era_to=era_to,
+                            exclude_set=exclude_set,
+                            discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
                     else:
                         yield _sse("progress", {"message": f"{model_label} is curating {num_songs} songs for you...", "percent": 25})
                         coro = asyncio.to_thread(
                             radio.generate_playlist, profile, collection_data, thumbs_summary,
-                            dislikes_summary, play_history_summary, discovery,
-                            era_from=era_from, era_to=era_to,
+                            dislikes_summary, play_history_summary,
+                            exclude_set=exclude_set,
+                            discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
                     _task = asyncio.ensure_future(coro)
                     async for _p in _keepalive_loop(_task, progress_q=pq):
@@ -1026,6 +1030,8 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+                    sp_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    sp_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_sp(collected, total):
@@ -1034,8 +1040,8 @@ async def radio_playlist_stream(request: Request,
                         _task = asyncio.ensure_future(asyncio.to_thread(
                             radio.generate_playlist_from_tracks,
                             tracks, mode, thumbs_summary, dislikes_summary,
-                            play_history_summary, discovery,
-                            era_from=era_from, era_to=era_to,
+                            play_history_summary, exclude_set=sp_exclude,
+                            discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
                             on_batch=_on_batch_sp))
                         async for _p in _keepalive_loop(_task, progress_q=pq):
@@ -1082,6 +1088,8 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+                    up_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    up_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_up(collected, total):
@@ -1090,8 +1098,8 @@ async def radio_playlist_stream(request: Request,
                         _task = asyncio.ensure_future(asyncio.to_thread(
                             radio.generate_playlist_from_tracks,
                             tracks, mode, thumbs_summary, dislikes_summary,
-                            play_history_summary, discovery,
-                            era_from=era_from, era_to=era_to,
+                            play_history_summary, exclude_set=up_exclude,
+                            discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
                             on_batch=_on_batch_up))
                         async for _p in _keepalive_loop(_task, progress_q=pq):
@@ -1139,6 +1147,8 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+                    yt_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    yt_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_yt(collected, total):
@@ -1147,8 +1157,8 @@ async def radio_playlist_stream(request: Request,
                         _task = asyncio.ensure_future(asyncio.to_thread(
                             radio.generate_playlist_from_tracks,
                             tracks, mode, thumbs_summary, dislikes_summary,
-                            play_history_summary, discovery,
-                            era_from=era_from, era_to=era_to,
+                            play_history_summary, exclude_set=yt_exclude,
+                            discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
                             on_batch=_on_batch_yt))
                         async for _p in _keepalive_loop(_task, progress_q=pq):

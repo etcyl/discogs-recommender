@@ -340,9 +340,9 @@ def get_recently_recommended_artists(days: int = 14,
     return artists
 
 
-def get_rec_history_summary(max_entries: int = 50,
+def get_rec_history_summary(max_entries: int = 200,
                             data_dir: Path | None = None) -> str:
-    """Format recent recommendation history for Claude prompt."""
+    """Format recent recommendation history for Claude prompt (artist - title)."""
     max_entries = min(max(1, max_entries), MAX_REC_HISTORY_ENTRIES)
     rec_history = load_rec_history(data_dir)
     if not rec_history:
@@ -350,17 +350,54 @@ def get_rec_history_summary(max_entries: int = 50,
 
     seen = set()
     lines = []
-    for r in reversed(rec_history[-max_entries * 2:]):
-        key = f"{r.get('artist', '').lower()}|{r.get('album', '').lower()}"
+    for r in reversed(rec_history):
+        key = f"{r.get('artist', '').lower()}|{r.get('title', '').lower()}"
         if key in seen:
             continue
         seen.add(key)
         lines.append(
-            f"  - {r.get('artist', '?')} - {r.get('album', r.get('title', '?'))}")
+            f"  - {r.get('artist', '?')} - {r.get('title', r.get('album', '?'))}")
         if len(lines) >= max_entries:
             break
 
     return "\n".join(lines)
+
+
+def get_rec_history_set(max_entries: int = 200,
+                        data_dir: Path | None = None) -> set[tuple[str, str]]:
+    """Return set of (artist_lower, title_lower) tuples from recent recommendations.
+
+    Used for hard-filtering: programmatically exclude previously recommended songs
+    so the LLM doesn't need to be relied on for dedup.
+    """
+    rec_history = load_rec_history(data_dir)
+    if not rec_history:
+        return set()
+
+    result = set()
+    for r in reversed(rec_history[-max_entries * 2:]):
+        artist = r.get("artist", "").lower().strip()
+        title = r.get("title", "").lower().strip()
+        if artist and title:
+            result.add((artist, title))
+        if len(result) >= max_entries:
+            break
+    return result
+
+
+def get_dislikes_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
+    """Return set of (artist_lower, title_lower) from all disliked songs.
+
+    Used for hard-filtering: programmatically ensure disliked songs never appear.
+    """
+    dislikes = load_dislikes(data_dir)
+    result = set()
+    for d in dislikes:
+        artist = d.get("artist", "").lower().strip()
+        title = d.get("title", "").lower().strip()
+        if artist and title:
+            result.add((artist, title))
+    return result
 
 
 def _atomic_write_json(filepath: Path, data) -> None:

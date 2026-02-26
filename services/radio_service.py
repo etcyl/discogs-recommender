@@ -84,6 +84,7 @@ class RadioService:
                           ai_model: str = "claude-sonnet",
                           on_batch=None,
                           exclude_tracks: list[dict] | None = None,
+                          exclude_set: set[tuple[str, str]] | None = None,
                           era_from: int | None = None,
                           era_to: int | None = None) -> list[dict]:
         """Generate songs using parallel LLM calls, then dedup and era-filter.
@@ -91,6 +92,7 @@ class RadioService:
         Fires multiple requests simultaneously for speed, each with a
         different variety hint to encourage diversity, then deduplicates.
         exclude_tracks: optional list of source tracks to filter out (e.g. from Spotify input).
+        exclude_set: set of (artist_lower, title_lower) tuples to hard-filter (rec history, dislikes).
         era_from/era_to: if set, post-filter songs whose year falls outside the range.
         """
         has_era = bool(era_from or era_to)
@@ -103,8 +105,13 @@ class RadioService:
         else:
             effective_batch = self.BATCH_SIZE
 
-        # Over-request when era filter is active — small models often violate constraints
-        over_request = int(num_songs * 0.4) if (has_era and (is_ollama or is_haiku)) else 0
+        # Over-request to compensate for era filtering and exclude_set hard-filtering
+        over_request = 0
+        if has_era and (is_ollama or is_haiku):
+            over_request += int(num_songs * 0.4)
+        if exclude_set and len(exclude_set) > 50:
+            # LLMs often regenerate the same popular songs — request extra to compensate
+            over_request += int(num_songs * 0.3)
         target = num_songs + over_request
 
         num_workers = max(1, (target + effective_batch - 1) // effective_batch)
@@ -139,6 +146,11 @@ class RadioService:
             for t in exclude_tracks:
                 seen.add((t.get("artist", "").lower().strip(),
                           t.get("title", "").lower().strip()))
+
+        # Hard-filter: previously recommended songs + disliked songs
+        if exclude_set:
+            seen.update(exclude_set)
+            logger.info("Hard-filter: pre-seeded %d songs from rec history + dislikes", len(exclude_set))
 
         with ThreadPoolExecutor(max_workers=num_workers) as pool:
             futures = [pool.submit(_run_one, i) for i in range(num_workers)]
@@ -342,6 +354,7 @@ class RadioService:
                           thumbs_summary: str = "",
                           dislikes_summary: str = "",
                           play_history_summary: str = "",
+                          exclude_set: set[tuple[str, str]] | None = None,
                           discovery: int = 30,
                           era_from: int | None = None,
                           era_to: int | None = None,
@@ -467,6 +480,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
 
         return self._batched_generate(build_prompts, num_songs, ai_model=ai_model,
                                       on_batch=on_batch,
+                                      exclude_set=exclude_set,
                                       era_from=era_from, era_to=era_to)
 
     def resolve_youtube_ids(self, playlist: list[dict]) -> list[dict]:
@@ -800,6 +814,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       thumbs_summary: str = "",
                                       dislikes_summary: str = "",
                                       play_history_summary: str = "",
+                                      exclude_set: set[tuple[str, str]] | None = None,
                                       discovery: int = 30,
                                       era_from: int | None = None,
                                       era_to: int | None = None,
@@ -912,6 +927,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
 
         return self._batched_generate(build_prompts, num_songs, ai_model=ai_model,
                                       on_batch=on_batch, exclude_tracks=tracks,
+                                      exclude_set=exclude_set,
                                       era_from=era_from, era_to=era_to)
 
     def generate_themed_playlist(self, profile: dict, collection: list[dict],
@@ -919,6 +935,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                     thumbs_summary: str = "",
                                     dislikes_summary: str = "",
                                     play_history_summary: str = "",
+                                    exclude_set: set[tuple[str, str]] | None = None,
                                     discovery: int = 30,
                                     era_from: int | None = None,
                                     era_to: int | None = None,
@@ -1020,6 +1037,7 @@ DISCOVERY LEVEL: {discovery}/100
 
         return self._batched_generate(build_prompts, num_songs, ai_model=ai_model,
                                       on_batch=on_batch,
+                                      exclude_set=exclude_set,
                                       era_from=era_from, era_to=era_to)
 
     def generate_replacements(
