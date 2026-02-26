@@ -25,3 +25,13 @@ The version is displayed in the app footer via `APP_VERSION` in `app.py`.
 - `VERSION` — single-line file, the source of truth (e.g. `1.5.0`)
 - `app.py` — reads `VERSION` at startup into `APP_VERSION`, injected into all templates
 - `templates/base.html` — displays `v{{ app_version }}` in the footer
+
+## Git & GitHub (MANDATORY)
+
+After every completed change (bug fix, feature, tweak), **commit and push to GitHub automatically**. Do not wait for the user to ask.
+
+### Rules
+1. **Commit and push** after each logical change is done and working.
+2. **Do NOT push** if the change involves secrets, credentials, `.env` files, or anything that could be a security risk — warn the user instead.
+3. Use descriptive commit messages prefixed with the version (e.g. `v1.9.1: Fix liked button state on Liked Songs channel`).
+4. Push to the current branch (usually `master`). Never force-push without explicit user approval.
