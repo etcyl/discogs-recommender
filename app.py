@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import queue as queue_mod
+import random
 import re
 import time
 from collections import defaultdict
@@ -1172,6 +1173,32 @@ async def radio_playlist_stream(request: Request,
                     yield _sse("error", {"message": "No songs generated."})
                     return
 
+            elif source_type == "liked":
+                liked_songs = thumbs.load_thumbs(data_dir=user_dir)
+                if not liked_songs:
+                    yield _sse("error", {"message": "No liked songs yet. Like some songs on the radio to build your playlist!"})
+                    return
+
+                yield _sse("progress", {"message": f"Shuffling {len(liked_songs)} liked songs...", "percent": 15})
+                random.shuffle(liked_songs)
+                playlist = [
+                    {
+                        "artist": t.get("artist", ""),
+                        "title": t.get("title", ""),
+                        "album": t.get("album", ""),
+                        "year": "",
+                        "reason": "From your liked songs",
+                        "similar_to": [],
+                        "genres": t.get("genres", []),
+                        "styles": t.get("styles", []),
+                    }
+                    for t in liked_songs
+                ]
+
+                if not playlist:
+                    yield _sse("error", {"message": "No songs to play."})
+                    return
+
             else:
                 yield _sse("error", {"message": "Unknown channel type."})
                 return
@@ -1198,7 +1225,8 @@ async def radio_playlist_stream(request: Request,
 
             if resolved:
                 thumbs.save_recommendations(resolved, source="radio", data_dir=user_dir)
-                cache.set(cache_key, resolved, ttl=28800)
+                ttl = 1800 if source_type == "liked" else 28800
+                cache.set(cache_key, resolved, ttl=ttl)
 
             yield _sse("progress", {"message": "Ready!", "percent": 100})
             yield _sse("complete", {"cached": False, "ai_model": model_label})

@@ -12,7 +12,7 @@ CHANNELS_FILE = DATA_DIR / "channels.json"
 MAX_CHANNELS = 20
 MAX_NAME_LENGTH = 100
 
-VALID_SOURCE_TYPES = {"discogs", "spotify", "youtube", "upload"}
+VALID_SOURCE_TYPES = {"discogs", "spotify", "youtube", "upload", "liked"}
 VALID_MODES = {"play_playlist", "similar_songs", "new_discoveries", "themed"}
 
 VALID_AI_MODELS = {"claude-sonnet", "claude-haiku", "ollama"}
@@ -24,6 +24,21 @@ DEFAULT_CHANNEL_DISCOGS = {
     "source_data": {},
     "mode": "similar_songs",
     "discovery": 30,
+    "era_from": None,
+    "era_to": None,
+    "ai_model": "claude-sonnet",
+    "num_songs": 50,
+    "created_at": "2026-01-01T00:00:00",
+    "is_default": True,
+}
+
+DEFAULT_CHANNEL_LIKED = {
+    "id": "liked-songs",
+    "name": "Liked Songs",
+    "source_type": "liked",
+    "source_data": {},
+    "mode": "play_playlist",
+    "discovery": 0,
     "era_from": None,
     "era_to": None,
     "ai_model": "claude-sonnet",
@@ -80,6 +95,11 @@ def load_channels(data_dir: Path | None = None,
         channels = [c for c in channels if not c.get("is_default")]
         channels.insert(0, default_channel.copy())
         dirty = True
+    # Ensure "Liked Songs" channel always exists (position 2nd)
+    if not any(c.get("id") == "liked-songs" for c in channels):
+        channels.insert(1, DEFAULT_CHANNEL_LIKED.copy())
+        dirty = True
+
     # Migrate: add missing fields
     for ch in channels:
         if "discovery" not in ch:

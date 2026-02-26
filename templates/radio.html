@@ -26,6 +26,8 @@
                     <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21.582 7.186a2.506 2.506 0 0 0-1.768-1.768C18.254 5 12 5 12 5s-6.254 0-7.814.418A2.506 2.506 0 0 0 2.418 7.186C2 8.746 2 12 2 12s0 3.254.418 4.814a2.506 2.506 0 0 0 1.768 1.768C5.746 19 12 19 12 19s6.254 0 7.814-.418a2.506 2.506 0 0 0 1.768-1.768C22 15.254 22 12 22 12s0-3.254-.418-4.814zM10 15.464V8.536L16 12l-6 3.464z"/></svg>
                     {% elif ch.source_type == 'upload' %}
                     <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+                    {% elif ch.source_type == 'liked' %}
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     {% else %}
                     <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
                     {% endif %}
@@ -34,6 +36,7 @@
                 {% if not ch.is_default %}
                 <button class="channel-menu-btn" data-channel-id="{{ ch.id }}" title="Channel options">&hellip;</button>
                 {% endif %}
+                {% if ch.source_type != 'liked' %}
                 <div class="channel-discovery" data-channel-id="{{ ch.id }}">
                     <input type="range" class="channel-discovery-slider" min="0" max="100" step="5"
                            value="{{ ch.discovery | default(30) }}" title="Discovery: {{ ch.discovery | default(30) }}%">
@@ -76,6 +79,7 @@
                     <input type="range" class="channel-num-songs-slider" min="5" max="100" step="5"
                            value="{{ ch.num_songs or 50 }}" title="Playlist size: {{ ch.num_songs or 50 }}">
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -222,6 +226,11 @@
                                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
                                 </button>
                             </div>
+                            <button id="btn-shuffle" class="thumb-btn shuffle-btn" title="Shuffle (S)">
+                                <svg viewBox="0 0 24 24" width="20" height="20">
+                                    <path fill="currentColor" d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                                </svg>
+                            </button>
                             <button id="btn-mindmap" class="mindmap-toggle-btn" title="Show connections map">
                                 <svg viewBox="0 0 24 24" width="20" height="20">
                                     <circle cx="12" cy="12" r="3" fill="currentColor"/>

@@ -22,6 +22,11 @@ let activeChannelId = 'my-collection';
 let menuTargetChannelId = null;
 let activeEventSource = null;
 
+// ---- Shuffle State ----
+let shuffleMode = false;
+let playedIndices = new Set();
+let playHistory = [];
+
 function getActiveAiModel() {
     const sel = document.querySelector(`.channel-ai-model[data-channel-id="${activeChannelId}"] .channel-ai-model-select`);
     return sel ? sel.value : 'claude-sonnet';
@@ -326,10 +331,21 @@ function switchChannel(channelId) {
         try { player.stopVideo(); } catch (e) {}
     }
 
-    // Reset queue
+    // Reset queue and shuffle state
     queue = [];
     currentIndex = -1;
+    playedIndices.clear();
+    playHistory = [];
     renderQueue();
+
+    // Auto-enable shuffle for Liked Songs channel
+    const channelItem = document.querySelector(`.channel-item[data-channel-id="${channelId}"]`);
+    const isLiked = channelItem?.dataset.sourceType === 'liked';
+    if (isLiked && !shuffleMode) {
+        toggleShuffle();
+    } else if (!isLiked && shuffleMode) {
+        toggleShuffle();
+    }
 
     // Load new channel
     showLoading(true);
@@ -651,7 +667,32 @@ function playNext() {
             scheduleFeedbackGeneration();
         }
     }
-    if (currentIndex + 1 < queue.length) {
+    if (shuffleMode && queue.length > 0) {
+        if (currentIndex >= 0) playedIndices.add(currentIndex);
+
+        // Build pool of unplayed indices
+        const pool = [];
+        for (let i = 0; i < queue.length; i++) {
+            if (!playedIndices.has(i)) pool.push(i);
+        }
+
+        if (pool.length === 0) {
+            // All songs played — reshuffle
+            playedIndices.clear();
+            if (currentIndex >= 0) playedIndices.add(currentIndex);
+            for (let i = 0; i < queue.length; i++) {
+                if (i !== currentIndex) pool.push(i);
+            }
+            showToast('All songs played! Reshuffling...');
+        }
+
+        if (pool.length > 0) {
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            currentIndex = pick;
+            playHistory.push(currentIndex);
+            loadTrack(queue[currentIndex]);
+        }
+    } else if (currentIndex + 1 < queue.length) {
         currentIndex++;
         loadTrack(queue[currentIndex]);
     } else if (isRefreshing) {
@@ -660,9 +701,31 @@ function playNext() {
 }
 
 function playPrev() {
-    if (currentIndex > 0) {
+    if (shuffleMode && playHistory.length > 1) {
+        playHistory.pop(); // remove current
+        currentIndex = playHistory[playHistory.length - 1];
+        loadTrack(queue[currentIndex]);
+    } else if (currentIndex > 0) {
         currentIndex--;
         loadTrack(queue[currentIndex]);
+    }
+}
+
+function toggleShuffle() {
+    shuffleMode = !shuffleMode;
+    const btn = document.getElementById('btn-shuffle');
+    btn?.classList.toggle('shuffle-active', shuffleMode);
+
+    if (shuffleMode) {
+        playedIndices.clear();
+        playHistory = [];
+        if (currentIndex >= 0) {
+            playedIndices.add(currentIndex);
+            playHistory.push(currentIndex);
+        }
+        showToast('Shuffle on');
+    } else {
+        showToast('Shuffle off');
     }
 }
 
@@ -1174,6 +1237,7 @@ document.getElementById('btn-prev')?.addEventListener('click', playPrev);
 document.getElementById('btn-thumbs')?.addEventListener('click', thumbsUp);
 document.getElementById('btn-dislike')?.addEventListener('click', thumbsDown);
 document.getElementById('btn-refresh')?.addEventListener('click', refreshPlaylist);
+document.getElementById('btn-shuffle')?.addEventListener('click', toggleShuffle);
 
 // ---- Channel Bindings ----
 document.getElementById('btn-new-channel')?.addEventListener('click', openNewChannelDialog);
@@ -1387,6 +1451,7 @@ document.addEventListener('keydown', (e) => {
         case 'KeyD': thumbsDown(); break;
         case 'KeyL': thumbsUp(); break;
         case 'KeyY': toggleLyrics(); break;
+        case 'KeyS': toggleShuffle(); break;
     }
 });
 

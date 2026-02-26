@@ -1513,6 +1513,20 @@ progress {
     box-shadow: 0 0 12px rgba(244, 67, 54, 0.3);
 }
 
+.shuffle-btn:hover {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: #4ade80;
+    color: #4ade80;
+    transform: scale(1.1);
+}
+
+.shuffle-btn.shuffle-active {
+    background: rgba(74, 222, 128, 0.2);
+    border-color: #4ade80;
+    color: #4ade80;
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+}
+
 .volume-control {
     display: flex;
     align-items: center;
