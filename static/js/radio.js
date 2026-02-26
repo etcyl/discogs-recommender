@@ -166,6 +166,15 @@ function loadPlaylistSSE(isRefreshMode = false) {
         // Append new songs to queue
         queue.push(...data.songs);
         songsReceived += data.songs.length;
+
+        // Pre-mark all songs as liked on the Liked Songs channel
+        if (activeChannelId === 'liked-songs') {
+            data.songs.forEach(s => {
+                const key = `${s.artist}-${s.title}`.toLowerCase();
+                likedSet.add(key);
+            });
+        }
+
         renderQueue();
 
         // Start playback if this is the first batch
