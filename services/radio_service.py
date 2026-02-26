@@ -470,7 +470,7 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       era_from=era_from, era_to=era_to)
 
     def resolve_youtube_ids(self, playlist: list[dict]) -> list[dict]:
-        """Find YouTube video IDs and album art for each song (parallel)."""
+        """Find YouTube video IDs, correct metadata from YT title, and fetch album info."""
         def _resolve_one(song):
             artist = song.get("artist", "")
             title = song.get("title", "")
@@ -480,17 +480,37 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 song["thumbnail"] = video_info["thumbnail"]
                 song["duration"] = video_info["duration"]
                 song["altVideoIds"] = video_info.get("altVideoIds", [])
+                song["ytTitle"] = video_info.get("ytTitle", "")
+
+                # Parse YouTube title as source of truth for artist/song name
+                yt_artist, yt_song = self._parse_youtube_title(
+                    video_info.get("ytTitle", ""),
+                    video_info.get("ytChannel", ""),
+                )
+                if yt_artist and yt_song:
+                    song["artist"] = yt_artist
+                    song["title"] = yt_song
+                elif yt_song:
+                    # Got a song name but no artist — keep LLM artist
+                    song["title"] = yt_song
+
                 return song
             return None
 
-        def _fetch_art(song):
+        def _enrich_metadata(song):
+            """Look up album name, year, and artwork via iTunes/Deezer."""
             artist = song.get("artist", "")
             title = song.get("title", "")
-            song["albumArt"] = self._fetch_album_art(artist, title)
+            meta = self._fetch_song_metadata(artist, title)
+            song["albumArt"] = meta.get("albumArt", "")
+            if meta.get("album"):
+                song["album"] = meta["album"]
+            if meta.get("year"):
+                song["year"] = meta["year"]
 
         resolved = []
         with ThreadPoolExecutor(max_workers=8) as pool:
-            # Resolve YouTube IDs
+            # Resolve YouTube IDs + correct metadata from YT titles
             yt_futures = {pool.submit(_resolve_one, song): i for i, song in enumerate(playlist)}
             results = [None] * len(playlist)
             for future in yt_futures:
@@ -498,10 +518,10 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 results[idx] = future.result()
             resolved = [r for r in results if r is not None]
 
-            # Fetch album art in parallel for resolved songs
-            art_futures = [pool.submit(_fetch_art, song) for song in resolved]
-            for f in art_futures:
-                f.result()  # Wait for all art fetches
+            # Enrich with album name/year/art using corrected artist+title
+            meta_futures = [pool.submit(_enrich_metadata, song) for song in resolved]
+            for f in meta_futures:
+                f.result()
 
         return resolved
 
@@ -511,6 +531,55 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
         r'|bbc\s+session|peel\s+session|concert|live\))',
         re.IGNORECASE,
     )
+
+    # Patterns stripped from YouTube titles before parsing artist/song
+    _YT_SUFFIX_PATTERNS = re.compile(
+        r'\s*[\(\[](official\s*(music\s*)?video|official\s*audio|official\s*lyric'
+        r'|lyric\s*video|lyrics?|audio|visuali[sz]er|music\s*video|mv|hd|hq'
+        r'|remaster(ed)?|full\s*album|video\s*oficial|clip\s*officiel'
+        r'|feat\.?[^)\]]*|ft\.?[^)\]]*)[\)\]]',
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _parse_youtube_title(yt_title: str, channel_name: str = "") -> tuple[str, str]:
+        """Extract (artist, song_title) from a YouTube video title.
+
+        YouTube titles commonly follow 'Artist - Song Title (Official Audio)'.
+        Falls back to channel name as artist if no separator found.
+        """
+        if not yt_title:
+            return ("", "")
+
+        # Strip common suffixes like (Official Audio), [Music Video], etc.
+        cleaned = RadioService._YT_SUFFIX_PATTERNS.sub("", yt_title).strip()
+        # Also strip trailing whitespace and pipes/slashes sometimes used
+        cleaned = re.sub(r'\s*[|/]\s*$', '', cleaned).strip()
+
+        # Try splitting on ' - ' (most common YouTube format)
+        if ' - ' in cleaned:
+            parts = cleaned.split(' - ', 1)
+            artist = parts[0].strip()
+            song = parts[1].strip()
+            if artist and song:
+                return (artist, song)
+
+        # Try splitting on ' – ' (en-dash, also common)
+        if ' \u2013 ' in cleaned:
+            parts = cleaned.split(' \u2013 ', 1)
+            artist = parts[0].strip()
+            song = parts[1].strip()
+            if artist and song:
+                return (artist, song)
+
+        # No separator — use channel name as artist, full title as song
+        ch = channel_name.strip()
+        # Strip " - Topic" suffix from YouTube auto-generated channels
+        ch = re.sub(r'\s*-\s*Topic$', '', ch, flags=re.IGNORECASE).strip()
+        if ch:
+            return (ch, cleaned if cleaned else yt_title.strip())
+
+        return ("", cleaned if cleaned else yt_title.strip())
 
     def _find_youtube_video(self, artist: str, title: str) -> dict | None:
         """Search YouTube for a song, return video info with backup IDs. Cached 24hr."""
@@ -639,25 +708,32 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
         if best_total < 40:
             logger.info("YouTube: weak match for '%s - %s' (score=%d, yt='%s')",
                         artist, title, best_total, best.get("title", ""))
+        best_channel = (best.get("channel", {}).get("name", "")
+                        if isinstance(best.get("channel"), dict) else "")
         info = {
             "videoId": best["id"],
             "thumbnail": (best.get("thumbnails", [{}])[-1].get("url", "")
                           if best.get("thumbnails") else ""),
             "duration": best.get("duration", ""),
             "ytTitle": best.get("title", ""),
+            "ytChannel": best_channel,
             "altVideoIds": [r["id"] for r in filtered[1:]],
         }
         cache.set(cache_key, info, ttl=86400)
         return info
 
-    def _fetch_album_art(self, artist: str, title: str) -> str:
-        """Fetch real album artwork from iTunes, falling back to Deezer. Cached 24hr."""
-        cache_key = f"albumart:{artist.lower()}:{title.lower()}"
+    def _fetch_song_metadata(self, artist: str, title: str) -> dict:
+        """Look up song metadata from iTunes/Deezer. Returns album art, album name, year.
+
+        Cached 24hr. Used to enrich songs with accurate metadata after YouTube
+        title parsing gives us the correct artist + song name.
+        """
+        cache_key = f"songmeta:{artist.lower()}:{title.lower()}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
 
-        art_url = ""
+        meta: dict = {"albumArt": "", "album": "", "year": "", "artist": "", "title": ""}
 
         # Try iTunes Search API first
         try:
@@ -669,22 +745,28 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
             if resp.status_code == 200:
                 results = resp.json().get("results", [])
                 if results:
-                    # Pick best match: prefer result whose artist name overlaps
+                    best = None
                     artist_lower = artist.lower()
                     for r in results:
                         if artist_lower in r.get("artistName", "").lower():
-                            art_url = r.get("artworkUrl100", "")
+                            best = r
                             break
-                    if not art_url and results:
-                        art_url = results[0].get("artworkUrl100", "")
-                    # Upscale to 600x600
+                    if not best:
+                        best = results[0]
+                    art_url = best.get("artworkUrl100", "")
                     if art_url:
-                        art_url = art_url.replace("100x100bb", "600x600bb")
+                        meta["albumArt"] = art_url.replace("100x100bb", "600x600bb")
+                    meta["album"] = best.get("collectionName", "")
+                    meta["artist"] = best.get("artistName", "")
+                    meta["title"] = best.get("trackName", "")
+                    release = best.get("releaseDate", "")
+                    if release:
+                        meta["year"] = release[:4]  # "2004-01-01T..." → "2004"
         except Exception:
             pass
 
-        # Fallback: Deezer API
-        if not art_url:
+        # Fallback: Deezer API (if iTunes gave no art or album)
+        if not meta["albumArt"] or not meta["album"]:
             try:
                 query = urllib.parse.quote(f'artist:"{artist}" track:"{title}"')
                 resp = httpx.get(
@@ -694,12 +776,24 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 if resp.status_code == 200:
                     data = resp.json().get("data", [])
                     if data:
-                        art_url = data[0].get("album", {}).get("cover_big", "")
+                        hit = data[0]
+                        if not meta["albumArt"]:
+                            meta["albumArt"] = hit.get("album", {}).get("cover_big", "")
+                        if not meta["album"]:
+                            meta["album"] = hit.get("album", {}).get("title", "")
+                        if not meta["artist"]:
+                            meta["artist"] = hit.get("artist", {}).get("name", "")
+                        if not meta["title"]:
+                            meta["title"] = hit.get("title", "")
+                        if not meta["year"]:
+                            rel = hit.get("album", {}).get("release_date", "")
+                            if rel:
+                                meta["year"] = rel[:4]
             except Exception:
                 pass
 
-        cache.set(cache_key, art_url, ttl=86400)
-        return art_url
+        cache.set(cache_key, meta, ttl=86400)
+        return meta
 
     def generate_playlist_from_tracks(self, tracks: list[dict],
                                       mode: str = "similar_songs",
