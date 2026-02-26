@@ -9,11 +9,10 @@ services:
     volumes:
       - ./data:/app/data
     restart: unless-stopped
-    # Uncomment to connect to Ollama running on the host:
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
-    # environment:
-    #   - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
 
   # Uncomment to run Ollama as a container (free local AI):
   # ollama:
