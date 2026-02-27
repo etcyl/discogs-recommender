@@ -909,6 +909,14 @@ async def radio_playlist_stream(request: Request,
         cache_key = f"radio_playlist:{user['id']}:{channel_id}"
         playlist = cache.get(cache_key)
         if playlist:
+            # Post-cache filter: remove songs liked/disliked/played since cache was set
+            filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
+            filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+            playlist = [
+                s for s in playlist
+                if (s.get("artist", "").lower().strip(),
+                    s.get("title", "").lower().strip()) not in filter_set
+            ]
             yield _sse("song", {"songs": playlist, "total_expected": len(playlist)})
             yield _sse("complete", {"cached": True, "ai_model": ""})
             return
@@ -948,8 +956,10 @@ async def radio_playlist_stream(request: Request,
                 thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                 dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                 play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
-                exclude_set = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                exclude_set = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
                 exclude_set.update(thumbs.get_dislikes_set(data_dir=user_dir))
+                exclude_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                exclude_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
                 discovery = channel.get("discovery", 30)
                 era_from = channel.get("era_from")
                 era_to = channel.get("era_to")
@@ -1031,8 +1041,10 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
-                    sp_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    sp_exclude = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
                     sp_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
+                    sp_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                    sp_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_sp(collected, total):
@@ -1089,8 +1101,10 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
-                    up_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    up_exclude = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
                     up_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
+                    up_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                    up_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_up(collected, total):
@@ -1148,8 +1162,10 @@ async def radio_playlist_stream(request: Request,
                     thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
                     dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
                     play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
-                    yt_exclude = thumbs.get_rec_history_set(max_entries=200, data_dir=user_dir)
+                    yt_exclude = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
                     yt_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
+                    yt_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                    yt_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_yt(collected, total):
@@ -1244,6 +1260,17 @@ async def radio_playlist_stream(request: Request,
             "Transfer-Encoding": "chunked",
         },
     )
+
+
+@app.get("/api/radio/liked-keys")
+async def radio_liked_keys(request: Request):
+    """Return all liked song keys for frontend pre-population."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+    liked = thumbs.load_thumbs(data_dir=user_dir)
+    keys = [f"{t.get('artist', '')}-{t.get('title', '')}".lower()
+            for t in liked if t.get("artist") and t.get("title")]
+    return {"keys": keys}
 
 
 @app.post("/api/radio/thumbs")

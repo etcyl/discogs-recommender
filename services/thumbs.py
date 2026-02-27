@@ -385,6 +385,41 @@ def get_rec_history_set(max_entries: int = 200,
     return result
 
 
+def get_thumbs_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
+    """Return set of (artist_lower, title_lower) from all liked songs.
+
+    Used for hard-filtering: prevent re-recommending already-liked songs.
+    """
+    liked = load_thumbs(data_dir)
+    result = set()
+    for t in liked:
+        artist = t.get("artist", "").lower().strip()
+        title = t.get("title", "").lower().strip()
+        if artist and title:
+            result.add((artist, title))
+    return result
+
+
+def get_history_set(max_entries: int = 300,
+                    data_dir: Path | None = None) -> set[tuple[str, str]]:
+    """Return set of (artist_lower, title_lower) from recent play history.
+
+    Used for hard-filtering: prevent replaying recently heard songs.
+    """
+    history = load_history(data_dir)
+    if not history:
+        return set()
+    result = set()
+    for h in reversed(history[-max_entries * 2:]):
+        artist = h.get("artist", "").lower().strip()
+        title = h.get("title", "").lower().strip()
+        if artist and title:
+            result.add((artist, title))
+        if len(result) >= max_entries:
+            break
+    return result
+
+
 def get_dislikes_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
     """Return set of (artist_lower, title_lower) from all disliked songs.
 

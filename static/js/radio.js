@@ -11,6 +11,11 @@ let isSeeking = false;
 let likedSet = new Set();
 let dislikedSet = new Set();
 
+// Pre-populate likedSet from backend so liked songs show as highlighted
+fetch('/api/radio/liked-keys').then(r => r.json()).then(data => {
+    if (data.keys) data.keys.forEach(k => likedSet.add(k));
+}).catch(() => {});
+
 // ---- Session Feedback State ----
 let sessionFeedback = { liked: [], disliked: [], skipped: [] };
 let isGeneratingReplacements = false;
