@@ -612,6 +612,12 @@ function addChannelToSidebar(channel) {
             <input type="range" class="channel-num-songs-slider" min="5" max="100" step="5"
                    value="${channel.num_songs || 50}" title="Playlist size: ${channel.num_songs || 50}">
         </div>
+        <div class="channel-deep-cuts" data-channel-id="${channel.id}">
+            <label class="deep-cuts-label">
+                <input type="checkbox" class="channel-deep-cuts-toggle" ${channel.prefer_deep_cuts ? 'checked' : ''}>
+                Deep Cuts Mode
+            </label>
+        </div>
     `;
     list.appendChild(item);
     // Initialize discovery tier label for the new slider
@@ -678,6 +684,14 @@ function playNext() {
                 match_attributes: track.match_attributes || [],
                 reason: track.reason || '',
             });
+            // Record skip for preference learning
+            fetch('/api/radio/skip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    match_attributes: track.match_attributes || [],
+                }),
+            }).catch(() => {});
             scheduleFeedbackGeneration();
         }
     }
@@ -853,7 +867,7 @@ function updateTrackInfo(track) {
             const color = getMatchScoreColor(score);
             bar.style.width = `${score}%`;
             bar.style.background = color;
-            val.textContent = `${score} — ${getMatchScoreLabel(score)}`;
+            val.textContent = `${score} - ${getMatchScoreLabel(score)}`;
             val.style.color = color;
 
             const attrsEl = document.getElementById('match-attributes');
@@ -865,6 +879,20 @@ function updateTrackInfo(track) {
             } else {
                 attrsEl.style.display = 'none';
             }
+
+            // Obscurity score badge
+            const obscEl = document.getElementById('obscurity-badge');
+            if (obscEl) {
+                const obs = track.obscurity_score;
+                if (obs && typeof obs === 'number') {
+                    obscEl.textContent = obs >= 70 ? 'Deep Cut' : obs >= 40 ? 'Under the Radar' : 'Well Known';
+                    obscEl.className = 'obscurity-badge ' + (obs >= 70 ? 'obscurity-high' : obs >= 40 ? 'obscurity-mid' : 'obscurity-low');
+                    obscEl.style.display = '';
+                } else {
+                    obscEl.style.display = 'none';
+                }
+            }
+
             matchInfo.style.display = '';
         } else {
             matchInfo.style.display = 'none';
@@ -885,7 +913,7 @@ function updateTrackInfo(track) {
             } else {
                 similarList.innerHTML = track.similar_to.map(s =>
                     `<div class="similar-to-item">
-                        <span class="similar-to-album">${s.artist} — ${s.album}</span>
+                        <span class="similar-to-album">${s.artist} - ${s.album}</span>
                         <span class="similar-to-why">${s.why || ''}</span>
                     </div>`
                 ).join('');
@@ -893,6 +921,28 @@ function updateTrackInfo(track) {
             similarSection.style.display = '';
         } else {
             similarSection.style.display = 'none';
+        }
+    }
+
+    // Influence chain
+    const chainEl = document.getElementById('influence-chain');
+    if (chainEl) {
+        if (track.influence_chain) {
+            chainEl.textContent = track.influence_chain;
+            chainEl.style.display = '';
+        } else {
+            chainEl.style.display = 'none';
+        }
+    }
+
+    // Credit connection
+    const creditEl = document.getElementById('credit-connection');
+    if (creditEl) {
+        if (track.credit_connection) {
+            creditEl.textContent = track.credit_connection;
+            creditEl.style.display = '';
+        } else {
+            creditEl.style.display = 'none';
         }
     }
 
@@ -977,6 +1027,8 @@ async function thumbsUp() {
                 album: track.album || '',
                 genres: track.genres || [],
                 styles: track.styles || [],
+                match_attributes: track.match_attributes || [],
+                match_score: track.match_score || null,
             }),
         });
     } catch (e) {}
@@ -1015,6 +1067,8 @@ async function thumbsDown() {
                 album: track.album || '',
                 genres: track.genres || [],
                 styles: track.styles || [],
+                match_attributes: track.match_attributes || [],
+                match_score: track.match_score || null,
             }),
         });
     } catch (e) {}
@@ -1435,6 +1489,20 @@ document.getElementById('channel-list')?.addEventListener('input', (e) => {
     }, 400);
 });
 
+// ---- Deep Cuts Toggle ----
+document.getElementById('channel-list')?.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('channel-deep-cuts-toggle')) return;
+    const wrapper = e.target.closest('.channel-deep-cuts');
+    if (!wrapper) return;
+    const channelId = wrapper.dataset.channelId;
+    const value = e.target.checked;
+    fetch(`/api/radio/channels/${encodeURIComponent(channelId)}/deep-cuts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefer_deep_cuts: value }),
+    }).catch(() => {});
+});
+
 // ---- Create Dialog: Num Songs label ----
 document.getElementById('new-channel-num-songs')?.addEventListener('input', (e) => {
     const label = document.getElementById('new-channel-num-songs-label');
@@ -1619,7 +1687,7 @@ function copyToClipboard(text, label) {
 }
 
 function getTrackText(track) {
-    let text = `${track.artist} — ${track.title}`;
+    let text = `${track.artist} - ${track.title}`;
     if (track.album) text += ` (${track.album})`;
     return text;
 }

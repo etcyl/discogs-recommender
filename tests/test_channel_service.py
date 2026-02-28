@@ -24,7 +24,8 @@ class TestLoadChannels:
 
     def test_preserves_existing_channels(self, tmp_channels_dir):
         data = [
-            channel_service.DEFAULT_CHANNEL.copy(),
+            channel_service.DEFAULT_CHANNEL_DISCOGS.copy(),
+            channel_service.DEFAULT_CHANNEL_LIKED.copy(),
             {"id": "abc", "name": "Test", "source_type": "spotify",
              "source_data": {}, "mode": "similar_songs",
              "created_at": "2026-01-01T00:00:00", "is_default": False},
@@ -32,8 +33,8 @@ class TestLoadChannels:
         (tmp_channels_dir / "channels.json").write_text(json.dumps(data))
 
         channels = channel_service.load_channels()
-        assert len(channels) == 2
-        assert channels[1]["id"] == "abc"
+        assert len(channels) == 3
+        assert channels[2]["id"] == "abc"
 
 
 class TestGetChannel:
@@ -76,7 +77,7 @@ class TestCreateChannel:
             channel_service.create_channel("Test", "spotify", {}, "bad_mode")
 
     def test_enforces_max_channels(self, tmp_channels_dir):
-        data = [channel_service.DEFAULT_CHANNEL.copy()]
+        data = [channel_service.DEFAULT_CHANNEL_DISCOGS.copy()]
         for i in range(channel_service.MAX_CHANNELS - 1):
             data.append({
                 "id": f"ch{i}", "name": f"Ch{i}", "source_type": "spotify",

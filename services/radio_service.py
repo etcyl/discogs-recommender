@@ -375,7 +375,12 @@ class RadioService:
                           era_to: int | None = None,
                           ai_model: str = "claude-sonnet",
                           num_songs: int = 50,
-                          on_batch=None) -> list[dict]:
+                          on_batch=None,
+                          credits_summary: str = "",
+                          scene_summary: str = "",
+                          label_tree_summary: str = "",
+                          preference_summary: str = "",
+                          prefer_deep_cuts: bool = False) -> list[dict]:
         """Ask LLM to generate a radio playlist (batched for reliability)."""
         is_small_model = ai_model in ("ollama", "claude-haiku")
         summary = self._build_profile_summary(profile, collection, compact=is_small_model)
@@ -385,15 +390,56 @@ class RadioService:
         dislikes_block = ""
         if dislikes_summary:
             dislikes_block = f"""
-PREVIOUSLY DISLIKED SONGS (listener skipped/disliked these — AVOID these and similar):
+PREVIOUSLY DISLIKED SONGS (listener skipped/disliked these -- AVOID these and similar):
 {dislikes_summary}
 """
 
         history_block = ""
         if play_history_summary:
             history_block = f"""
-RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat any of these):
+RECENTLY PLAYED SONGS (the listener has heard these recently -- DO NOT repeat any of these):
 {play_history_summary}
+"""
+
+        # Build enrichment blocks for Sonnet
+        credits_block = ""
+        if credits_summary:
+            credits_block = f"""
+BEHIND-THE-SCENES CONNECTIONS (key people across this listener's collection):
+{credits_summary}
+Use these connections to find songs that share producers, session musicians, or engineers with the collection.
+When a song shares a specific person, mention them in the "reason" and "credit_connection" fields.
+"""
+        scene_block = ""
+        if scene_summary:
+            scene_block = f"""
+{scene_summary}
+Use these scenes to find songs from ADJACENT scenes: same era different city, same city different era,
+or artists who bridged multiple scenes.
+"""
+        label_block = ""
+        if label_tree_summary:
+            label_block = f"""
+{label_tree_summary}
+Recommend from sibling labels (same parent company, similar A&R philosophy) and sublabels.
+Label-mates often share sonic DNA even across genres.
+"""
+        pref_block = ""
+        if preference_summary:
+            pref_block = f"""
+{preference_summary}
+"""
+        deep_cuts_block = ""
+        if prefer_deep_cuts:
+            deep_cuts_block = """
+*** DEEP CUTS MODE (ACTIVE) ***
+- NEVER recommend any song that has been a mainstream chart hit or has 100M+ streams.
+- Avoid "greatest hits" tracks, radio singles, and songs commonly found on "Best Of" compilations.
+- Prioritize: album deep cuts (track 5+ on an album), B-sides, 7" only releases, compilation
+  appearances, soundtrack contributions, live-only recordings, remix versions, obscure side projects.
+- For well-known artists, pick their most overlooked album tracks, not the songs everyone knows.
+- If the song would appear on a "Top 10 [Artist] Songs" listicle, skip it.
+- Target an obscurity_score of 60+ for every recommendation.
 """
 
         is_ollama = ai_model == "ollama"
@@ -402,14 +448,15 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
         def build_prompts(batch_size, already_picked):
             if is_ollama or is_haiku:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs.
-{era_guide}IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
-Only recommend songs that ACTUALLY EXIST — real artists, real titles, real albums.
+{era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
+Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.
 The "year" field MUST be the correct, actual release year of each song.
-Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to
+Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to, obscurity_score
 - "reason": 1 specific sentence about WHY this song connects (name the musical attribute, not just "similar vibes")
 - "match_score": integer 1-100 confidence rating (90+=near-perfect, 70-89=strong, 50-69=moderate, 30-49=adventurous, 1-29=wildcard)
 - "match_attributes": array of 1-3 tags like "shared producer", "same label", "similar instrumentation", "production style", "mood/atmosphere", "genre lineage", "tempo/energy", "vocal texture"
 - "similar_to": array of 1-2 artist names from the listener's collection that connect to this pick
+- "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare limited press)
 Example: "similar_to": ["Radiohead", "Massive Attack"]
 Return ONLY the JSON array, no other text."""
 
@@ -419,26 +466,51 @@ Return ONLY the JSON array, no other text."""
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 {f"Recently played (DO NOT repeat): {play_history_summary}" if play_history_summary else ""}
 Discovery: {discovery}/100 (0=familiar, 100=adventurous)
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
-{discovery_guide}
+{discovery_guide}{deep_cuts_block}
 {already_picked}"""
             else:
-                system_text = f"""You are an expert music curator with encyclopedic knowledge — deeper than
+                system_text = f"""You are an expert music curator with encyclopedic knowledge -- deeper than
 Spotify, Last.fm, or Pandora. Your recommendations should surprise and delight,
 not just serve safe, obvious picks. Go beyond surface-level genre matching.
 
 CURATION PHILOSOPHY:
 - Map musical DNA precisely: shared producers, session musicians, engineers, label mates,
-  scene connections, sample sources — not just "similar sounding" acts
+  scene connections, sample sources -- not just "similar sounding" acts
 - Identify SPECIFIC sonic attributes that connect tracks: instrumentation, production techniques,
   tempo range, harmonic language, rhythmic patterns, vocal texture, dynamic range
 - Create flow: sequence songs so each transition feels intentional (tempo, mood, key)
-- Pull from any era or country — a 1972 Japanese psych track can follow a 2023 post-punk single
+- Pull from any era or country -- a 1972 Japanese psych track can follow a 2023 post-punk single
 - If they have thumbs-up history, lean INTO those preferences but still push boundaries
 - NEVER repeat a song from the thumbs-up history or the disliked list
-- Avoid overly obvious hits — dig for the deeper cuts
-- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
-  Spread picks across different genres, decades, labels, and countries.
+- Avoid overly obvious hits -- dig for the deeper cuts
+
+ARTIST VARIETY RULES:
+- You MAY include up to 2 songs by the SAME artist, but ONLY if they are from different
+  albums/eras and represent genuinely different musical moments (e.g., early vs. late career,
+  a solo album vs. band work, a remix vs. original).
+- Never include 3+ songs by any one artist.
+- Still prioritize variety: spread across different artists, genres, decades, labels, and countries.
+{"" if not scene_summary else """
+SCENE AWARENESS:
+Use the listener's collection scenes to understand their taste in context.
+When you see a scene like 'Sheffield Post-Punk 1978-1984 (Factory, Rough Trade)',
+recommend songs from ADJACENT scenes: same era different city, same city different era,
+or artists who bridged multiple scenes. This is more powerful than simple genre matching.
+"""}{"" if not label_tree_summary else """
+LABEL INTELLIGENCE:
+The label family tree shows how the listener's labels relate to each other.
+Use this to recommend from sibling labels (same parent, similar A&R philosophy)
+and from sublabels/parent labels. Label-mates often share sonic DNA even across genres.
+"""}{"" if not preference_summary else """
+PREFERENCE ADAPTATION:
+The listener's attribute preferences show which types of musical connections they respond to.
+LEAN INTO preferred attributes (high positive scores) when building your match_attributes.
+AVOID or de-emphasize avoided attributes (negative scores). This is REAL behavioral data.
+"""}
+INFLUENCE CHAINS (optional but encouraged):
+When you can trace a clear influence path between a collection artist and your recommendation,
+include it in the "influence_chain" field. Format: "Collection Artist -> Influenced Artist -> Recommendation"
+Only include this when the chain is factually accurate. Do not fabricate connections.
 
 ACCURACY RULES:
 - Only recommend songs that ACTUALLY EXIST. Do not invent fake tracks or albums.
@@ -449,16 +521,16 @@ ACCURACY RULES:
 For EACH song you MUST include:
 
 1. "reason": A specific 1-2 sentence explanation of WHY this song connects to the listener's taste.
-   Be precise — name the specific musical attributes (not just "similar vibes").
+   Be precise -- name the specific musical attributes (not just "similar vibes").
    Good: "Shares the same Conny Plank production style and motorik drumming as your Neu! records"
    Bad: "Similar experimental rock feel"
 
 2. "match_score": An integer from 1-100 representing how confident you are this is a good match.
-   90-100: Near-perfect match — shares multiple concrete connections (producer, musicians, label, scene, sound)
-   70-89: Strong match — clear sonic/stylistic connection with identifiable shared attributes
-   50-69: Moderate match — connected through genre or broad style, fewer specific links
-   30-49: Adventurous pick — connected through abstract qualities (mood, texture, energy)
-   1-29: Wildcard — tenuous connection, meant to expand horizons
+   90-100: Near-perfect match -- shares multiple concrete connections (producer, musicians, label, scene, sound)
+   70-89: Strong match -- clear sonic/stylistic connection with identifiable shared attributes
+   50-69: Moderate match -- connected through genre or broad style, fewer specific links
+   30-49: Adventurous pick -- connected through abstract qualities (mood, texture, energy)
+   1-29: Wildcard -- tenuous connection, meant to expand horizons
 
 3. "match_attributes": An array of 1-4 specific musical dimensions that connect this song to the listener's taste.
    Each attribute is a short tag from this vocabulary:
@@ -470,26 +542,41 @@ For EACH song you MUST include:
 4. "similar_to": An array of 1-3 specific artist+album combos FROM THE LISTENER'S COLLECTION
    that this song connects to, with a specific explanation of the musical connection.
 
+5. "obscurity_score": An integer from 1-100 rating how obscure this song is.
+   1-20: Massive mainstream hit (everyone knows it)
+   21-40: Well-known in its genre
+   41-60: Known to enthusiasts, not mainstream
+   61-80: Deep cut, album track, B-side
+   81-100: Ultra-rare, limited press, compilation-only
+
+6. "influence_chain": Optional string showing the influence path from a collection artist to this recommendation.
+   Format: "Collection Artist -> Bridge Artist -> This Recommendation"
+   Omit or set to "" if no clear factual influence chain exists.
+
+7. "credit_connection": Optional string describing a shared credit with a collection release.
+   E.g., "Both produced by Brian Eno" or "Features John McGeoch from Magazine/Siouxsie"
+   Omit or set to "" if no shared credit exists.
+
 Return a JSON array of exactly {batch_size} objects with these keys:
-"artist", "title", "album", "year", "reason", "match_score", "match_attributes", "similar_to"
+"artist", "title", "album", "year", "reason", "match_score", "match_attributes",
+"similar_to", "obscurity_score", "influence_chain", "credit_connection"
 
 The "similar_to" should be an array like: [{{"artist": "Radiohead", "album": "OK Computer", "why": "shared producer Nigel Godrich, similar layered guitar textures and electronic underpinnings"}}]
 
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Create a radio playlist of {batch_size} SONGS based on this listener's Discogs collection.
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
 
 COLLECTION PROFILE:
 {summary}
-
+{credits_block}{scene_block}{label_block}
 PREVIOUSLY LIKED SONGS (from radio thumbs-up):
-{thumbs_summary or "None yet — this is their first session."}
+{thumbs_summary or "None yet -- this is their first session."}
 {dislikes_block}
-{history_block}
+{history_block}{pref_block}
 DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
 {discovery_guide}
-{era_guide}{already_picked}"""
+{era_guide}{deep_cuts_block}{already_picked}"""
 
             return system_text, user_text
 
@@ -849,7 +936,9 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       era_to: int | None = None,
                                       ai_model: str = "claude-sonnet",
                                       num_songs: int = 50,
-                                      on_batch=None) -> list[dict]:
+                                      on_batch=None,
+                                      preference_summary: str = "",
+                                      prefer_deep_cuts: bool = False) -> list[dict]:
         """Generate a playlist based on Spotify/upload tracks (batched)."""
         track_listing = self._build_track_listing(tracks)
         discovery_guide = self._discovery_guidance(discovery)
@@ -887,6 +976,19 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
 {play_history_summary}
 """
 
+        deep_cuts_directive = ""
+        if prefer_deep_cuts:
+            deep_cuts_directive = """
+*** DEEP CUTS MODE (ACTIVE) ***
+- NEVER recommend mainstream chart hits or songs with 100M+ streams.
+- Prioritize: album deep cuts (track 5+), B-sides, 7" only releases, EP-only tracks, obscure side projects.
+- Target an obscurity_score of 60+ for every recommendation.
+"""
+
+        pref_block = ""
+        if preference_summary:
+            pref_block = f"\n{preference_summary}\n"
+
         is_ollama = ai_model == "ollama"
         is_haiku = ai_model == "claude-haiku"
 
@@ -894,21 +996,22 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
             if is_ollama or is_haiku:
                 mode_hint = "new discoveries from different genres" if mode == "new_discoveries" else "similar songs"
                 system_text = f"""You are a music curator. Recommend {batch_size} {mode_hint}.
-{era_guide}IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
-Only recommend songs that ACTUALLY EXIST — real artists, real titles, real albums.
+{era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
+Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.
 The "year" field MUST be the correct, actual release year of each song.
-Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to
+Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to, obscurity_score
 - "reason": 1 specific sentence about the musical connection (not just "similar vibes")
 - "match_score": integer 1-100 (90+=near-perfect, 70-89=strong, 50-69=moderate, 30-49=adventurous, 1-29=wildcard)
 - "match_attributes": array of 1-3 tags like "shared producer", "similar instrumentation", "production style", "mood/atmosphere", "genre lineage"
 - "similar_to": array of 1-2 artist names from the input playlist that connect to this pick
+- "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare)
 Do NOT repeat songs from the input playlist. Return ONLY the JSON array."""
 
                 user_text = f"""Recommend {batch_size} songs based on this playlist:
 {era_guide}{track_listing}
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 Discovery: {discovery}/100
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
+{deep_cuts_directive}
 {already_picked}"""
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
@@ -921,25 +1024,28 @@ ACCURACY RULES:
 RULES:
 - Do NOT repeat any song from the input playlist.
 - NEVER repeat a song from the disliked list.
-- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
-  Spread picks across different genres, decades, labels, and countries.
+- You MAY include up to 2 songs by the SAME artist if from different albums/eras. Never 3+.
+  Still prioritize variety across different artists, genres, decades, labels, and countries.
 - For EACH song, include all required fields below.
 
 Return a JSON array of exactly {batch_size} objects with these keys:
-"artist", "title", "album", "year", "reason", "match_score", "match_attributes", "similar_to"
+"artist", "title", "album", "year", "reason", "match_score", "match_attributes",
+"similar_to", "obscurity_score", "influence_chain", "credit_connection"
 
 - "reason": 1-2 sentences explaining the SPECIFIC musical connection (name attributes, not just "similar vibes")
-- "match_score": integer 1-100 confidence rating (90+=near-perfect, 70-89=strong, 50-69=moderate, 30-49=adventurous, 1-29=wildcard)
+- "match_score": integer 1-100 confidence rating
 - "match_attributes": array of 1-4 tags from: "shared producer", "same label", "scene peers", "shared musicians",
   "similar instrumentation", "production style", "vocal texture", "rhythmic pattern", "harmonic language",
   "tempo/energy", "mood/atmosphere", "genre lineage", "sample source", "influenced by", "same movement",
   "geographic scene", "era peers", "sonic palette"
 - "similar_to": array like [{{"artist": "Tame Impala", "album": "Currents", "why": "same dreamy psychedelic production with layered synths"}}]
+- "obscurity_score": integer 1-100 (1=massive hit everyone knows, 100=ultra-rare limited press)
+- "influence_chain": optional string like "Playlist Artist -> Bridge -> This Recommendation" (omit if none)
+- "credit_connection": optional string like "Both produced by Brian Eno" (omit if none)
 
 Return ONLY the JSON array, no other text."""
 
-                user_text = f"""Create a radio playlist of {batch_size} SONGS based on this Spotify playlist.
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
+                user_text = f"""Create a radio playlist of {batch_size} SONGS based on this playlist.
 
 PLAYLIST TRACKS:
 {track_listing}
@@ -947,10 +1053,10 @@ PLAYLIST TRACKS:
 PREVIOUSLY LIKED SONGS (from radio thumbs-up):
 {thumbs_summary or "None yet."}
 {dislikes_block}
-{history_block}
+{history_block}{pref_block}
 DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me completely)
 {discovery_guide}
-{era_guide}{already_picked}"""
+{era_guide}{deep_cuts_directive}{already_picked}"""
 
             return system_text, user_text
 
@@ -970,7 +1076,12 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                     era_to: int | None = None,
                                     ai_model: str = "claude-sonnet",
                                     num_songs: int = 50,
-                                    on_batch=None) -> list[dict]:
+                                    on_batch=None,
+                                    credits_summary: str = "",
+                                    scene_summary: str = "",
+                                    label_tree_summary: str = "",
+                                    preference_summary: str = "",
+                                    prefer_deep_cuts: bool = False) -> list[dict]:
         """Generate a themed playlist around a user-defined mood/genre/vibe (batched)."""
         summary = self._build_profile_summary(profile, collection, compact=(ai_model in ("ollama", "claude-haiku")))
         discovery_guide = self._discovery_guidance(discovery)
@@ -990,20 +1101,44 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
 {play_history_summary}
 """
 
+        deep_cuts_directive = ""
+        if prefer_deep_cuts:
+            deep_cuts_directive = """
+*** DEEP CUTS MODE (ACTIVE) ***
+- NEVER recommend mainstream chart hits. Prioritize album deep cuts, B-sides, 7" only releases.
+- Target an obscurity_score of 60+ for every recommendation.
+"""
+
+        credits_block = ""
+        if credits_summary:
+            credits_block = f"""
+BEHIND-THE-SCENES CONNECTIONS:
+{credits_summary}
+"""
+        enrichment_blocks = ""
+        if scene_summary:
+            enrichment_blocks += f"\n{scene_summary}\n"
+        if label_tree_summary:
+            enrichment_blocks += f"\n{label_tree_summary}\n"
+        pref_block = ""
+        if preference_summary:
+            pref_block = f"\n{preference_summary}\n"
+
         is_ollama = ai_model == "ollama"
         is_haiku = ai_model == "claude-haiku"
 
         def build_prompts(batch_size, already_picked):
             if is_ollama or is_haiku:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs matching the theme: "{theme}"
-{era_guide}IMPORTANT: Maximize variety — never include more than 1 song per artist. Spread across different artists, genres, and decades.
-Only recommend songs that ACTUALLY EXIST — real artists, real titles, real albums.
+{era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
+Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.
 The "year" field MUST be the correct, actual release year of each song.
-Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to
+Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to, obscurity_score
 - "reason": 1 specific sentence about the musical connection (not just "similar vibes")
-- "match_score": integer 1-100 (90+=near-perfect, 70-89=strong, 50-69=moderate, 30-49=adventurous, 1-29=wildcard)
-- "match_attributes": array of 1-3 tags like "shared producer", "similar instrumentation", "production style", "mood/atmosphere", "genre lineage"
+- "match_score": integer 1-100
+- "match_attributes": array of 1-3 tags
 - "similar_to": array of 1-2 artist names from the listener's collection
+- "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare)
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Recommend {batch_size} songs matching "{theme}" for a listener with this taste:
@@ -1011,13 +1146,13 @@ Return ONLY the JSON array, no other text."""
 {f"Liked: {thumbs_summary}" if thumbs_summary else ""}
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
 Discovery: {discovery}/100
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once.
+{deep_cuts_directive}
 {already_picked}"""
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
 
 Create a themed radio playlist of {batch_size} SONGS focused on the theme: "{theme}"
-Interpret the theme broadly — it could be a genre, mood, era, activity, scenario, or vibe.
+Interpret the theme broadly -- it could be a genre, mood, era, activity, scenario, or vibe.
 
 ACCURACY RULES:
 - Only recommend songs that ACTUALLY EXIST. Do not invent fake tracks or albums.
@@ -1025,42 +1160,42 @@ ACCURACY RULES:
 
 CURATION PHILOSOPHY:
 - Every song should fit the theme "{theme}"
-- Still connect to the listener's taste — use their collection as a taste anchor
+- Still connect to the listener's taste -- use their collection as a taste anchor
 - Dig deep: obscure B-sides, overlooked album tracks, international gems
 - Create flow: sequence songs so each transition feels intentional
 - NEVER repeat a song from the disliked list
-- Avoid overly obvious hits — dig for the deeper cuts
-- VARIETY IS CRITICAL: never include more than 1 song per artist. Every song must be by a DIFFERENT artist.
-  Spread picks across different genres, decades, labels, and countries.
+- Avoid overly obvious hits -- dig for the deeper cuts
+- You MAY include up to 2 songs by the SAME artist if from different albums/eras. Never 3+.
+  Still prioritize variety across different artists, genres, decades, labels, and countries.
 
 For EACH song, include all required fields below.
 
 Return a JSON array of exactly {batch_size} objects with these keys:
-"artist", "title", "album", "year", "reason", "match_score", "match_attributes", "similar_to"
+"artist", "title", "album", "year", "reason", "match_score", "match_attributes",
+"similar_to", "obscurity_score", "influence_chain", "credit_connection"
 
-- "reason": 1-2 sentences explaining the SPECIFIC musical connection (name attributes, not just "similar vibes")
-- "match_score": integer 1-100 confidence (90+=near-perfect, 70-89=strong, 50-69=moderate, 30-49=adventurous, 1-29=wildcard)
-- "match_attributes": array of 1-4 tags from: "shared producer", "same label", "scene peers", "shared musicians",
-  "similar instrumentation", "production style", "vocal texture", "rhythmic pattern", "harmonic language",
-  "tempo/energy", "mood/atmosphere", "genre lineage", "sample source", "influenced by", "same movement",
-  "geographic scene", "era peers", "sonic palette"
+- "reason": 1-2 sentences explaining the SPECIFIC musical connection
+- "match_score": integer 1-100
+- "match_attributes": array of 1-4 tags
 - "similar_to": array like [{{"artist": "Radiohead", "album": "OK Computer", "why": "shared producer Nigel Godrich"}}]
+- "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare)
+- "influence_chain": optional string (omit if none)
+- "credit_connection": optional string (omit if none)
 
 Return ONLY the JSON array, no other text."""
 
                 user_text = f"""Create a themed radio playlist based on this listener's collection.
-IMPORTANT: Each song MUST be by a DIFFERENT artist. No artist should appear more than once in your list.
 
 COLLECTION PROFILE:
 {summary}
-
+{credits_block}{enrichment_blocks}
 PREVIOUSLY LIKED SONGS (from radio thumbs-up):
 {thumbs_summary or "None yet."}
 {dislikes_block}
-{history_block}
+{history_block}{pref_block}
 DISCOVERY LEVEL: {discovery}/100
 {discovery_guide}
-{era_guide}{already_picked}"""
+{era_guide}{deep_cuts_directive}{already_picked}"""
 
             return system_text, user_text
 
@@ -1068,6 +1203,32 @@ DISCOVERY LEVEL: {discovery}/100
                                       on_batch=on_batch,
                                       exclude_set=exclude_set,
                                       era_from=era_from, era_to=era_to)
+
+    def _rerank_by_preferences(self, songs: list[dict],
+                               preference_service=None,
+                               data_dir=None) -> list[dict]:
+        """Rerank songs based on user's learned attribute preferences.
+
+        Computes a preference bonus per song from match_attributes,
+        scales to +/- 15 match_score points, re-sorts, re-applies spreading.
+        """
+        if not songs or not preference_service or not data_dir:
+            return songs
+
+        for song in songs:
+            attrs = song.get("match_attributes", [])
+            if not attrs:
+                continue
+            bonus = preference_service.compute_preference_bonus(
+                attrs, data_dir=data_dir)
+            scaled_bonus = bonus * 15
+            original_score = song.get("match_score", 50)
+            if isinstance(original_score, (int, float)):
+                new_score = max(1, min(100, int(original_score + scaled_bonus)))
+                song["match_score"] = new_score
+
+        songs.sort(key=lambda s: s.get("match_score", 0), reverse=True)
+        return self._spread_artists(songs)
 
     def generate_replacements(
         self,
@@ -1078,6 +1239,8 @@ DISCOVERY LEVEL: {discovery}/100
         collection_summary: str = "",
         num_songs: int = 8,
         ai_model: str = "claude-haiku",
+        preference_summary: str = "",
+        prefer_deep_cuts: bool = False,
     ) -> list[dict]:
         """Generate replacement songs based on in-session feedback.
 
@@ -1123,21 +1286,30 @@ DISCOVERY LEVEL: {discovery}/100
         if collection_summary:
             collection_block = f"\nLISTENER TASTE PROFILE (for context):\n{collection_summary}\n"
 
+        deep_cuts_directive = ""
+        if prefer_deep_cuts:
+            deep_cuts_directive = "\nDEEP CUTS MODE: Avoid chart hits. Prioritize album deep cuts, B-sides, obscure tracks. Target obscurity_score 60+.\n"
+
+        pref_block = ""
+        if preference_summary:
+            pref_block = f"\n{preference_summary}\n"
+
         system_text = f"""You are a music curator adjusting a live radio session based on real-time listener feedback.
 {era_guide}
 The listener is hearing a playlist and has given thumbs-up/down feedback. Adjust your picks accordingly.
 
 RULES:
 - Generate exactly {num_songs} replacement songs
-- LEAN INTO what they liked — more of that energy, those attributes, those connections
-- AVOID anything resembling what they disliked — same artists, similar genres, production styles, moods
-- Each song must be by a DIFFERENT artist (no repeats, including from the current queue)
-- Only recommend songs that ACTUALLY EXIST — real artists, real titles, real albums
-- Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to
+- LEAN INTO what they liked -- more of that energy, those attributes, those connections
+- AVOID anything resembling what they disliked -- same artists, similar genres, production styles, moods
+- You may include the same artist if the song is from a different album/era, but never the same song
+- Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums
+- Return a JSON array of objects with keys: artist, title, album, year, reason, match_score, match_attributes, similar_to, obscurity_score
 - "reason": 1 specific sentence about WHY this fits based on what they liked
 - "match_score": integer 1-100
 - "match_attributes": array of 1-3 tags
 - "similar_to": array of 1-2 artist names the listener would recognize
+- "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare)
 Return ONLY the JSON array, no other text."""
 
         user_text = f"""SESSION FEEDBACK (this listening session):
@@ -1150,7 +1322,7 @@ DISLIKED (AVOID anything similar to these):
 
 SONGS STILL IN QUEUE (do NOT duplicate any of these):
 {queue_text}
-{theme_block}{collection_block}
+{theme_block}{collection_block}{pref_block}{deep_cuts_directive}
 DISCOVERY LEVEL: {discovery}/100
 {discovery_guide}
 {era_guide}"""

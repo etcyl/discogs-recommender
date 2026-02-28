@@ -29,6 +29,9 @@ from services import thumbs
 from services import channel_service
 from services.database import init_db
 from services import auth_service
+from services.scene_service import SceneService
+from services.preference_service import PreferenceService
+from services.credit_service import CreditService
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,8 @@ radio = RadioService(
     ollama_base_url=settings.ollama_base_url,
     ollama_model=settings.ollama_model,
 )
+scene_service = SceneService()
+preference_service = PreferenceService()
 
 AI_MODEL_LABELS = {
     "claude-sonnet": "Claude Sonnet",
@@ -96,11 +101,26 @@ class ThumbRequest(BaseModel):
     album: str = Field("", max_length=500)
     genres: list[str] = Field(default_factory=list)
     styles: list[str] = Field(default_factory=list)
+    match_attributes: list[str] = Field(default_factory=list)
+    match_score: int | None = Field(None, ge=0, le=100)
 
-    @field_validator("genres", "styles")
+    @field_validator("genres", "styles", "match_attributes")
     @classmethod
     def validate_lists(cls, v: list[str]) -> list[str]:
         return [s[:200] for s in v[:20] if isinstance(s, str)]
+
+
+class SkipRequest(BaseModel):
+    match_attributes: list[str] = Field(default_factory=list)
+
+    @field_validator("match_attributes")
+    @classmethod
+    def validate_attrs(cls, v: list[str]) -> list[str]:
+        return [s[:200] for s in v[:10] if isinstance(s, str)]
+
+
+class ChannelDeepCutsRequest(BaseModel):
+    prefer_deep_cuts: bool = Field(...)
 
 
 class FeedbackSongItem(BaseModel):
@@ -966,7 +986,7 @@ async def radio_playlist_stream(request: Request,
                     yield _sse("error", {"message": "Collection is empty."})
                     return
 
-                yield _sse("progress", {"message": "Analyzing your taste profile...", "percent": 15})
+                yield _sse("progress", {"message": "Analyzing your taste profile...", "percent": 10})
                 analyzer = _get_analyzer(collection_data)
                 profile = analyzer.get_profile()
                 thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
@@ -980,12 +1000,70 @@ async def radio_playlist_stream(request: Request,
                 era_from = channel.get("era_from")
                 era_to = channel.get("era_to")
                 theme = channel.get("source_data", {}).get("theme", "")
+                prefer_deep_cuts = channel.get("prefer_deep_cuts", False)
+
+                # Build enrichment data (credit graph, scenes, labels, preferences)
+                credits_summary = ""
+                scene_summary_text = ""
+                label_tree_summary = ""
+                pref_summary = ""
+
+                is_sonnet = ai_model not in ("ollama", "claude-haiku")
+
+                if is_sonnet:
+                    # Credit graph (Discogs-only, cached after first fetch)
+                    try:
+                        yield _sse("progress", {"message": "Mapping credit connections...", "percent": 12})
+                        user_discogs = _get_user_discogs(user)
+                        if user_discogs:
+                            credit_svc = CreditService(user_discogs)
+                            credits_summary = await asyncio.to_thread(
+                                credit_svc.get_credit_summary,
+                                collection_data, data_dir=user_dir)
+                    except Exception as e:
+                        logger.warning("Credit fetch failed (non-fatal): %s", e)
+
+                    # Label genealogy (Discogs API, cached 30 days)
+                    try:
+                        user_discogs = _get_user_discogs(user)
+                        if user_discogs and profile.get("top_labels"):
+                            yield _sse("progress", {"message": "Building label family tree...", "percent": 16})
+                            top_label_names = [l for l, _ in profile["top_labels"][:15]]
+                            label_families = await asyncio.to_thread(
+                                scene_service.build_label_tree,
+                                top_label_names, user_discogs, data_dir=user_dir)
+                            label_tree_summary = scene_service.get_label_tree_for_prompt(label_families)
+                    except Exception as e:
+                        logger.warning("Label tree build failed (non-fatal): %s", e)
+
+                # Scene clustering (no API calls, pure computation)
+                try:
+                    yield _sse("progress", {"message": "Mapping collection scenes...", "percent": 18})
+                    scenes = scene_service.cluster_into_scenes(collection_data)
+                    scene_summary_text = scene_service.get_scene_summary_for_prompt(scenes)
+                except Exception as e:
+                    logger.warning("Scene clustering failed (non-fatal): %s", e)
+
+                # Preference profile (file read)
+                try:
+                    pref_summary = preference_service.get_preference_summary_for_prompt(
+                        data_dir=user_dir)
+                except Exception:
+                    pass
 
                 try:
                     pq = queue_mod.Queue()
                     def _on_batch(collected, total):
                         pct = 25 + int(5 * collected / max(total, 1))
                         pq.put(_sse("progress", {"message": f"{model_label}: {collected}/{total} songs generated...", "percent": pct}))
+
+                    enrichment_kwargs = dict(
+                        credits_summary=credits_summary,
+                        scene_summary=scene_summary_text,
+                        label_tree_summary=label_tree_summary,
+                        preference_summary=pref_summary,
+                        prefer_deep_cuts=prefer_deep_cuts,
+                    )
 
                     if theme:
                         yield _sse("progress", {"message": f"{model_label} is curating \"{theme}\" songs...", "percent": 25})
@@ -994,7 +1072,8 @@ async def radio_playlist_stream(request: Request,
                             theme, thumbs_summary, dislikes_summary, play_history_summary,
                             exclude_set=exclude_set,
                             discovery=discovery, era_from=era_from, era_to=era_to,
-                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
+                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch,
+                            **enrichment_kwargs)
                     else:
                         yield _sse("progress", {"message": f"{model_label} is curating {num_songs} songs for you...", "percent": 25})
                         coro = asyncio.to_thread(
@@ -1002,11 +1081,20 @@ async def radio_playlist_stream(request: Request,
                             dislikes_summary, play_history_summary,
                             exclude_set=exclude_set,
                             discovery=discovery, era_from=era_from, era_to=era_to,
-                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch)
+                            ai_model=ai_model, num_songs=num_songs, on_batch=_on_batch,
+                            **enrichment_kwargs)
                     _task = asyncio.ensure_future(coro)
                     async for _p in _keepalive_loop(_task, progress_q=pq):
                         yield _p
                     playlist = _task.result()
+
+                    # Post-generation preference reranking
+                    if pref_summary:
+                        try:
+                            playlist = radio._rerank_by_preferences(
+                                playlist, preference_service, data_dir=user_dir)
+                        except Exception:
+                            pass
                 except LLMError as e:
                     yield _sse("error", {"message": str(e)})
                     return
@@ -1061,6 +1149,9 @@ async def radio_playlist_stream(request: Request,
                     sp_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     sp_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
                     sp_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+                    sp_deep_cuts = channel.get("prefer_deep_cuts", False)
+                    sp_pref_summary = preference_service.get_preference_summary_for_prompt(
+                        data_dir=user_dir)
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_sp(collected, total):
@@ -1072,10 +1163,18 @@ async def radio_playlist_stream(request: Request,
                             play_history_summary, exclude_set=sp_exclude,
                             discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
+                            preference_summary=sp_pref_summary,
+                            prefer_deep_cuts=sp_deep_cuts,
                             on_batch=_on_batch_sp))
                         async for _p in _keepalive_loop(_task, progress_q=pq):
                             yield _p
                         playlist = _task.result()
+                        if sp_pref_summary:
+                            try:
+                                playlist = radio._rerank_by_preferences(
+                                    playlist, preference_service, data_dir=user_dir)
+                            except Exception:
+                                pass
                     except LLMError as e:
                         yield _sse("error", {"message": str(e)})
                         return
@@ -1121,6 +1220,9 @@ async def radio_playlist_stream(request: Request,
                     up_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     up_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
                     up_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+                    up_deep_cuts = channel.get("prefer_deep_cuts", False)
+                    up_pref_summary = preference_service.get_preference_summary_for_prompt(
+                        data_dir=user_dir)
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_up(collected, total):
@@ -1132,10 +1234,18 @@ async def radio_playlist_stream(request: Request,
                             play_history_summary, exclude_set=up_exclude,
                             discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
+                            preference_summary=up_pref_summary,
+                            prefer_deep_cuts=up_deep_cuts,
                             on_batch=_on_batch_up))
                         async for _p in _keepalive_loop(_task, progress_q=pq):
                             yield _p
                         playlist = _task.result()
+                        if up_pref_summary:
+                            try:
+                                playlist = radio._rerank_by_preferences(
+                                    playlist, preference_service, data_dir=user_dir)
+                            except Exception:
+                                pass
                     except LLMError as e:
                         yield _sse("error", {"message": str(e)})
                         return
@@ -1182,6 +1292,9 @@ async def radio_playlist_stream(request: Request,
                     yt_exclude.update(thumbs.get_dislikes_set(data_dir=user_dir))
                     yt_exclude.update(thumbs.get_thumbs_set(data_dir=user_dir))
                     yt_exclude.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+                    yt_deep_cuts = channel.get("prefer_deep_cuts", False)
+                    yt_pref_summary = preference_service.get_preference_summary_for_prompt(
+                        data_dir=user_dir)
                     try:
                         pq = queue_mod.Queue()
                         def _on_batch_yt(collected, total):
@@ -1193,10 +1306,18 @@ async def radio_playlist_stream(request: Request,
                             play_history_summary, exclude_set=yt_exclude,
                             discovery=discovery, era_from=era_from, era_to=era_to,
                             ai_model=ai_model, num_songs=num_songs,
+                            preference_summary=yt_pref_summary,
+                            prefer_deep_cuts=yt_deep_cuts,
                             on_batch=_on_batch_yt))
                         async for _p in _keepalive_loop(_task, progress_q=pq):
                             yield _p
                         playlist = _task.result()
+                        if yt_pref_summary:
+                            try:
+                                playlist = radio._rerank_by_preferences(
+                                    playlist, preference_service, data_dir=user_dir)
+                            except Exception:
+                                pass
                     except LLMError as e:
                         yield _sse("error", {"message": str(e)})
                         return
@@ -1314,8 +1435,17 @@ async def radio_thumbs(request: Request):
             album=thumb_data.album,
             genres=thumb_data.genres,
             styles=thumb_data.styles,
+            match_attributes=thumb_data.match_attributes,
+            match_score=thumb_data.match_score,
             data_dir=user_dir,
         )
+        # Record positive signal for preference learning
+        if thumb_data.match_attributes:
+            try:
+                preference_service.record_positive(
+                    thumb_data.match_attributes, data_dir=user_dir)
+            except Exception:
+                pass
         return {"status": "ok", "entry": entry}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
@@ -1341,13 +1471,40 @@ async def radio_dislike(request: Request):
             album=thumb_data.album,
             genres=thumb_data.genres,
             styles=thumb_data.styles,
+            match_attributes=thumb_data.match_attributes,
+            match_score=thumb_data.match_score,
             data_dir=user_dir,
         )
+        # Record negative signal for preference learning
+        if thumb_data.match_attributes:
+            try:
+                preference_service.record_negative(
+                    thumb_data.match_attributes, data_dir=user_dir)
+            except Exception:
+                pass
         return {"status": "ok", "entry": entry}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to save dislike"})
+
+
+@app.post("/api/radio/skip")
+async def radio_skip(request: Request):
+    """Record an early skip for preference learning."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+    try:
+        body = await request.json()
+        data = SkipRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+    if data.match_attributes:
+        try:
+            preference_service.record_skip(data.match_attributes, data_dir=user_dir)
+        except Exception:
+            pass
+    return {"status": "ok"}
 
 
 @app.post("/api/radio/history")
@@ -1677,6 +1834,26 @@ async def update_channel_num_songs_endpoint(channel_id: str, request: Request):
     try:
         channel = channel_service.update_channel_num_songs(channel_id, data.num_songs,
                                                             data_dir=user_dir)
+        cache.invalidate(f"radio_playlist:{user['id']}:{channel_id}")
+        return {"status": "ok", "channel": channel}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.put("/api/radio/channels/{channel_id}/deep-cuts")
+async def update_channel_deep_cuts_endpoint(channel_id: str, request: Request):
+    """Toggle deep cuts mode for a channel."""
+    user = request.state.user
+    user_dir = _get_user_data_dir(user)
+    try:
+        body = await request.json()
+        data = ChannelDeepCutsRequest(**body)
+    except Exception:
+        return JSONResponse(status_code=422, content={"error": "Invalid request body"})
+
+    try:
+        channel = channel_service.update_channel_deep_cuts(
+            channel_id, data.prefer_deep_cuts, data_dir=user_dir)
         cache.invalidate(f"radio_playlist:{user['id']}:{channel_id}")
         return {"status": "ok", "channel": channel}
     except ValueError as e:

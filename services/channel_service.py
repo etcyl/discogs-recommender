@@ -28,6 +28,7 @@ DEFAULT_CHANNEL_DISCOGS = {
     "era_to": None,
     "ai_model": "claude-sonnet",
     "num_songs": 50,
+    "prefer_deep_cuts": False,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -43,6 +44,7 @@ DEFAULT_CHANNEL_LIKED = {
     "era_to": None,
     "ai_model": "claude-sonnet",
     "num_songs": 50,
+    "prefer_deep_cuts": False,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -58,6 +60,7 @@ DEFAULT_CHANNEL_NO_DISCOGS = {
     "era_to": None,
     "ai_model": "ollama",
     "num_songs": 25,
+    "prefer_deep_cuts": False,
     "created_at": "2026-01-01T00:00:00",
     "is_default": True,
 }
@@ -117,6 +120,9 @@ def load_channels(data_dir: Path | None = None,
         if "num_songs" not in ch:
             ch["num_songs"] = 50
             dirty = True
+        if "prefer_deep_cuts" not in ch:
+            ch["prefer_deep_cuts"] = False
+            dirty = True
     if dirty:
         d = data_dir or DATA_DIR
         d.mkdir(parents=True, exist_ok=True)
@@ -138,6 +144,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
                    era_to: Optional[int] = None,
                    ai_model: str = "claude-sonnet",
                    num_songs: int = 50,
+                   prefer_deep_cuts: bool = False,
                    data_dir: Path | None = None) -> dict:
     name = _sanitize_name(name)
     if not name:
@@ -167,6 +174,7 @@ def create_channel(name: str, source_type: str, source_data: dict,
         "era_to": era_to,
         "ai_model": ai_model,
         "num_songs": num_songs,
+        "prefer_deep_cuts": bool(prefer_deep_cuts),
         "created_at": datetime.now().isoformat(),
         "is_default": False,
     }
@@ -244,6 +252,18 @@ def update_channel_num_songs(channel_id: str, num_songs: int,
     for ch in channels:
         if ch["id"] == channel_id:
             ch["num_songs"] = num_songs
+            _atomic_write_json(channels_file, channels)
+            return ch
+    raise ValueError(f"Channel not found: {channel_id}")
+
+
+def update_channel_deep_cuts(channel_id: str, prefer_deep_cuts: bool,
+                             data_dir: Path | None = None) -> dict:
+    channels_file = _resolve_channels_file(data_dir)
+    channels = load_channels(data_dir)
+    for ch in channels:
+        if ch["id"] == channel_id:
+            ch["prefer_deep_cuts"] = bool(prefer_deep_cuts)
             _atomic_write_json(channels_file, channels)
             return ch
     raise ValueError(f"Channel not found: {channel_id}")

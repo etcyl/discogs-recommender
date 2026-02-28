@@ -79,6 +79,12 @@
                     <input type="range" class="channel-num-songs-slider" min="5" max="100" step="5"
                            value="{{ ch.num_songs or 50 }}" title="Playlist size: {{ ch.num_songs or 50 }}">
                 </div>
+                <div class="channel-deep-cuts" data-channel-id="{{ ch.id }}">
+                    <label class="deep-cuts-label">
+                        <input type="checkbox" class="channel-deep-cuts-toggle" {% if ch.prefer_deep_cuts %}checked{% endif %}>
+                        Deep Cuts Mode
+                    </label>
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -186,9 +192,13 @@
                                     <div id="match-score-bar" class="match-score-bar-fill"></div>
                                 </div>
                                 <span id="match-score-value" class="match-score-value"></span>
+                                <span id="obscurity-badge" class="obscurity-badge" style="display:none;"></span>
                             </div>
                             <div id="match-attributes" class="match-attributes"></div>
                         </div>
+
+                        <div id="credit-connection" class="credit-connection" style="display:none;"></div>
+                        <div id="influence-chain" class="influence-chain" style="display:none;"></div>
 
                         <div id="similar-to" class="similar-to-section" style="display:none;">
                             <span class="similar-to-label">Connected to your collection:</span>

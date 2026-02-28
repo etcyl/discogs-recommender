@@ -60,6 +60,8 @@ def load_thumbs(data_dir: Path | None = None) -> list[dict]:
 
 def save_thumb(artist: str, title: str, album: str = "",
                genres: list[str] = None, styles: list[str] = None,
+               match_attributes: list[str] = None,
+               match_score: int | None = None,
                data_dir: Path | None = None) -> dict:
     """Append a thumbed-up song and return the entry."""
     # Sanitize all inputs (CWE-20)
@@ -68,6 +70,7 @@ def save_thumb(artist: str, title: str, album: str = "",
     album = _sanitize_string(album)
     genres = _sanitize_string_list(genres or [])
     styles = _sanitize_string_list(styles or [])
+    match_attributes = _sanitize_string_list(match_attributes or [])
 
     if not artist or not title:
         raise ValueError("artist and title are required")
@@ -92,6 +95,8 @@ def save_thumb(artist: str, title: str, album: str = "",
         "album": album,
         "genres": genres,
         "styles": styles,
+        "match_attributes": match_attributes,
+        "match_score": min(100, max(0, int(match_score))) if match_score is not None else None,
         "timestamp": datetime.now().isoformat(),
     }
     thumbs.append(entry)
@@ -147,6 +152,8 @@ def load_dislikes(data_dir: Path | None = None) -> list[dict]:
 
 def save_dislike(artist: str, title: str, album: str = "",
                  genres: list[str] = None, styles: list[str] = None,
+                 match_attributes: list[str] = None,
+                 match_score: int | None = None,
                  data_dir: Path | None = None) -> dict:
     """Save a disliked song and return the entry."""
     artist = _sanitize_string(artist)
@@ -154,6 +161,7 @@ def save_dislike(artist: str, title: str, album: str = "",
     album = _sanitize_string(album)
     genres = _sanitize_string_list(genres or [])
     styles = _sanitize_string_list(styles or [])
+    match_attributes = _sanitize_string_list(match_attributes or [])
 
     if not artist or not title:
         raise ValueError("artist and title are required")
@@ -176,6 +184,8 @@ def save_dislike(artist: str, title: str, album: str = "",
         "album": album,
         "genres": genres,
         "styles": styles,
+        "match_attributes": match_attributes,
+        "match_score": min(100, max(0, int(match_score))) if match_score is not None else None,
         "timestamp": datetime.now().isoformat(),
     }
     dislikes.append(entry)
