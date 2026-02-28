@@ -872,6 +872,8 @@ async def radio_playlist(request: Request,
             s for s in playlist
             if (s.get("artist", "").lower().strip(),
                 s.get("title", "").lower().strip()) not in filter_set
+            and thumbs.normalize_song_key(
+                s.get("artist", ""), s.get("title", "")) not in filter_set
         ]
         return {"playlist": playlist, "cached": True}
 
@@ -952,6 +954,8 @@ async def radio_playlist_stream(request: Request,
                 s for s in playlist
                 if (s.get("artist", "").lower().strip(),
                     s.get("title", "").lower().strip()) not in filter_set
+                and thumbs.normalize_song_key(
+                    s.get("artist", ""), s.get("title", "")) not in filter_set
             ]
             yield _sse("song", {"songs": playlist, "total_expected": len(playlist)})
             yield _sse("complete", {"cached": True, "ai_model": ""})

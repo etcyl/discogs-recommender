@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,6 +40,68 @@ def _sanitize_string_list(items: list, max_items: int = MAX_LIST_ITEMS) -> list[
     if not isinstance(items, list):
         return []
     return [_sanitize_string(item) for item in items[:max_items] if isinstance(item, str)]
+
+
+# Regex to strip parenthetical/bracket suffixes (remastered, deluxe, feat, etc.)
+_PAREN_STRIP = re.compile(
+    r'[\(\[](remaster(ed)?|deluxe(\s+edition)?|bonus\s+track'
+    r'|expanded(\s+edition)?|anniversary(\s+edition)?'
+    r'|single(\s+version)?|mono|stereo|demo|remix'
+    r'|feat\.?\s*[^)\]]*|ft\.?\s*[^)\]]*'
+    r'|\d{4}\s*(remaster(ed)?|mix|version|edition)?'
+    r'|official\s*(music\s*)?video|official\s*audio'
+    r'|lyric\s*video|lyrics?|audio|visuali[sz]er'
+    r')[^)\]]*[\)\]]',
+    re.IGNORECASE,
+)
+
+# Trailing dash/colon suffixes like " - Remastered 2011", " - 2016 Remaster"
+_TRAIL_STRIP = re.compile(
+    r'\s*[-:]\s*(remaster(ed)?(\s*\d{4})?|\d{4}\s*remaster(ed)?'
+    r'|single\s*version'
+    r'|deluxe(\s*edition)?|bonus\s*track|mono(\s*mix)?'
+    r'|stereo(\s*mix)?|demo(\s*version)?|remix'
+    r'|original(\s*mix)?|radio\s*edit|album\s*version'
+    r'|extended(\s*(mix|version))?)\s*$',
+    re.IGNORECASE,
+)
+
+# Non-alphanumeric characters (for aggressive normalization)
+_NON_ALNUM = re.compile(r'[^a-z0-9\s]')
+_MULTI_SPACE = re.compile(r'\s+')
+
+
+def _normalize_for_match(text: str) -> str:
+    """Aggressively normalize a song title or artist name for fuzzy matching.
+
+    Strips parenthetical suffixes, trailing qualifiers, punctuation,
+    and leading 'the ' from artist names.
+    """
+    if not text:
+        return ""
+    t = text.lower().strip()
+    # Strip parenthetical/bracket content (remastered, feat., etc.)
+    t = _PAREN_STRIP.sub('', t)
+    # Strip trailing " - Remastered 2011" style suffixes
+    t = _TRAIL_STRIP.sub('', t)
+    # Remove non-alphanumeric (punctuation, accents approx)
+    t = _NON_ALNUM.sub(' ', t)
+    # Collapse whitespace
+    t = _MULTI_SPACE.sub(' ', t).strip()
+    return t
+
+
+def _normalize_artist(artist: str) -> str:
+    """Normalize artist: strip 'the ' prefix and punctuation."""
+    n = _normalize_for_match(artist)
+    if n.startswith("the "):
+        n = n[4:]
+    return n
+
+
+def normalize_song_key(artist: str, title: str) -> tuple[str, str]:
+    """Return a normalized (artist, title) tuple for fuzzy matching."""
+    return (_normalize_artist(artist), _normalize_for_match(title))
 
 
 def load_thumbs(data_dir: Path | None = None) -> list[dict]:
@@ -377,20 +440,22 @@ def get_rec_history_set(max_entries: int = 200,
                         data_dir: Path | None = None) -> set[tuple[str, str]]:
     """Return set of (artist_lower, title_lower) tuples from recent recommendations.
 
-    Used for hard-filtering: programmatically exclude previously recommended songs
-    so the LLM doesn't need to be relied on for dedup.
+    Includes both exact and normalized keys for fuzzy matching.
     """
     rec_history = load_rec_history(data_dir)
     if not rec_history:
         return set()
 
     result = set()
+    count = 0
     for r in reversed(rec_history[-max_entries * 2:]):
         artist = r.get("artist", "").lower().strip()
         title = r.get("title", "").lower().strip()
         if artist and title:
             result.add((artist, title))
-        if len(result) >= max_entries:
+            result.add(normalize_song_key(artist, title))
+            count += 1
+        if count >= max_entries:
             break
     return result
 
@@ -398,7 +463,7 @@ def get_rec_history_set(max_entries: int = 200,
 def get_thumbs_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
     """Return set of (artist_lower, title_lower) from all liked songs.
 
-    Used for hard-filtering: prevent re-recommending already-liked songs.
+    Includes both exact and normalized keys for fuzzy matching.
     """
     liked = load_thumbs(data_dir)
     result = set()
@@ -407,6 +472,7 @@ def get_thumbs_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
         title = t.get("title", "").lower().strip()
         if artist and title:
             result.add((artist, title))
+            result.add(normalize_song_key(artist, title))
     return result
 
 
@@ -414,18 +480,21 @@ def get_history_set(max_entries: int = 300,
                     data_dir: Path | None = None) -> set[tuple[str, str]]:
     """Return set of (artist_lower, title_lower) from recent play history.
 
-    Used for hard-filtering: prevent replaying recently heard songs.
+    Includes both exact and normalized keys for fuzzy matching.
     """
     history = load_history(data_dir)
     if not history:
         return set()
     result = set()
+    count = 0
     for h in reversed(history[-max_entries * 2:]):
         artist = h.get("artist", "").lower().strip()
         title = h.get("title", "").lower().strip()
         if artist and title:
             result.add((artist, title))
-        if len(result) >= max_entries:
+            result.add(normalize_song_key(artist, title))
+            count += 1
+        if count >= max_entries:
             break
     return result
 
@@ -433,7 +502,7 @@ def get_history_set(max_entries: int = 300,
 def get_dislikes_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
     """Return set of (artist_lower, title_lower) from all disliked songs.
 
-    Used for hard-filtering: programmatically ensure disliked songs never appear.
+    Includes both exact and normalized keys for fuzzy matching.
     """
     dislikes = load_dislikes(data_dir)
     result = set()
@@ -442,6 +511,7 @@ def get_dislikes_set(data_dir: Path | None = None) -> set[tuple[str, str]]:
         title = d.get("title", "").lower().strip()
         if artist and title:
             result.add((artist, title))
+            result.add(normalize_song_key(artist, title))
     return result
 
 

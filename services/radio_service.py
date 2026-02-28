@@ -8,6 +8,7 @@ from youtubesearchpython import VideosSearch
 
 from services.cache import cache
 from services.llm_provider import call_llm, parse_llm_json
+from services.thumbs import normalize_song_key
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +160,10 @@ class RadioService:
         # Pre-seed seen set with source tracks so generated songs don't duplicate them
         if exclude_tracks:
             for t in exclude_tracks:
-                seen.add((t.get("artist", "").lower().strip(),
-                          t.get("title", "").lower().strip()))
+                exact = (t.get("artist", "").lower().strip(),
+                         t.get("title", "").lower().strip())
+                seen.add(exact)
+                seen.add(normalize_song_key(exact[0], exact[1]))
 
         # Hard-filter: previously recommended songs + disliked songs
         if exclude_set:
@@ -178,13 +181,15 @@ class RadioService:
                 if not batch:
                     continue
 
-                # Dedup first
+                # Dedup first (check both exact and normalized keys)
                 deduped = []
                 for song in batch:
                     key = (song.get("artist", "").lower().strip(),
                            song.get("title", "").lower().strip())
-                    if key not in seen:
+                    nkey = normalize_song_key(key[0], key[1])
+                    if key not in seen and nkey not in seen:
                         seen.add(key)
+                        seen.add(nkey)
                         deduped.append(song)
 
                 # Era filter
@@ -221,8 +226,10 @@ class RadioService:
                 for song in batch:
                     key = (song.get("artist", "").lower().strip(),
                            song.get("title", "").lower().strip())
-                    if key not in seen:
+                    nkey = normalize_song_key(key[0], key[1])
+                    if key not in seen and nkey not in seen:
                         seen.add(key)
+                        seen.add(nkey)
                         deduped.append(song)
 
                 if has_era:
@@ -641,14 +648,18 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 f.result()
 
         # Post-resolution hard filter: YouTube title rewriting may change
-        # artist/title to match a previously liked/disliked/played song
+        # artist/title to match a previously liked/disliked/played song.
+        # Check both exact and normalized keys for fuzzy matching.
         if exclude_set:
             before = len(resolved)
-            resolved = [
-                s for s in resolved
-                if (s.get("artist", "").lower().strip(),
-                    s.get("title", "").lower().strip()) not in exclude_set
-            ]
+            filtered = []
+            for s in resolved:
+                exact = (s.get("artist", "").lower().strip(),
+                         s.get("title", "").lower().strip())
+                nkey = normalize_song_key(exact[0], exact[1])
+                if exact not in exclude_set and nkey not in exclude_set:
+                    filtered.append(s)
+            resolved = filtered
             dropped = before - len(resolved)
             if dropped:
                 logger.info("Post-YT-resolution filter removed %d songs", dropped)
