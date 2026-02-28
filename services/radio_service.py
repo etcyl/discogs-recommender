@@ -55,28 +55,43 @@ class RadioService:
 
     @staticmethod
     def _spread_artists(songs: list[dict]) -> list[dict]:
-        """Reorder songs so no two consecutive tracks share the same artist.
+        """Reorder songs so consecutive tracks vary in artist and decade.
 
-        Uses a greedy approach: pick the next song whose artist differs from the
-        previous one.  Falls back to allowing a repeat only when no other option
-        remains (e.g. a single artist dominates the list).
+        Uses a greedy scoring approach: for each next pick, prefer a song
+        whose artist AND decade differ from the previous track.  This prevents
+        clusters of same-era or same-artist songs from dominating a run.
         """
         if len(songs) <= 1:
             return songs
+
+        def _decade(song):
+            try:
+                y = int(song.get("year", 0))
+                return (y // 10) * 10 if y else 0
+            except (ValueError, TypeError):
+                return 0
 
         remaining = list(songs)
         result: list[dict] = [remaining.pop(0)]
 
         while remaining:
             last_artist = result[-1].get("artist", "").lower().strip()
-            # Find first candidate whose artist differs
+            last_decade = _decade(result[-1])
+
+            # Score candidates: prefer different artist (+2) and different decade (+1)
+            best_idx = 0
+            best_score = -1
             for i, song in enumerate(remaining):
+                score = 0
                 if song.get("artist", "").lower().strip() != last_artist:
-                    result.append(remaining.pop(i))
-                    break
-            else:
-                # Every remaining song is the same artist — just take one
-                result.append(remaining.pop(0))
+                    score += 2
+                if last_decade and _decade(song) != last_decade:
+                    score += 1
+                if score > best_score:
+                    best_score = score
+                    best_idx = i
+
+            result.append(remaining.pop(best_idx))
 
         return result
 
@@ -483,7 +498,8 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       exclude_set=exclude_set,
                                       era_from=era_from, era_to=era_to)
 
-    def resolve_youtube_ids(self, playlist: list[dict]) -> list[dict]:
+    def resolve_youtube_ids(self, playlist: list[dict],
+                            exclude_set: set[tuple[str, str]] | None = None) -> list[dict]:
         """Find YouTube video IDs, correct metadata from YT title, and fetch album info."""
         def _resolve_one(song):
             artist = song.get("artist", "")
@@ -536,6 +552,19 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
             meta_futures = [pool.submit(_enrich_metadata, song) for song in resolved]
             for f in meta_futures:
                 f.result()
+
+        # Post-resolution hard filter: YouTube title rewriting may change
+        # artist/title to match a previously liked/disliked/played song
+        if exclude_set:
+            before = len(resolved)
+            resolved = [
+                s for s in resolved
+                if (s.get("artist", "").lower().strip(),
+                    s.get("title", "").lower().strip()) not in exclude_set
+            ]
+            dropped = before - len(resolved)
+            if dropped:
+                logger.info("Post-YT-resolution filter removed %d songs", dropped)
 
         return resolved
 

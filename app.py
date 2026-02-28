@@ -843,6 +843,16 @@ async def radio_playlist(request: Request,
     cache_key = f"radio_playlist:{user['id']}:{channel_id}"
     playlist = cache.get(cache_key)
     if playlist:
+        # Post-cache filter: remove songs liked/disliked/played since cache was set
+        filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
+        filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+        filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+        filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
+        playlist = [
+            s for s in playlist
+            if (s.get("artist", "").lower().strip(),
+                s.get("title", "").lower().strip()) not in filter_set
+        ]
         return {"playlist": playlist, "cached": True}
 
     try:
@@ -856,11 +866,15 @@ async def radio_playlist(request: Request,
         thumbs_summary = thumbs.get_thumbs_summary(data_dir=user_dir)
         dislikes_summary = thumbs.get_dislikes_summary(data_dir=user_dir)
         play_history_summary = thumbs.get_play_history_summary(data_dir=user_dir)
+        exclude_set = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
+        exclude_set.update(thumbs.get_dislikes_set(data_dir=user_dir))
+        exclude_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+        exclude_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
 
         playlist = await asyncio.to_thread(
             radio.generate_playlist, profile, collection_data, thumbs_summary,
-            dislikes_summary, play_history_summary)
-        playlist = await asyncio.to_thread(radio.resolve_youtube_ids, playlist)
+            dislikes_summary, play_history_summary, exclude_set=exclude_set)
+        playlist = await asyncio.to_thread(radio.resolve_youtube_ids, playlist, exclude_set)
 
         if playlist:
             thumbs.save_recommendations(playlist, source="radio", data_dir=user_dir)
@@ -912,6 +926,8 @@ async def radio_playlist_stream(request: Request,
             # Post-cache filter: remove songs liked/disliked/played since cache was set
             filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
             filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+            filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+            filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
             playlist = [
                 s for s in playlist
                 if (s.get("artist", "").lower().strip(),
@@ -1219,6 +1235,13 @@ async def radio_playlist_stream(request: Request,
                 yield _sse("error", {"message": "Unknown channel type."})
                 return
 
+            # Build exclude set for post-YouTube-resolution filtering
+            # (YT title rewriting can change artist/title to match known songs)
+            yt_filter_set = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
+            yt_filter_set.update(thumbs.get_dislikes_set(data_dir=user_dir))
+            yt_filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+            yt_filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+
             # Resolve YouTube IDs in chunks, streaming each batch to the client
             total = len(playlist)
             resolved = []
@@ -1231,7 +1254,7 @@ async def radio_playlist_stream(request: Request,
                     "message": f"Finding songs on YouTube... ({done}/{total})",
                     "percent": pct,
                 })
-                _task = asyncio.ensure_future(asyncio.to_thread(radio.resolve_youtube_ids, chunk))
+                _task = asyncio.ensure_future(asyncio.to_thread(radio.resolve_youtube_ids, chunk, yt_filter_set))
                 async for _p in _keepalive_loop(_task):
                     yield _p
                 batch_resolved = _task.result()
