@@ -168,17 +168,25 @@ function loadPlaylistSSE(isRefreshMode = false) {
         const data = JSON.parse(e.data);
         if (!data.songs || data.songs.length === 0) return;
 
-        // Append new songs to queue
-        queue.push(...data.songs);
-        songsReceived += data.songs.length;
+        let songs = data.songs;
 
-        // Pre-mark all songs as liked on the Liked Songs channel
         if (activeChannelId === 'liked-songs') {
-            data.songs.forEach(s => {
+            // Pre-mark all songs as liked on the Liked Songs channel
+            songs.forEach(s => {
                 const key = `${s.artist}-${s.title}`.toLowerCase();
                 likedSet.add(key);
             });
+        } else {
+            // Filter out liked songs from non-liked channels
+            songs = songs.filter(s => {
+                const key = `${s.artist}-${s.title}`.toLowerCase();
+                return !likedSet.has(key);
+            });
         }
+
+        // Append filtered songs to queue
+        queue.push(...songs);
+        songsReceived += songs.length;
 
         renderQueue();
 
@@ -695,23 +703,32 @@ function playNext() {
             scheduleFeedbackGeneration();
         }
     }
+    // Helper: check if a track index is a liked song on a non-liked channel
+    const _isLikedOnRecommendedChannel = (idx) => {
+        if (activeChannelId === 'liked-songs') return false;
+        const t = queue[idx];
+        if (!t) return false;
+        const k = `${t.artist}-${t.title}`.toLowerCase();
+        return likedSet.has(k);
+    };
+
     if (shuffleMode && queue.length > 0) {
         if (currentIndex >= 0) playedIndices.add(currentIndex);
 
-        // Build pool of unplayed indices
-        const pool = [];
+        // Build pool of unplayed indices, excluding liked songs on non-liked channels
+        let pool = [];
         for (let i = 0; i < queue.length; i++) {
-            if (!playedIndices.has(i)) pool.push(i);
+            if (!playedIndices.has(i) && !_isLikedOnRecommendedChannel(i)) pool.push(i);
         }
 
         if (pool.length === 0) {
-            // All songs played — reshuffle
+            // All songs played — reshuffle (still excluding liked songs)
             playedIndices.clear();
             if (currentIndex >= 0) playedIndices.add(currentIndex);
             for (let i = 0; i < queue.length; i++) {
-                if (i !== currentIndex) pool.push(i);
+                if (i !== currentIndex && !_isLikedOnRecommendedChannel(i)) pool.push(i);
             }
-            showToast('All songs played! Reshuffling...');
+            if (pool.length > 0) showToast('All songs played! Reshuffling...');
         }
 
         if (pool.length > 0) {
@@ -721,8 +738,17 @@ function playNext() {
             loadTrack(queue[currentIndex]);
         }
     } else if (currentIndex + 1 < queue.length) {
-        currentIndex++;
-        loadTrack(queue[currentIndex]);
+        // Sequential mode: skip liked songs on non-liked channels
+        let nextIdx = currentIndex + 1;
+        while (nextIdx < queue.length && _isLikedOnRecommendedChannel(nextIdx)) {
+            nextIdx++;
+        }
+        if (nextIdx < queue.length) {
+            currentIndex = nextIdx;
+            loadTrack(queue[currentIndex]);
+        } else if (isRefreshing) {
+            showToast('Loading more songs...');
+        }
     } else if (isRefreshing) {
         showToast('Loading more songs...');
     }

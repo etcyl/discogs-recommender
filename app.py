@@ -860,14 +860,19 @@ async def radio_playlist(request: Request,
     """Generate a radio playlist with YouTube video IDs."""
     user = request.state.user
     user_dir = _get_user_data_dir(user)
+    _ch = channel_service.get_channel(channel_id, data_dir=user_dir)
+    _is_liked = _ch and _ch.get("source_type") == "liked"
+
     cache_key = f"radio_playlist:{user['id']}:{channel_id}"
     playlist = cache.get(cache_key)
     if playlist:
-        # Post-cache filter: remove songs liked/disliked/played since cache was set
+        # Post-cache filter: remove disliked songs; for non-liked channels also
+        # remove liked/played/rec-history songs
         filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
-        filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
-        filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
-        filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
+        if not _is_liked:
+            filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+            filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+            filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
         playlist = [
             s for s in playlist
             if (s.get("artist", "").lower().strip(),
@@ -942,14 +947,20 @@ async def radio_playlist_stream(request: Request,
             yield _sse("error", {"message": "Invalid channel ID"})
             return
 
+        # Look up channel source_type early for filtering decisions
+        _ch_for_cache = channel_service.get_channel(channel_id, data_dir=user_dir)
+        _is_liked_channel = _ch_for_cache and _ch_for_cache.get("source_type") == "liked"
+
         cache_key = f"radio_playlist:{user['id']}:{channel_id}"
         playlist = cache.get(cache_key)
         if playlist:
-            # Post-cache filter: remove songs liked/disliked/played since cache was set
+            # Post-cache filter: remove songs disliked/played since cache was set
+            # For non-liked channels, also remove liked songs
             filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
-            filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
-            filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
-            filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
+            if not _is_liked_channel:
+                filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+                filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
             playlist = [
                 s for s in playlist
                 if (s.get("artist", "").lower().strip(),
@@ -1362,10 +1373,12 @@ async def radio_playlist_stream(request: Request,
 
             # Build exclude set for post-YouTube-resolution filtering
             # (YT title rewriting can change artist/title to match known songs)
-            yt_filter_set = thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir)
-            yt_filter_set.update(thumbs.get_dislikes_set(data_dir=user_dir))
-            yt_filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
-            yt_filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
+            # For the "liked" channel, do NOT exclude liked songs (they ARE the playlist)
+            yt_filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
+            if source_type != "liked":
+                yt_filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
+                yt_filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
+                yt_filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
 
             # Resolve YouTube IDs in chunks, streaming each batch to the client
             total = len(playlist)
