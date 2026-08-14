@@ -1,0 +1,146 @@
+{
+  "run_id": "20260813-191916_ollama-qwen3-30b-a3b_compact",
+  "provider": "ollama:qwen3:30b-a3b",
+  "generated_at": "2026-08-14T02:20:50+00:00",
+  "seconds": 71.6,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 5,
+    "unique_artists": 5,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 4,
+    "decade_spread": {
+      "1960s": 1,
+      "1970s": 2,
+      "1980s": 1,
+      "1990s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 80.0,
+    "mean_match_score": 83.6,
+    "has_reason": 5,
+    "mean_reason_len": 125.8,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Cluster",
+      "title": "Sowiesoso",
+      "album": "Sowiesoso",
+      "year": 1976,
+      "reason": "Shared use of hypnotic motorik rhythms with evolving textural layers, bridging Neu!'s minimalism and Can's experimentalism.",
+      "match_score": 88,
+      "match_attributes": [
+        "motorik rhythm structure",
+        "textural drone progression",
+        "krautrock lineage"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Yusef Lateef",
+      "title": "The Golden Flute",
+      "album": "The Golden Flute",
+      "year": 1963,
+      "reason": "Modal jazz structures and spiritual atmosphere directly extend Alice Coltrane's transcendental approach beyond Sun Ra's cosmic jazz.",
+      "match_score": 85,
+      "match_attributes": [
+        "modal jazz structures",
+        "spiritual atmosphere",
+        "avant-garde instrumentation"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Sun Ra"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "A Certain Ratio",
+      "title": "All Night Party",
+      "album": "All Night Party",
+      "year": 1979,
+      "reason": "Blends Wire's angular post-punk with Can's rhythmic propulsion through syncopated basslines and minimalist arrangements.",
+      "match_score": 82,
+      "match_attributes": [
+        "angular basslines",
+        "post-punk minimalism",
+        "rhythmic drive"
+      ],
+      "similar_to": [
+        "Wire",
+        "Can"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "The Chills",
+      "title": "Heavenly Pop Hit",
+      "album": "Kaleidoscope Eyes",
+      "year": 1987,
+      "reason": "Jangly guitar arpeggios and melancholic vocals evoke pre-Stereolab dream pop, distinct from later shoegaze aggression.",
+      "match_score": 80,
+      "match_attributes": [
+        "jangle guitar textures",
+        "melancholic vocal delivery",
+        "dream pop precursor"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Slowdive"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Basic Channel",
+      "title": "Aerodynamic",
+      "album": "Aerodynamic",
+      "year": 1992,
+      "reason": "Minimalist dub basslines and atmospheric textures create a parallel to Aphex Twin's 'Xtal' while emphasizing rhythmic depth over melody.",
+      "match_score": 83,
+      "match_attributes": [
+        "minimalist dub basslines",
+        "textural minimalism",
+        "electronic atmosphere"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 90
+    }
+  ]
+}

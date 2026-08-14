@@ -1,0 +1,251 @@
+{
+  "run_id": "20260813-192519_ollama-qwen3-30b-a3b_v2",
+  "provider": "ollama:qwen3:30b-a3b",
+  "generated_at": "2026-08-14T02:26:35+00:00",
+  "seconds": 54.3,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 11,
+    "unique_artists": 10,
+    "artist_diversity": 0.909,
+    "max_per_artist": 2,
+    "unique_decades": 4,
+    "decade_spread": {
+      "1970s": 4,
+      "1980s": 3,
+      "1990s": 3,
+      "2000s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 55.3,
+    "mean_match_score": 84.5,
+    "has_reason": 11,
+    "mean_reason_len": 151.9,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Cluster",
+      "title": "Zucker",
+      "album": "Zuckerzeit",
+      "year": 1971,
+      "reason": "Shares Krautrock's hypnotic rhythmic pulse and minimalist synth experimentation with Neu! and Can, but with a more detached, ambient approach.",
+      "match_score": 88,
+      "match_attributes": [
+        "Krautrock rhythm",
+        "minimalist synth textures"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "The Crimson",
+      "title": "Ghosts",
+      "album": "The Crimson",
+      "year": 1982,
+      "reason": "Blends Broadcast's ambient electronic textures with a similarly detached, melancholic vocal delivery through sparse piano and atmospheric synths.",
+      "match_score": 78,
+      "match_attributes": [
+        "ambient electronic production",
+        "detached vocal delivery",
+        "minimalist arrangement"
+      ],
+      "similar_to": [
+        "Broadcast - Come On Let's Go",
+        "Grouper - Heavy Water/I'd Rather Be Sleeping"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Harmonia",
+      "title": "Mogadon",
+      "album": "Musik von Harmonia",
+      "year": 1974,
+      "reason": "Directly connects to Can's collaborative spirit through Hans-Joachim Roedelius and Moebius, featuring similar spaced-out electronic textures and improvisational flow.",
+      "match_score": 92,
+      "match_attributes": [
+        "shared musicians",
+        "ambient electronic production"
+      ],
+      "similar_to": [
+        "Can"
+      ],
+      "obscurity_score": 93
+    },
+    {
+      "artist": "Autechre",
+      "title": "Cry",
+      "album": "Cry",
+      "year": 1994,
+      "reason": "Merges the glitchy, rhythmic complexity of Aphex Twin's 'Xtal' with the atmospheric depth of Boards of Canada's 'Roygbiv' through intricate electronic patterning.",
+      "match_score": 82,
+      "match_attributes": [
+        "electronic rhythm complexity",
+        "atmospheric texture",
+        "glitch aesthetics"
+      ],
+      "similar_to": [
+        "Aphex Twin - Xtal",
+        "Boards of Canada - Roygbiv"
+      ],
+      "obscurity_score": 45
+    },
+    {
+      "artist": "Tangerine Dream",
+      "title": "Phaedra",
+      "album": "Phaedra",
+      "year": 1974,
+      "reason": "Shares the Berlin School electronic minimalism and hypnotic pulse of Neu! and Can, using analog synths to create immersive, rhythmic soundscapes.",
+      "match_score": 85,
+      "match_attributes": [
+        "krautrock lineage",
+        "analog synth instrumentation",
+        "hypnotic rhythm"
+      ],
+      "similar_to": [
+        "Neu! - Hallogallo",
+        "Can - Vitamin C"
+      ],
+      "obscurity_score": 15
+    },
+    {
+      "artist": "Laraaji",
+      "title": "Astral Traveler",
+      "album": "Transcendental Light",
+      "year": 1981,
+      "reason": "Shares Pharoah Sanders' meditative jazz exploration in 'Astral Traveling' but through solo harp, creating similarly transcendent, sparse spiritual ambiance.",
+      "match_score": 88,
+      "match_attributes": [
+        "meditative spiritual atmosphere",
+        "sparse instrumentation",
+        "transcendent mood"
+      ],
+      "similar_to": [
+        "Pharoah Sanders - Astral Traveling",
+        "Alice Coltrane - Journey in Satchidananda"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Cluster",
+      "title": "Zuckerkristall",
+      "album": "Zuckerbrot",
+      "year": 1973,
+      "reason": "Direct krautrock lineage to Can and Neu! with its motorik groove, experimental synth textures, and studio-as-instrument approach.",
+      "match_score": 92,
+      "match_attributes": [
+        "krautrock production",
+        "motorik rhythm",
+        "experimental synth textures"
+      ],
+      "similar_to": [
+        "Can - Vitamin C",
+        "Neu! - Hallogallo"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Gigi Masin",
+      "title": "Solemn",
+      "album": "Solemn",
+      "year": 1997,
+      "reason": "Mirrors Brian Eno's 'An Ending (Ascent)' with its hushed, piano-driven ambient minimalism and emotional restraint, avoiding overt melody for atmosphere.",
+      "match_score": 87,
+      "match_attributes": [
+        "piano-driven ambient minimalism",
+        "emotional restraint",
+        "atmospheric focus"
+      ],
+      "similar_to": [
+        "Brian Eno - An Ending (Ascent)",
+        "Harold Budd - Not Yet Remembered"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Coil",
+      "title": "The Snow",
+      "album": "Horse Rotorvator",
+      "year": 1983,
+      "reason": "Connects to The Cure's 'A Forest' through its dark, brooding atmosphere and sparse, echoing instrumentation, blending post-punk tension with ambient dread.",
+      "match_score": 83,
+      "match_attributes": [
+        "dark post-punk atmosphere",
+        "sparse echoing instrumentation",
+        "melancholic mood"
+      ],
+      "similar_to": [
+        "The Cure - A Forest",
+        "Joy Division - Disorder"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "The Clientele",
+      "title": "From the Shadows",
+      "album": "The Great Pleasure",
+      "year": 2000,
+      "reason": "Shares Talk Talk's 'New Grass' in its slow-burn, melancholic guitar textures and whispered vocals, creating an intimate, introspective mood.",
+      "match_score": 76,
+      "match_attributes": [
+        "slow-burn guitar textures",
+        "whispered vocal delivery",
+        "intimate atmosphere"
+      ],
+      "similar_to": [
+        "Talk Talk - New Grass",
+        "Cocteau Twins - Cherry-Coloured Funk"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Biosphere",
+      "title": "Polaris",
+      "album": "Patashnik",
+      "year": 1995,
+      "reason": "Channels the hypnotic, nature-inspired ambient of Broadcast with electronic textures, creating a similarly immersive, slow-motion world through field recordings and minimal beats.",
+      "match_score": 79,
+      "match_attributes": [
+        "nature-inspired ambient",
+        "minimal electronic textures",
+        "hypnotic pacing"
+      ],
+      "similar_to": [
+        "Broadcast - Come On Let's Go",
+        "Boards of Canada - Roygbiv"
+      ],
+      "obscurity_score": 35
+    }
+  ]
+}

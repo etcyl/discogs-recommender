@@ -1,0 +1,456 @@
+{
+  "run_id": "20260813-193530_ollama-gemma3-27b_schema",
+  "provider": "ollama:gemma3:27b",
+  "generated_at": "2026-08-14T02:37:23+00:00",
+  "seconds": 63.8,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 23,
+    "artist_diversity": 0.92,
+    "max_per_artist": 2,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1960s": 3,
+      "1970s": 12,
+      "1980s": 5,
+      "1990s": 2,
+      "2000s": 2,
+      "2010s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 67.6,
+    "mean_match_score": 69.8,
+    "has_reason": 25,
+    "mean_reason_len": 146.2,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Amon Tobin",
+      "title": "Slow Day",
+      "year": 2007,
+      "reason": "Like Boards of Canada and Aphex Twin, Amon Tobin expertly layers intricate sound design with a melancholic undertone, creating immersive sonic landscapes.",
+      "match_score": 82,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Cluster",
+      "title": "By This River",
+      "year": 1974,
+      "reason": "Sharing a similar minimalist approach to Brian Eno and Harold Budd, Cluster creates spacious ambient textures with analog synthesizers and subtle rhythmic elements.",
+      "match_score": 78,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Gas",
+      "title": "Pop",
+      "year": 2000,
+      "reason": "Wolfgang Voigt's Gas project evokes a similar hazy, dreamlike quality as Slowdive and Cocteau Twins through heavily processed ambient techno with buried field recordings.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Slowdive",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 68
+    },
+    {
+      "artist": "The United States of America",
+      "title": "The American Metaphysical Circus",
+      "year": 1968,
+      "reason": "Like Silver Apples and Suicide, The United States of America pioneered experimental electronic music in the late '60s using tape manipulation and unconventional instrumentation.",
+      "match_score": 70,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Silver Apples",
+        "Suicide"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Popol Vuh",
+      "title": "Aguas Electricas",
+      "year": 1975,
+      "reason": "Similar to Alice Coltrane and Pharoah Sanders, Popol Vuh blends spiritual jazz elements with ambient textures and electronic experimentation.",
+      "match_score": 68,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 72
+    },
+    {
+      "artist": "This Mortal Coil",
+      "title": "Song to the Siren",
+      "year": 1983,
+      "reason": "Mirroring the ethereal vocal textures of Cocteau Twins and the dream-pop aesthetic of Slowdive, This Mortal Coil creates hauntingly beautiful soundscapes.",
+      "match_score": 72,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "Slowdive"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Spring Heel Jack",
+      "title": "Every Day I Feel Safer",
+      "year": 1997,
+      "reason": "Like Can and Neu!, Spring Heel Jack fuses jazz-influenced rhythms with experimental electronic textures and a driving energy.",
+      "match_score": 65,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 78
+    },
+    {
+      "artist": "Duncan Browne",
+      "title": "Wilder Than Most People",
+      "year": 1972,
+      "reason": "Echoing the atmospheric and melancholic soundscapes of Talk Talk and The Cure, Duncan Browne delivers a deeply emotive and introspective song with haunting instrumentation.",
+      "match_score": 60,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "The Cure"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Loren Mazé & Lee Fraser",
+      "title": "Sun Nebula",
+      "year": 2016,
+      "reason": "Similar to Grouper and Harold Budd, Loren Mazé & Lee Fraser craft dreamy, ambient soundscapes with processed field recordings and delicate melodies.",
+      "match_score": 73,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Grouper",
+        "Harold Budd"
+      ],
+      "obscurity_score": 82
+    },
+    {
+      "artist": "Michael Rother",
+      "title": "Fernlicht",
+      "year": 1979,
+      "reason": "Continuing the krautrock tradition of Neu! and Can, Michael Rother’s solo work offers hypnotic rhythms and atmospheric soundscapes built around analog synthesizers.",
+      "match_score": 67,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Laurie Anderson",
+      "title": "O Superman (For Massenet)",
+      "year": 1981,
+      "reason": "Similar to Broadcast and early Aphex Twin, 'O Superman' blends experimental electronic soundscapes with haunting vocals creating a surreal atmosphere.",
+      "match_score": 72,
+      "match_attributes": [
+        "mood/atmosphere",
+        "experimental production"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 45
+    },
+    {
+      "artist": "Kraftwerk",
+      "title": "Autobahn",
+      "year": 1974,
+      "reason": "Like Neu! and early Can, Kraftwerk pioneered a minimalist, motorik-driven electronic sound that heavily influenced post-punk and ambient music.",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "shared producer",
+        "minimalist approach"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Delia Derbyshire",
+      "title": "Zinzolin",
+      "year": 1968,
+      "reason": "A pioneering piece of electronic music, 'Zinzolin' shares Aphex Twin and Boards of Canada’s focus on sound design and textural experimentation.",
+      "match_score": 70,
+      "match_attributes": [
+        "production style",
+        "experimental production"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "Popol Vuh",
+      "title": "Aguas Eternas",
+      "year": 1975,
+      "reason": "Echoing the spiritual and atmospheric qualities of Alice Coltrane & Pharoah Sanders while using synthesizers and ambient textures.",
+      "match_score": 68,
+      "match_attributes": [
+        "mood/atmosphere",
+        "spiritual themes"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "The Velvet Underground",
+      "title": "Venus in Furs",
+      "year": 1967,
+      "reason": "Sharing a dark and hypnotic quality with Joy Division & The Cure, the song features droning instrumentation and evocative lyrics.",
+      "match_score": 58,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "The Cure"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Harmonia",
+      "title": "Watussi",
+      "year": 1974,
+      "reason": "Formed by members of Neu! and Cluster, Harmonia’s ‘Watussi’ combines krautrock rhythms with funk influences similar to Stereolab.",
+      "match_score": 65,
+      "match_attributes": [
+        "genre lineage",
+        "rhythmic complexity"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Neu!"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Brian Gascoigne",
+      "title": "Echos of the Machine Age",
+      "year": 1986,
+      "reason": "Like Harold Budd and Brian Eno, this track creates an ambient soundscape filled with delicate piano melodies and atmospheric textures.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere",
+        "ambient production"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Brian Eno"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "Duncan Browne",
+      "title": "Journey Home",
+      "year": 1972,
+      "reason": "Similar to Talk Talk’s later atmospheric work, this song features a spacious arrangement and emotionally resonant vocals.",
+      "match_score": 60,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Talk Talk"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Julee Cruise",
+      "title": "Falling",
+      "year": 1989,
+      "reason": "Echoing the dreamlike quality of Portishead and Massive Attack, 'Falling' utilizes ethereal vocals and a haunting atmosphere to create a cinematic soundscape.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Penguin Cafe Orchestra",
+      "title": "Peru",
+      "year": 1976,
+      "reason": "Sharing Stereolab’s penchant for playfully quirky instrumentation and global musical influences, 'Peru' blends classical motifs with South American rhythms.",
+      "match_score": 78,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Stereolab"
+      ],
+      "obscurity_score": 45
+    },
+    {
+      "artist": "Global Communication",
+      "title": "99999",
+      "year": 1994,
+      "reason": "Like Boards of Canada and Aphex Twin, Global Communication crafts immersive ambient textures with a subtle warmth and nostalgic feel.",
+      "match_score": 80,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Public Image Ltd.",
+      "title": "Rise",
+      "year": 1979,
+      "reason": "Sharing the angularity and post-punk energy of Joy Division and Wire, 'Rise' features a driving bassline and confrontational vocals.",
+      "match_score": 68,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "Wire"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "The Feelies",
+      "title": "Faustian Deception",
+      "year": 1980,
+      "reason": "Drawing parallels to Television with its intricate guitar interplay and hypnotic rhythms, 'Faustian Deception' embodies a minimalist post-punk aesthetic.",
+      "match_score": 62,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Television"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Cabaret Voltaire",
+      "title": "Yashar",
+      "year": 1978,
+      "reason": "Like Suicide and Silver Apples, Cabaret Voltaire utilized early synthesizers and tape manipulation to create a raw, industrial sound.",
+      "match_score": 65,
+      "match_attributes": [
+        "production style"
+      ],
+      "similar_to": [
+        "Suicide",
+        "Silver Apples"
+      ],
+      "obscurity_score": 78
+    },
+    {
+      "artist": "Mulatu Astatke",
+      "title": "Yekermo Sew",
+      "year": 1974,
+      "reason": "Like Pharoah Sanders and Sun Ra, Mulatu Astatke blends jazz with Ethiopian musical traditions to create a unique and expansive sonic landscape.",
+      "match_score": 58,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Pharoah Sanders",
+        "Sun Ra"
+      ],
+      "obscurity_score": 68
+    }
+  ]
+}

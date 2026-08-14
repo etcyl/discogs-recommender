@@ -1,0 +1,485 @@
+{
+  "run_id": "20260813-191654_ollama-llama3-1-8b",
+  "provider": "ollama:llama3.1:8b",
+  "generated_at": "2026-08-14T02:17:53+00:00",
+  "seconds": 59.3,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 23,
+    "artist_diversity": 0.92,
+    "max_per_artist": 2,
+    "unique_decades": 8,
+    "decade_spread": {
+      "1880s": 1,
+      "1950s": 1,
+      "1960s": 1,
+      "1970s": 3,
+      "1980s": 3,
+      "1990s": 7,
+      "2000s": 4,
+      "2010s": 5
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.04,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 50.9,
+    "mean_match_score": 84.6,
+    "has_reason": 25,
+    "mean_reason_len": 100.4,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Harold Budd",
+      "title": "The Red Poppy",
+      "album": "Lovely Thunder",
+      "year": 1970,
+      "reason": "Ethereal, atmospheric textures reminiscent of Harold Budd's work with Brian Eno.",
+      "match_score": 80,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 92
+    },
+    {
+      "artist": "William Basinski",
+      "title": "I Care and All I Do is Sleep I Dream",
+      "album": "The Disintegration Loops",
+      "year": 2002,
+      "reason": "Decaying loops and found sounds evoke a sense of nostalgia, much like Broadcast.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Diamanda Galás",
+      "title": "Panoptica IV",
+      "album": "The Masque of the Red Death",
+      "year": 1995,
+      "reason": "Experimental, avant-garde elements shared with Wire and Can.",
+      "match_score": 90,
+      "match_attributes": [
+        "shared producer",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Wire",
+        "Can"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Gang Gang Dance",
+      "title": "Principe Chérubin (Maelstrom Mix)",
+      "album": "Eaux",
+      "year": 2008,
+      "reason": "Atmospheric, psychedelic soundscapes reminiscent of Stereolab and Cocteau Twins.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Einstürzende Neubauten",
+      "title": "Halber Mensch",
+      "album": "Perfection Is Not as Moveable as Literature",
+      "year": 1991,
+      "reason": "Industrial, avant-garde elements shared with Neu! and Can.",
+      "match_score": 88,
+      "match_attributes": [
+        "shared producer",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Morton Subotnick",
+      "title": "Silver Apples of the Moon (Excerpt)",
+      "album": "Silver Apples of the Moon",
+      "year": 1967,
+      "reason": "Electronic music pioneer's work shares similarities with Silver Apples and Alice Coltrane.",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "production style"
+      ],
+      "similar_to": [
+        "Silver Apples",
+        "Alice Coltrane"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "The Haxan Cloak",
+      "title": "Excavation (Version)",
+      "album": "The Haxan Cloak",
+      "year": 2011,
+      "reason": "Dark, atmospheric soundscapes reminiscent of Portishead and Massive Attack.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Laurie Spiegel",
+      "title": "Suenos",
+      "album": "Unseen",
+      "year": 1980,
+      "reason": "Pioneering electronic music composer's work shares similarities with Aphex Twin and Brian Eno.",
+      "match_score": 88,
+      "match_attributes": [
+        "genre lineage",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Brian Eno"
+      ],
+      "obscurity_score": 98
+    },
+    {
+      "artist": "James Ferraro",
+      "title": "Sour Milk and Corn Flakes (Bonus Track)",
+      "album": "Far Side Trance",
+      "year": 2012,
+      "reason": "Experimental, avant-garde elements shared with Sun Ra and Miles Davis.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared producer",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Miles Davis"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Trevor Jackson",
+      "title": "The Ghost in the Machine (Main Title)",
+      "album": "The Dreamer Is Still Asleep, But The Worm Is Awake and Ready to Rumble",
+      "year": 1984,
+      "reason": "Electronic music pioneer's work shares similarities with Harold Budd and Brian Eno.",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "production style"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Brian Eno"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "Fela Kuti",
+      "title": "J.J.D.",
+      "album": "Roforofo Fight",
+      "year": 1972,
+      "reason": "Experimental Afrobeat rhythms and socially conscious lyrics connect to Sun Ra's space-jazz spirit and Cocteau Twins' atmospheric soundscapes.",
+      "match_score": 82,
+      "match_attributes": [
+        "experimental instrumentation",
+        "socially conscious lyrics"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Gang Gang Dance",
+      "title": "Kiss",
+      "album": "Starter",
+      "year": 2008,
+      "reason": "Ethereal, atmospheric soundscapes and percussive electronic elements tie in with My Bloody Valentine's dreamy textures and Aphex Twin's avant-garde approach.",
+      "match_score": 85,
+      "match_attributes": [
+        "ethereal atmosphere",
+        "percussive electronic elements"
+      ],
+      "similar_to": [
+        "My Bloody Valentine",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "The Olivia Tremor Control",
+      "title": "No Collaboration (Part I)",
+      "album": "Black Foliage: The Geranium Plant Mutation",
+      "year": 1996,
+      "reason": "Psychedelic pop elements, instrumentation, and vocal harmonies link with Stereolab's indie-krautrock sound and Slowdive's dreamy texture.",
+      "match_score": 80,
+      "match_attributes": [
+        "psychedelic instrumentation",
+        "vocal harmonies"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Slowdive"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Erik Satie",
+      "title": "Gymnopédie No. 1",
+      "album": "Gymnopédies",
+      "year": 1888,
+      "reason": "Pianistic avant-garde and minimalism connect to Brian Eno's ambient textures and Harold Budd's meditative soundscapes.",
+      "match_score": 90,
+      "match_attributes": [
+        "pianistic minimalism",
+        "avant-garde atmosphere"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 1
+    },
+    {
+      "artist": "Drexciya",
+      "title": "Aquasihtropic Transmission",
+      "album": "Aquasihtropic Transmission",
+      "year": 1994,
+      "reason": "Industrial-techno and futuristic soundscapes link with Aphex Twin's avant-garde production style and Boards of Canada's electronic atmospheres.",
+      "match_score": 88,
+      "match_attributes": [
+        "industrial-techno",
+        "futuristic atmosphere"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "African Head Charge",
+      "title": "Arabian Knights",
+      "album": "Cerberus",
+      "year": 1981,
+      "reason": "Percussive, experimental instrumentation and Afrobeat influences tie in with Sun Ra's space-jazz spirit and Fela Kuti's socially conscious lyrics.",
+      "match_score": 81,
+      "match_attributes": [
+        "percussive instrumentation",
+        "Afrobeat influences"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Fela Kuti"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "György Ligeti",
+      "title": "Musica Ricercata No. 1 (Alap)",
+      "album": "Musica Ricercata",
+      "year": 1951,
+      "reason": "Avant-garde, percussive soundscapes and experimental composition style link with Aphex Twin's avant-garde approach and Brian Eno's ambient textures.",
+      "match_score": 89,
+      "match_attributes": [
+        "avant-garde instrumentation",
+        "experimental composition"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Brian Eno"
+      ],
+      "obscurity_score": 1
+    },
+    {
+      "artist": "DJ Shadow",
+      "title": "Midnight in a Perfect World",
+      "album": "Endtroducing",
+      "year": 1996,
+      "reason": "Jazz sample-based beats and atmospheric soundscapes connect to Miles Davis' fusion influences and Brian Eno's ambient textures.",
+      "match_score": 84,
+      "match_attributes": [
+        "jazz sample based",
+        "atmospheric soundscapes"
+      ],
+      "similar_to": [
+        "Miles Davis",
+        "Brian Eno"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "The Haxan Cloak",
+      "title": "The Mirror Exploding (Piano Reprise)",
+      "album": "Excavation",
+      "year": 2011,
+      "reason": "Drone-like soundscapes and atmospheric textures tie in with Sun Ra's space-jazz spirit and Cocteau Twins' ethereal atmosphere.",
+      "match_score": 86,
+      "match_attributes": [
+        "drone instrumentation",
+        "atmospheric textures"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Boredoms",
+      "title": "Super Roots 9",
+      "album": "Super Roots 9",
+      "year": 1998,
+      "reason": "Noise rock and psychedelic elements, instrumentation link with Aphex Twin's avant-garde approach and My Bloody Valentine's dreamy textures.",
+      "match_score": 83,
+      "match_attributes": [
+        "noise rock",
+        "psychedelic instrumentation"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "My Bloody Valentine"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Kraftwerk",
+      "title": "Trans-Europe Express",
+      "album": "The Man-Machine",
+      "year": 1978,
+      "reason": "Shared motorik beat and electronic experimentation with Neu!.",
+      "match_score": 95,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 10
+    },
+    {
+      "artist": "Múm",
+      "title": "Green Grass",
+      "album": "Yesterday Was Just the Day Before Tomorrow",
+      "year": 2003,
+      "reason": "Similar use of electronic and acoustic instruments to create dreamy soundscapes.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "The Orb",
+      "title": "Little Fluffy Clouds",
+      "album": "Orbital 1",
+      "year": 1990,
+      "reason": "Shared ambient and atmospheric qualities with Brian Eno and Harold Budd.",
+      "match_score": 85,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Four Tet",
+      "title": "Two Weeks",
+      "album": "There Is Love in You",
+      "year": 2010,
+      "reason": "Similar blend of electronic and organic elements with Stereolab.",
+      "match_score": 75,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Massive Attack"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Alessandro Cortini",
+      "title": "Through the Prism I Bend Only Time",
+      "album": "Volume Massimo",
+      "year": 2011,
+      "reason": "Shared use of ambient textures and atmospheric soundscapes with Boards of Canada.",
+      "match_score": 90,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 40
+    }
+  ]
+}

@@ -30,6 +30,22 @@ ollama pull llama3.1:8b
 
 The app auto-detects Ollama running on `localhost:11434` and uses it for AI recommendations. No API key needed.
 
+Ollama requests use **schema-constrained decoding** — the JSON shape is enforced
+during generation rather than requested in the prompt. This matters more than it
+sounds: without it, reasoning models (`qwen3`, `deepseek-r1`, `gpt-oss`) spend
+their entire token budget on a hidden thinking pass and return nothing at all,
+and non-reasoning models regularly bury the JSON in prose. Reasoning models are
+detected automatically via `/api/show` and have thinking disabled.
+
+If you run a **24B+ local model**, set `PROMPT_TIER=rich` in `.env`. Otherwise
+local models get the same stripped-down prompt as a 3B model, which throws away
+most of what a large one can do.
+
+> **Know what you're getting.** Local models invent a lot of songs. Measured on
+> a 25-track seed, the share of recommendations that resolve to a real recording
+> was **48%** for `llama3.1:8b` and **44%** for `gemma3:27b`. See
+> [bench/verification.md](bench/verification.md) for the method and the misses.
+
 ### Optional: Docker
 
 ```bash
@@ -52,25 +68,45 @@ See [Docker setup](#docker) for details.
 
 ## Screenshots
 
-### Radio Player
-AI-curated playlist with YouTube playback, audio visualizer, share/copy buttons, and collection-based recommendations.
+### Home
+
+![Home](docs/after/home.png)
+
+### Radio
+
+Channel list with per-channel settings tucked into a drawer, so the list stays
+scannable however many channels you have.
+
+![Radio](docs/after/radio.png)
+
+### Radio player
+
+AI-curated playlist with YouTube playback, audio visualizer, share/copy buttons,
+and collection-based recommendations.
 
 ![Radio Player](docs/radio-player.png)
 
-### Now Playing
+### Now playing
+
 Track info with copy-to-clipboard buttons for song text, YouTube link, and Spotify search.
 
 ![Now Playing](docs/radio-now-playing.png)
 
 ### Queue
+
 Up Next queue with per-track YouTube and Spotify share icons.
 
 ![Queue](docs/radio-queue.png)
 
-### Collection Browser
+### Collection browser
+
 Paginated grid view of your Discogs releases with cover art, genres, and styles.
 
 ![Collection Browser](docs/collection-browser.png)
+
+Screenshots are generated from the running app — see
+[Regenerating screenshots](#regenerating-screenshots). The UI before the
+recent pass is kept in [`docs/before/`](docs/before/) for comparison.
 
 ## Architecture
 
@@ -93,7 +129,14 @@ FastAPI (app.py)
     |
     +-- templates/                      Jinja2 HTML templates
     +-- static/css/, static/js/         Frontend assets
+    |
+    +-- tools/                          Bench, comparison, verification, screenshots
+    +-- bench/                          Seeds, prompts, saved runs, reports
 ```
+
+A walkthrough of how the playlist pipeline actually works, the bugs found in
+it, and where the remaining performance and structural wins are, is in
+**[docs/REVIEW.md](docs/REVIEW.md)**.
 
 ## Configuration
 
@@ -110,6 +153,7 @@ cp .env.example .env   # optional
 | `ANTHROPIC_API_KEY` | No | Enables Claude AI recommendations. Get one at [console.anthropic.com](https://console.anthropic.com) |
 | `OLLAMA_BASE_URL` | No | Ollama API URL (default: `http://localhost:11434`) |
 | `OLLAMA_MODEL` | No | Ollama model name (default: `llama3.1:8b`) |
+| `PROMPT_TIER` | No | `auto` (default), `compact`, or `rich`. `auto` gives Ollama and Haiku the short prompt and Sonnet the full curator prompt. Set `rich` for 24B+ local models. |
 | `SECRET_KEY` | No | Session secret; auto-generated if not set (sessions won't survive restarts without it) |
 
 > **Security note:** Never commit your `.env` file. It is already listed in `.gitignore`.
@@ -224,9 +268,74 @@ The Discogs API allows 60 authenticated requests per minute. The app caches data
 
 Use the refresh buttons in the UI to force re-fetches when needed.
 
+## Tooling
+
+Scripts in [`tools/`](tools/) for working on the recommender itself. They import
+the app's own services, so they exercise the real prompts and the real pipeline
+rather than a copy.
+
+### Playlist bench — compare generation approaches
+
+Runs one seed through every available approach and saves each result so they can
+be compared side by side.
+
+```bash
+# Seed from a text file of "Artist - Title" lines
+python tools/playlist_bench.py --tracks bench/seeds/demo_playlist.txt \
+    --provider ollama:llama3.1:8b \
+    --provider ollama:qwen3:30b-a3b \
+    --provider ollama:gemma3:27b -n 25
+
+# Seed from a public Spotify or YouTube playlist (no credentials needed)
+python tools/playlist_bench.py --spotify https://open.spotify.com/playlist/XXXX --provider ollama:gemma3:27b
+python tools/playlist_bench.py --youtube 'https://www.youtube.com/playlist?list=PLXXXX' --provider ollama:gemma3:27b
+
+# Seed from a Discogs collection, including the no-LLM baseline
+python tools/playlist_bench.py --discogs --discogs-token TOKEN --discogs-username NAME \
+    --provider algorithmic --provider ollama:gemma3:27b
+```
+
+Providers: `ollama:<model>`, `claude-sonnet`, `claude-haiku`, `algorithmic`
+(collection scoring, no LLM), and `claude-code`.
+
+The `claude-code` provider needs no API key. It writes the exact prompt the app
+would have sent to `bench/prompts/<run-id>.json`, an agent answers it offline,
+and the answer is read back in:
+
+```bash
+python tools/playlist_bench.py --tracks bench/seeds/demo_playlist.txt --provider claude-code
+# ...agent writes a JSON array to bench/responses/<run-id>.json...
+python tools/playlist_bench.py --ingest bench/prompts/<run-id>.json \
+                               --response bench/responses/<run-id>.json
+```
+
+### Comparing and verifying runs
+
+```bash
+python tools/compare_runs.py    # -> bench/comparison.md
+python tools/verify_runs.py     # -> bench/verification.md
+```
+
+`compare_runs.py` produces a metrics table (artist diversity, decade spread,
+seed leakage, field completeness), a provider overlap matrix, and the picks only
+one provider made.
+
+`verify_runs.py` answers the question the structural metrics can't: **do these
+songs exist?** Every pick is resolved against Deezer, then iTunes, then
+MusicBrainz. This is where the providers actually separate — see
+[bench/verification.md](bench/verification.md).
+
+### Regenerating screenshots
+
+```bash
+pip install playwright && playwright install chromium
+uvicorn app:app --port 8000          # in another terminal
+python tools/screenshot.py --out docs/after
+```
+
 ## Testing
 
-The project includes a comprehensive test suite with **265 unit tests** achieving **95% code coverage**. Tests cover functional correctness and security hardening mapped to modern CWE categories.
+The project includes a comprehensive test suite of **339 unit tests** covering functional correctness and security hardening mapped to modern CWE categories.
 
 ### Running the tests
 

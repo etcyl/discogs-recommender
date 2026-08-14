@@ -1,0 +1,742 @@
+{
+  "run_id": "20260813-191648_claude-code",
+  "provider": "claude-code",
+  "generated_at": "2026-08-14T02:22:20+00:00",
+  "seconds": null,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 4,
+    "decade_spread": {
+      "1970s": 9,
+      "1980s": 4,
+      "1990s": 8,
+      "2000s": 4
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 58.0,
+    "mean_match_score": 90.6,
+    "has_reason": 25,
+    "mean_reason_len": 163.6,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Harmonia",
+      "title": "Watussi",
+      "album": "Musik von Harmonia",
+      "year": 1974,
+      "reason": "Michael Rother's guitar from Neu! meets Cluster's synth pastoral — the same motorik pulse as 'Hallogallo' but softened into something almost pastoral.",
+      "match_score": 95,
+      "match_attributes": [
+        "shared musicians",
+        "production style",
+        "same movement",
+        "rhythmic pattern"
+      ],
+      "similar_to": [
+        {
+          "artist": "Neu!",
+          "album": "Neu!",
+          "why": "literally Michael Rother playing the same chiming, delay-soaked guitar figures over a metronomic pulse"
+        }
+      ],
+      "obscurity_score": 55,
+      "influence_chain": "Neu! -> Michael Rother -> Harmonia",
+      "credit_connection": "Michael Rother of Neu! is one third of Harmonia; Conny Plank engineered both"
+    },
+    {
+      "artist": "Cluster",
+      "title": "Hollywood",
+      "album": "Zuckerzeit",
+      "year": 1974,
+      "reason": "Conny Plank's production gives the drum machine the same dry, close-miked snap as the Neu! records, but the melodies are woozy and detuned in a way that anticipates Broadcast.",
+      "match_score": 90,
+      "match_attributes": [
+        "shared producer",
+        "sonic palette",
+        "same movement"
+      ],
+      "similar_to": [
+        {
+          "artist": "Neu!",
+          "album": "Neu! 75",
+          "why": "Conny Plank produced both; same rhythm-box-plus-treated-keyboard palette"
+        },
+        {
+          "artist": "Broadcast",
+          "album": "Tender Buttons",
+          "why": "detuned analogue melody over a stiff machine rhythm"
+        }
+      ],
+      "obscurity_score": 58,
+      "influence_chain": "Cluster -> Broadcast -> Stereolab",
+      "credit_connection": "Produced by Conny Plank, who also engineered Neu!"
+    },
+    {
+      "artist": "Faust",
+      "title": "Jennifer",
+      "album": "Faust IV",
+      "year": 1973,
+      "reason": "The slow-motion organ drone and buried vocal sit exactly between Can's groove-based tracks and the narcotic haze of Slowdive — a krautrock record that already sounds like shoegaze.",
+      "match_score": 88,
+      "match_attributes": [
+        "same movement",
+        "mood/atmosphere",
+        "sonic palette"
+      ],
+      "similar_to": [
+        {
+          "artist": "Can",
+          "album": "Ege Bamyasi",
+          "why": "same German avant-rock scene, same commitment to repetition as a structure"
+        },
+        {
+          "artist": "Slowdive",
+          "album": "Souvlaki",
+          "why": "the narcotic, reverb-drowned vocal delivery"
+        }
+      ],
+      "obscurity_score": 55,
+      "influence_chain": "Faust -> Spacemen 3 -> Slowdive",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Manuel Göttsching",
+      "title": "Sunrain",
+      "album": "New Age of Earth",
+      "year": 1976,
+      "reason": "Sequencer arpeggios that pulse for eleven minutes without ever resolving — the missing link between Neu!'s forward motion and the generative patience of Eno's ambient records.",
+      "match_score": 87,
+      "match_attributes": [
+        "rhythmic pattern",
+        "sonic palette",
+        "genre lineage"
+      ],
+      "similar_to": [
+        {
+          "artist": "Brian Eno",
+          "album": "Ambient 4: On Land",
+          "why": "long-form, non-narrative electronic music built from slowly shifting layers"
+        },
+        {
+          "artist": "Neu!",
+          "album": "Neu! 2",
+          "why": "the same hypnotic forward propulsion"
+        }
+      ],
+      "obscurity_score": 62,
+      "influence_chain": "Manuel Göttsching -> Derrick May -> Detroit techno",
+      "credit_connection": ""
+    },
+    {
+      "artist": "The High Llamas",
+      "title": "Checking In, Checking Out",
+      "album": "Hawaii",
+      "year": 1996,
+      "reason": "Sean O'Hagan arranged and played on the Stereolab records this playlist draws from — here he does the same Bacharach-via-Brian-Wilson orchestration under his own name.",
+      "match_score": 93,
+      "match_attributes": [
+        "shared musicians",
+        "harmonic language",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        {
+          "artist": "Stereolab",
+          "album": "Emperor Tomato Ketchup",
+          "why": "O'Hagan wrote the string and vibraphone arrangements on Stereolab's records of this era"
+        }
+      ],
+      "obscurity_score": 60,
+      "influence_chain": "",
+      "credit_connection": "Sean O'Hagan arranged and performed on Stereolab albums throughout the 1990s"
+    },
+    {
+      "artist": "Laika",
+      "title": "Coming Down Glass",
+      "album": "Silver Apples of the Moon",
+      "year": 1994,
+      "reason": "Too Pure labelmates of Stereolab, building loops out of found percussion and processed guitar — and the album title is a direct nod to the same Silver Apples lineage in this playlist.",
+      "match_score": 84,
+      "match_attributes": [
+        "same label",
+        "scene peers",
+        "rhythmic pattern"
+      ],
+      "similar_to": [
+        {
+          "artist": "Stereolab",
+          "album": "Transient Random-Noise Bursts",
+          "why": "Too Pure labelmates working the same loop-plus-cool-vocal formula"
+        },
+        {
+          "artist": "Broadcast",
+          "album": "The Noise Made by People",
+          "why": "female vocal floating over mechanical, sample-built rhythm"
+        }
+      ],
+      "obscurity_score": 72,
+      "influence_chain": "",
+      "credit_connection": "Released on Too Pure, Stereolab's and Pram's label"
+    },
+    {
+      "artist": "The Advisory Circle",
+      "title": "As the Crow Flies",
+      "album": "Other Channels",
+      "year": 2008,
+      "reason": "Ghost Box's whole project is the library-music melancholy Broadcast were mining — analogue synth, tape hiss, and the ghost of a 1970s public information film.",
+      "match_score": 89,
+      "match_attributes": [
+        "sonic palette",
+        "mood/atmosphere",
+        "same movement"
+      ],
+      "similar_to": [
+        {
+          "artist": "Broadcast",
+          "album": "Haha Sound",
+          "why": "same hauntological palette; Broadcast later collaborated directly with Ghost Box's Focus Group"
+        }
+      ],
+      "obscurity_score": 70,
+      "influence_chain": "Broadcast -> Ghost Box -> The Advisory Circle",
+      "credit_connection": "Ghost Box label, which released Broadcast and the Focus Group's collaboration"
+    },
+    {
+      "artist": "Beth Gibbons & Rustin Man",
+      "title": "Mysteries",
+      "album": "Out of Season",
+      "year": 2002,
+      "reason": "The single most direct bridge in this playlist: Portishead's singer fronting Talk Talk's bassist, with the same close-miked acoustic restraint as 'New Grass'.",
+      "match_score": 98,
+      "match_attributes": [
+        "shared musicians",
+        "vocal texture",
+        "production style"
+      ],
+      "similar_to": [
+        {
+          "artist": "Portishead",
+          "album": "Dummy",
+          "why": "Beth Gibbons, same voice, stripped of the trip-hop scaffolding"
+        },
+        {
+          "artist": "Talk Talk",
+          "album": "Laughing Stock",
+          "why": "Paul Webb played bass on Talk Talk's later records and produced this one"
+        }
+      ],
+      "obscurity_score": 40,
+      "influence_chain": "",
+      "credit_connection": "Beth Gibbons of Portishead with Paul 'Rustin Man' Webb of Talk Talk"
+    },
+    {
+      "artist": "Tricky",
+      "title": "Aftermath",
+      "album": "Maxinquaye",
+      "year": 1995,
+      "reason": "Tricky rapped on Massive Attack's first two albums before this; 'Aftermath' is the same Bristol dub-weight and smoke, but with the paranoia dialled up.",
+      "match_score": 92,
+      "match_attributes": [
+        "shared musicians",
+        "geographic scene",
+        "production style"
+      ],
+      "similar_to": [
+        {
+          "artist": "Massive Attack",
+          "album": "Blue Lines",
+          "why": "Tricky is a credited vocalist on Blue Lines and Protection"
+        },
+        {
+          "artist": "Portishead",
+          "album": "Dummy",
+          "why": "same Bristol scene, same year, same crate-dug melancholy"
+        }
+      ],
+      "obscurity_score": 30,
+      "influence_chain": "",
+      "credit_connection": "Tricky was a member of the Wild Bunch and featured on Massive Attack's Blue Lines"
+    },
+    {
+      "artist": "Bark Psychosis",
+      "title": "Big Shot",
+      "album": "Hex",
+      "year": 1994,
+      "reason": "The record that got the phrase 'post-rock' coined, and it is audibly Talk Talk's 'Laughing Stock' method — long silences, live-room dynamics, jazz drumming under rock instrumentation.",
+      "match_score": 94,
+      "match_attributes": [
+        "production style",
+        "dynamic range",
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        {
+          "artist": "Talk Talk",
+          "album": "Laughing Stock",
+          "why": "same improvisation-then-edit method and cavernous live-room sound"
+        }
+      ],
+      "obscurity_score": 68,
+      "influence_chain": "Talk Talk -> Bark Psychosis -> post-rock",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Disco Inferno",
+      "title": "Second Language",
+      "album": "D.I. Go Pop",
+      "year": 1994,
+      "reason": "A post-punk band who ran every instrument through samplers, so a guitar strum triggers breaking glass — Wire's terseness rebuilt with Aphex-era technology.",
+      "match_score": 82,
+      "match_attributes": [
+        "genre lineage",
+        "sonic palette",
+        "production style"
+      ],
+      "similar_to": [
+        {
+          "artist": "Wire",
+          "album": "154",
+          "why": "same English art-school post-punk economy"
+        },
+        {
+          "artist": "Aphex Twin",
+          "album": "Selected Ambient Works 85-92",
+          "why": "sampler as the primary compositional instrument"
+        }
+      ],
+      "obscurity_score": 80,
+      "influence_chain": "Wire -> Disco Inferno -> Battles",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Seefeel",
+      "title": "Plainsong",
+      "album": "Quique",
+      "year": 1993,
+      "reason": "The exact midpoint between the two poles of this playlist: My Bloody Valentine's guitar wash looped into Warp-label techno, released on Too Pure then Warp.",
+      "match_score": 96,
+      "match_attributes": [
+        "sonic palette",
+        "genre lineage",
+        "scene peers",
+        "production style"
+      ],
+      "similar_to": [
+        {
+          "artist": "My Bloody Valentine",
+          "album": "Loveless",
+          "why": "the same pitch-bent, tremolo-drowned guitar texture as a bed"
+        },
+        {
+          "artist": "Aphex Twin",
+          "album": "Selected Ambient Works 85-92",
+          "why": "Aphex remixed Seefeel; they shared the Warp roster"
+        }
+      ],
+      "obscurity_score": 65,
+      "influence_chain": "My Bloody Valentine -> Seefeel -> Warp ambient techno",
+      "credit_connection": "Aphex Twin remixed Seefeel's 'Time to Find Me'; both on Warp"
+    },
+    {
+      "artist": "Autechre",
+      "title": "Eutow",
+      "album": "Tri Repetae",
+      "year": 1995,
+      "reason": "The Warp peer to Boards of Canada and Aphex — same era, same label, but the rhythms are corroded and metallic rather than nostalgic.",
+      "match_score": 85,
+      "match_attributes": [
+        "same label",
+        "era peers",
+        "rhythmic pattern",
+        "sonic palette"
+      ],
+      "similar_to": [
+        {
+          "artist": "Boards of Canada",
+          "album": "Music Has the Right to Children",
+          "why": "Warp labelmates; same generation of British electronic listening music"
+        },
+        {
+          "artist": "Aphex Twin",
+          "album": "Selected Ambient Works Volume II",
+          "why": "same Artificial Intelligence-series lineage"
+        }
+      ],
+      "obscurity_score": 45,
+      "influence_chain": "",
+      "credit_connection": "Released on Warp, as with Aphex Twin and Boards of Canada"
+    },
+    {
+      "artist": "Flying Saucer Attack",
+      "title": "My Dreaming Hill",
+      "album": "Further",
+      "year": 1995,
+      "reason": "Home-recorded feedback drone with an acoustic folk song buried inside — the same relationship between hiss and melody that Grouper works with, twenty years earlier.",
+      "match_score": 88,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "sonic palette"
+      ],
+      "similar_to": [
+        {
+          "artist": "Grouper",
+          "album": "Dragging a Dead Deer Up a Hill",
+          "why": "lo-fi bedroom recording where the tape noise is part of the composition"
+        },
+        {
+          "artist": "My Bloody Valentine",
+          "album": "Loveless",
+          "why": "melody submerged under sustained guitar noise"
+        }
+      ],
+      "obscurity_score": 74,
+      "influence_chain": "My Bloody Valentine -> Flying Saucer Attack -> Grouper",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Stars of the Lid",
+      "title": "Requiem for Dying Mothers, Pt. 1",
+      "album": "The Tired Sounds of Stars of the Lid",
+      "year": 2001,
+      "reason": "Bowed-string drones that swell and decay on a glacial timescale — Harold Budd's harmonic language without the piano, and the closest living relative to 'An Ending (Ascent)'.",
+      "match_score": 93,
+      "match_attributes": [
+        "harmonic language",
+        "mood/atmosphere",
+        "dynamic range",
+        "genre lineage"
+      ],
+      "similar_to": [
+        {
+          "artist": "Harold Budd",
+          "album": "The Pearl",
+          "why": "same slow, consonant, unresolved harmony held for minutes at a time"
+        },
+        {
+          "artist": "Brian Eno",
+          "album": "Apollo",
+          "why": "direct descendant of Eno's ambient long-form method"
+        }
+      ],
+      "obscurity_score": 60,
+      "influence_chain": "Brian Eno -> Stars of the Lid -> modern ambient",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Gas",
+      "title": "Pop 1",
+      "album": "Pop",
+      "year": 2000,
+      "reason": "Wolfgang Voigt buries an orchestral loop under a four-four kick and layers of tape fog — Boards of Canada's nostalgic murk applied to German romanticism.",
+      "match_score": 83,
+      "match_attributes": [
+        "production style",
+        "sonic palette",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        {
+          "artist": "Boards of Canada",
+          "album": "Geogaddi",
+          "why": "same deliberately degraded, half-remembered texture"
+        },
+        {
+          "artist": "Brian Eno",
+          "album": "Music for Airports",
+          "why": "loop-based, non-developmental structure"
+        }
+      ],
+      "obscurity_score": 58,
+      "influence_chain": "",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Laraaji",
+      "title": "The Dance No. 1",
+      "album": "Ambient 3: Day of Radiance",
+      "year": 1980,
+      "reason": "Eno produced this as the third entry in his own Ambient series, and the hammered zither shimmer connects straight to Alice Coltrane's harp on 'Journey in Satchidananda'.",
+      "match_score": 94,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation",
+        "sonic palette",
+        "same movement"
+      ],
+      "similar_to": [
+        {
+          "artist": "Brian Eno",
+          "album": "Ambient 1: Music for Airports",
+          "why": "Eno produced this record as part of the same series"
+        },
+        {
+          "artist": "Alice Coltrane",
+          "album": "Journey in Satchidananda",
+          "why": "plucked, cascading string instrument as devotional texture"
+        }
+      ],
+      "obscurity_score": 62,
+      "influence_chain": "",
+      "credit_connection": "Produced by Brian Eno for his Ambient series"
+    },
+    {
+      "artist": "Magazine",
+      "title": "The Light Pours Out of Me",
+      "album": "Real Life",
+      "year": 1978,
+      "reason": "Martin Hannett produced this the same year he made 'Disorder' sound the way it does, and John McGeoch's icy chorused guitar is the template Robert Smith would build 'A Forest' on.",
+      "match_score": 95,
+      "match_attributes": [
+        "shared producer",
+        "era peers",
+        "production style",
+        "geographic scene"
+      ],
+      "similar_to": [
+        {
+          "artist": "Joy Division",
+          "album": "Unknown Pleasures",
+          "why": "Martin Hannett produced both, same dry-drums-in-a-cathedral treatment"
+        },
+        {
+          "artist": "The Cure",
+          "album": "Seventeen Seconds",
+          "why": "McGeoch's chorused, minor-key guitar line is the direct model for 'A Forest'"
+        }
+      ],
+      "obscurity_score": 42,
+      "influence_chain": "Magazine -> The Cure -> post-punk revival",
+      "credit_connection": "Produced by Martin Hannett, who produced Joy Division's Unknown Pleasures"
+    },
+    {
+      "artist": "Felt",
+      "title": "Primitive Painters",
+      "album": "Ignite the Seven Cannons",
+      "year": 1985,
+      "reason": "Robin Guthrie produced it and Elizabeth Fraser sings the second voice — it is a Cocteau Twins record wearing a jangle-pop coat.",
+      "match_score": 97,
+      "match_attributes": [
+        "shared producer",
+        "shared musicians",
+        "vocal texture",
+        "production style"
+      ],
+      "similar_to": [
+        {
+          "artist": "Cocteau Twins",
+          "album": "Treasure",
+          "why": "Robin Guthrie produced and Elizabeth Fraser sings on this track"
+        }
+      ],
+      "obscurity_score": 55,
+      "influence_chain": "",
+      "credit_connection": "Produced by Robin Guthrie; Elizabeth Fraser of Cocteau Twins on vocals"
+    },
+    {
+      "artist": "The Chameleons",
+      "title": "Second Skin",
+      "album": "Script of the Bridge",
+      "year": 1983,
+      "reason": "Twin chorus-drenched guitars over a driving eighth-note bassline — the exact machinery of 'A Forest' and 'Disorder', but pushed toward euphoria instead of dread.",
+      "match_score": 91,
+      "match_attributes": [
+        "similar instrumentation",
+        "era peers",
+        "sonic palette",
+        "geographic scene"
+      ],
+      "similar_to": [
+        {
+          "artist": "The Cure",
+          "album": "Faith",
+          "why": "same chorus-pedal guitar wash and prominent melodic bass"
+        },
+        {
+          "artist": "Joy Division",
+          "album": "Closer",
+          "why": "Manchester peers working the same bass-led post-punk template"
+        }
+      ],
+      "obscurity_score": 58,
+      "influence_chain": "",
+      "credit_connection": ""
+    },
+    {
+      "artist": "A.R. Kane",
+      "title": "A Love from Outer Space",
+      "album": "69",
+      "year": 1988,
+      "reason": "They coined 'dreampop' for what they were doing — guitar treated as pure texture over dub space, sitting exactly between Cocteau Twins and the free-jazz end of this playlist.",
+      "match_score": 89,
+      "match_attributes": [
+        "sonic palette",
+        "genre lineage",
+        "production style",
+        "same movement"
+      ],
+      "similar_to": [
+        {
+          "artist": "Cocteau Twins",
+          "album": "Victorialand",
+          "why": "guitar as atmosphere rather than riff; 4AD-adjacent scene"
+        },
+        {
+          "artist": "My Bloody Valentine",
+          "album": "Isn't Anything",
+          "why": "contemporaries inventing the same vocabulary in parallel"
+        }
+      ],
+      "obscurity_score": 72,
+      "influence_chain": "A.R. Kane -> My Bloody Valentine -> shoegaze",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Pere Ubu",
+      "title": "Final Solution",
+      "album": "Datapanik in the Year Zero",
+      "year": 1976,
+      "reason": "Cleveland's answer to the CBGB scene that produced 'Marquee Moon' and 'Ghost Rider' — same year, same art-damaged rock, with an EML synth doing the screaming.",
+      "match_score": 87,
+      "match_attributes": [
+        "era peers",
+        "same movement",
+        "sonic palette"
+      ],
+      "similar_to": [
+        {
+          "artist": "Television",
+          "album": "Marquee Moon",
+          "why": "contemporaneous American art-rock built on interlocking guitar lines"
+        },
+        {
+          "artist": "Suicide",
+          "album": "Suicide",
+          "why": "same 1976 impulse to put a cheap synthesiser at the front of a rock band"
+        }
+      ],
+      "obscurity_score": 52,
+      "influence_chain": "",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Don Cherry",
+      "title": "Brown Rice",
+      "album": "Brown Rice",
+      "year": 1975,
+      "reason": "Electric bass, tabla and whispered vocals over a modal vamp — the spiritual-jazz end of this playlist crossed with the electric texture of 'He Loved Him Madly'.",
+      "match_score": 92,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation",
+        "same movement",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        {
+          "artist": "Miles Davis",
+          "album": "Get Up with It",
+          "why": "same mid-70s electric-jazz drift, texture over changes"
+        },
+        {
+          "artist": "Pharoah Sanders",
+          "album": "Thembi",
+          "why": "shared spiritual-jazz vocabulary and Impulse!-era peer group"
+        }
+      ],
+      "obscurity_score": 55,
+      "influence_chain": "",
+      "credit_connection": ""
+    },
+    {
+      "artist": "Lonnie Liston Smith & the Cosmic Echoes",
+      "title": "Expansions",
+      "album": "Expansions",
+      "year": 1975,
+      "reason": "Smith played Rhodes on Pharoah Sanders' 'Astral Traveling' and on Miles' 'On the Corner' sessions — this is the same player taking that cosmic Rhodes sound into his own name.",
+      "match_score": 94,
+      "match_attributes": [
+        "shared musicians",
+        "similar instrumentation",
+        "same movement"
+      ],
+      "similar_to": [
+        {
+          "artist": "Pharoah Sanders",
+          "album": "Thembi",
+          "why": "Lonnie Liston Smith wrote and played on 'Astral Traveling' itself"
+        },
+        {
+          "artist": "Miles Davis",
+          "album": "On the Corner",
+          "why": "Smith was part of Miles' early-70s electric orbit"
+        }
+      ],
+      "obscurity_score": 42,
+      "influence_chain": "",
+      "credit_connection": "Lonnie Liston Smith played electric piano on Pharoah Sanders' Thembi, home of 'Astral Traveling'"
+    },
+    {
+      "artist": "Art Ensemble of Chicago",
+      "title": "Theme de Yoyo",
+      "album": "Les Stances a Sophie",
+      "year": 1970,
+      "reason": "The AACM's answer to Sun Ra's Arkestra — costumed, theatrical, and here riding an actual funk bassline, which makes it the most immediately playable entry point into that world.",
+      "match_score": 88,
+      "match_attributes": [
+        "same movement",
+        "scene peers",
+        "tempo/energy"
+      ],
+      "similar_to": [
+        {
+          "artist": "Sun Ra",
+          "album": "Space Is the Place",
+          "why": "same Chicago avant-garde lineage and theatrical presentation"
+        },
+        {
+          "artist": "Alice Coltrane",
+          "album": "Journey in Satchidananda",
+          "why": "shared post-Coltrane spiritual and collective-improvisation ethic"
+        }
+      ],
+      "obscurity_score": 60,
+      "influence_chain": "Sun Ra -> AACM -> Art Ensemble of Chicago",
+      "credit_connection": ""
+    }
+  ]
+}

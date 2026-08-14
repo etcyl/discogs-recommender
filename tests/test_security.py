@@ -442,13 +442,15 @@ class TestConfigValidation:
             )
 
     def test_empty_username(self):
+        """Discogs is optional — an empty username is allowed but leaves it unconfigured."""
         from config import Settings
-        with pytest.raises(Exception):
-            Settings(
-                discogs_token="test_token_1234567890",
-                discogs_username="",
-                anthropic_api_key="sk-ant-test",
-            )
+        s = Settings(
+            discogs_token="test_token_1234567890",
+            discogs_username="",
+            anthropic_api_key="sk-ant-test",
+        )
+        assert s.discogs_username == ""
+        assert s.discogs_configured is False
 
     def test_invalid_anthropic_key_prefix(self):
         from config import Settings

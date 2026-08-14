@@ -1,0 +1,27 @@
+# Demo seed playlist — replace with your own export.
+# Format: one "Artist - Title" per line. Blank lines and # comments ignored.
+Neu! - Hallogallo
+Can - Vitamin C
+Broadcast - Come On Let's Go
+Stereolab - French Disko
+Portishead - Glory Box
+Massive Attack - Angel
+Boards of Canada - Roygbiv
+Aphex Twin - Xtal
+Talk Talk - New Grass
+Slowdive - Alison
+Cocteau Twins - Cherry-Coloured Funk
+My Bloody Valentine - Only Shallow
+The Cure - A Forest
+Joy Division - Disorder
+Wire - Outdoor Miner
+Television - Marquee Moon
+Suicide - Ghost Rider
+Silver Apples - Oscillations
+Alice Coltrane - Journey in Satchidananda
+Pharoah Sanders - Astral Traveling
+Sun Ra - Space Is the Place
+Miles Davis - He Loved Him Madly
+Brian Eno - An Ending (Ascent)
+Harold Budd - Not Yet Remembered
+Grouper - Heavy Water/I'd Rather Be Sleeping

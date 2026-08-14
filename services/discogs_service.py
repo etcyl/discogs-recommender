@@ -1,7 +1,10 @@
+import logging
 import time
+
 import discogs_client
 from discogs_client.exceptions import HTTPError
 
+logger = logging.getLogger(__name__)
 
 MAX_SEARCH_FIELD_LENGTH = 200
 MAX_PER_PAGE = 100
@@ -32,7 +35,7 @@ class DiscogsService:
         folder = me.collection_folders[0]
         releases = folder.releases
         releases.per_page = per_page
-        page_data = releases.page(page)
+        page_data = self._rate_limited_call(releases.page, page)
         return {
             "items": [self._serialize_collection_item(item) for item in page_data],
             "page": page,
@@ -94,11 +97,17 @@ class DiscogsService:
         if label:
             kwargs["label"] = label
 
-        results = self._rate_limited_call(self.client.search, **kwargs)
+        # client.search() only builds a lazy paginated list — the HTTP request
+        # happens on .page(), so that is the call that needs 429 backoff.
+        results = self.client.search(**kwargs)
         results.per_page = per_page
         try:
-            page_data = results.page(page)
-        except Exception:
+            page_data = self._rate_limited_call(results.page, page)
+        except HTTPError as e:
+            logger.warning("Discogs search failed (HTTP %s) for %s", e.status_code, kwargs)
+            return []
+        except Exception as e:
+            logger.warning("Discogs search failed for %s: %s", kwargs, e)
             return []
 
         serialized = []

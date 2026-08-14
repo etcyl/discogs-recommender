@@ -3,33 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
     <title>{% block title %}Discogs Recommender{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script>
+        // Apply the saved theme before first paint so there is no flash of the
+        // wrong palette. Kept inline and tiny on purpose.
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            } catch (e) { /* private mode — keep the default */ }
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/css/vendor/pico.min.css">
+    <link rel="stylesheet" href="/static/css/tokens.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <nav class="container-fluid">
-        <ul>
-            <li><strong>Discogs Recommender</strong></li>
+    <nav class="site-nav">
+        <a class="site-nav__brand" href="/">Discogs Recommender</a>
+        <ul class="site-nav__links">
+            <li><a href="/" {% if active_page == 'home' %}aria-current="page"{% endif %}>Home</a></li>
+            <li><a href="/collection" {% if active_page == 'collection' %}aria-current="page"{% endif %}>Collection</a></li>
+            <li><a href="/recommendations" {% if active_page == 'recommendations' %}aria-current="page"{% endif %}>Recommendations</a></li>
+            <li><a href="/radio" {% if active_page == 'radio' %}aria-current="page"{% endif %}>Radio</a></li>
+            <li><a href="/radio/likes" {% if active_page == 'likes' %}aria-current="page"{% endif %}>Likes</a></li>
+            <li><a href="/search" {% if active_page == 'search' %}aria-current="page"{% endif %}>Search</a></li>
+            {% if user and user.is_admin %}<li><a href="/admin" {% if active_page == 'admin' %}aria-current="page"{% endif %}>Admin</a></li>{% endif %}
         </ul>
-        <ul>
-            <li><a href="/" {% if active_page == 'home' %}class="active"{% endif %}>Home</a></li>
-            <li><a href="/collection" {% if active_page == 'collection' %}class="active"{% endif %}>Collection</a></li>
-            <li><a href="/recommendations" {% if active_page == 'recommendations' %}class="active"{% endif %}>Recommendations</a></li>
-            <li><a href="/radio" {% if active_page == 'radio' %}class="active"{% endif %}>Radio</a></li>
-            <li><a href="/radio/likes" {% if active_page == 'likes' %}class="active"{% endif %}>Likes</a></li>
-            <li><a href="/search" {% if active_page == 'search' %}class="active"{% endif %}>Search</a></li>
-            {% if user %}
-            {% if user.is_admin %}<li><a href="/admin">Admin</a></li>{% endif %}
-            <li><small style="opacity:0.7">{{ user.display_name }}</small></li>
-            <li><a href="/logout">Logout</a></li>
-            {% endif %}
-        </ul>
+        <span class="site-nav__spacer"></span>
+        <button id="theme-toggle" class="theme-toggle" type="button"
+                aria-label="Switch between light and dark theme">
+            <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12.3 2a9 9 0 1 0 9.7 9.7A7.5 7.5 0 0 1 12.3 2z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-13a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1zm0 14a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0v-1a1 1 0 0 1 1-1zM4 12a1 1 0 0 1 1-1h1a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm14 0a1 1 0 0 1 1-1h1a1 1 0 1 1 0 2h-1a1 1 0 0 1-1-1zM6.3 6.3a1 1 0 0 1 1.4 0l.8.8a1 1 0 0 1-1.4 1.4l-.8-.8a1 1 0 0 1 0-1.4zm9.2 9.2a1 1 0 0 1 1.4 0l.8.8a1 1 0 0 1-1.4 1.4l-.8-.8a1 1 0 0 1 0-1.4zm2.2-9.2a1 1 0 0 1 0 1.4l-.8.8a1 1 0 0 1-1.4-1.4l.8-.8a1 1 0 0 1 1.4 0zM8.5 15.5a1 1 0 0 1 0 1.4l-.8.8a1 1 0 0 1-1.4-1.4l.8-.8a1 1 0 0 1 1.4 0z"/></svg>
+        </button>
+        {% if user %}
+        <span class="site-nav__user">{{ user.display_name }}</span>
+        <ul class="site-nav__links"><li><a href="/logout">Logout</a></li></ul>
+        {% endif %}
     </nav>
 
     <main class="container">
-        <!-- Dismissible system alerts -->
-        <div id="system-alerts" class="system-alerts"></div>
+        <div id="system-alerts" class="setup-notice"></div>
 
         {% if error %}
         <article class="error-banner">
@@ -40,11 +59,10 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="container">
-        <hr>
-        <p class="footer-text">
-            Powered by <a href="https://www.discogs.com/developers/" target="_blank">Discogs API</a>
-            &amp; <a href="https://www.anthropic.com" target="_blank">Claude</a>
+    <footer class="site-footer">
+        <p>
+            Powered by <a href="https://www.discogs.com/developers/" target="_blank" rel="noopener">Discogs API</a>
+            &amp; <a href="https://www.anthropic.com" target="_blank" rel="noopener">Claude</a>
             <span class="app-version">v{{ app_version }}</span>
         </p>
     </footer>

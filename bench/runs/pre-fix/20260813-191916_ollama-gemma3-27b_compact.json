@@ -1,0 +1,487 @@
+{
+  "run_id": "20260813-191916_ollama-gemma3-27b_compact",
+  "provider": "ollama:gemma3:27b",
+  "generated_at": "2026-08-14T02:22:03+00:00",
+  "seconds": 73.0,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1960s": 4,
+      "1970s": 7,
+      "1980s": 5,
+      "1990s": 3,
+      "2000s": 3,
+      "2010s": 3
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 65.9,
+    "mean_match_score": 70.2,
+    "has_reason": 25,
+    "mean_reason_len": 160.0,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Amon Tobin",
+      "title": "Slow Day",
+      "album": "Permutations",
+      "year": 1998,
+      "reason": "Like Boards of Canada and Aphex Twin, Amon Tobin expertly blends ambient textures with broken beat rhythms creating a similarly immersive electronic soundscape.",
+      "match_score": 82,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "shared genre"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Emeralds",
+      "title": "Spherule",
+      "album": "Does It Look Like I'm Here?",
+      "year": 2010,
+      "reason": "Emeralds shares the spaciousness of Slowdive and Cocteau Twins, using swirling synths and a dreamlike quality to build atmospheric soundscapes.",
+      "match_score": 78,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Slowdive",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 72
+    },
+    {
+      "artist": "Gas",
+      "title": "Pop",
+      "album": "Königsforst",
+      "year": 1999,
+      "reason": "Like Talk Talk's later work and Brian Eno’s ambient pieces, Gas uses heavily processed field recordings and minimal structures to create a subtly unsettling yet beautiful sonic environment.",
+      "match_score": 75,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "shared genre"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Brian Eno"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "The United States of America",
+      "title": "The American Metaphysical Circus",
+      "album": "The United States of America",
+      "year": 1968,
+      "reason": "This track echoes the experimental spirit and avant-garde tendencies present in Silver Apples and Suicide, utilizing early electronic instruments and unconventional song structures.",
+      "match_score": 68,
+      "match_attributes": [
+        "genre lineage",
+        "shared instrumentation",
+        "experimental approach"
+      ],
+      "similar_to": [
+        "Silver Apples",
+        "Suicide"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Cluster",
+      "title": "By This River",
+      "album": "Sulk",
+      "year": 1975,
+      "reason": "Similar to Neu! and Can, Cluster pioneered a minimalist, repetitive electronic style focusing on texture and rhythm over conventional song forms.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared genre",
+        "production style",
+        "rhythmic approach"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 63
+    },
+    {
+      "artist": "Yann Tiersen",
+      "title": "Comptine d'un autre été: L'après-midi",
+      "album": "Amélie (Soundtrack)",
+      "year": 2001,
+      "reason": "Like Stereolab and Broadcast, Tiersen combines baroque instrumentation with a modern sensibility and subtle electronic elements within a nostalgic framework.",
+      "match_score": 65,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Broadcast"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "The Durutti Column",
+      "title": "Sketch for Summer",
+      "album": "The Return of the Durutti Column",
+      "year": 1980,
+      "reason": "This instrumental track shares a similar atmospheric and melancholic mood with Joy Division and The Cure while employing delicate guitar work.",
+      "match_score": 62,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "The Cure"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Tim Hecker",
+      "title": "Harmony in Ultraviolet I",
+      "album": "Harmony in Ultraviolet",
+      "year": 2006,
+      "reason": "Hecker creates a deeply textural and immersive soundscape akin to Grouper and Harold Budd, employing heavily processed sounds and drone-based compositions.",
+      "match_score": 79,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "shared genre"
+      ],
+      "similar_to": [
+        "Grouper",
+        "Harold Budd"
+      ],
+      "obscurity_score": 68
+    },
+    {
+      "artist": "Don Cherry",
+      "title": "Cheek's Bones",
+      "album": "Complete Communion",
+      "year": 1965,
+      "reason": "Similar to Alice Coltrane and Pharoah Sanders, Don Cherry was a free jazz innovator that pushed boundaries with avant-garde improvisation.",
+      "match_score": 70,
+      "match_attributes": [
+        "genre lineage",
+        "shared instrumentation"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Oneohtrix Point Never",
+      "title": "Replica",
+      "album": "Replica",
+      "year": 2011,
+      "reason": "Like Television and My Bloody Valentine, Oneohtrix Point Never manipulates sound textures to create a sonic haze that is both beautiful and unsettling.",
+      "match_score": 67,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Television",
+        "My Bloody Valentine"
+      ],
+      "obscurity_score": 58
+    },
+    {
+      "artist": "Kraftwerk",
+      "title": "Autobahn",
+      "album": "Autobahn",
+      "year": 1974,
+      "reason": "Like Neu!'s motorik beat and Can’s experimentalism, Kraftwerk pioneered electronic minimalism with hypnotic rhythms and a focus on texture over traditional song structure.",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "This Mortal Coil",
+      "title": "Song to the Siren",
+      "album": "It'll End in Tears",
+      "year": 1984,
+      "reason": "Echoing Slowdive and Cocteau Twins’ ethereal soundscapes, This Mortal Coil creates a similarly dreamlike atmosphere through layered vocals and shimmering instrumentation.",
+      "match_score": 78,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Slowdive",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "The Velvet Underground",
+      "title": "Venus in Furs",
+      "album": "Venus in Furs",
+      "year": 1967,
+      "reason": "Sharing a similar minimalist and hypnotic approach to Television and Wire, 'Venus In Furs' uses repetitive structures and droning instrumentation to create a captivating sonic experience.",
+      "match_score": 72,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Television",
+        "Wire"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Popol Vuh",
+      "title": "Aguas Electricas",
+      "album": "Hosianna Mantra",
+      "year": 1972,
+      "reason": "Like Alice Coltrane and Brian Eno’s ambient work, Popol Vuh blends electronic textures with spiritual themes, creating a deeply meditative and atmospheric sound.",
+      "match_score": 68,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Brian Eno"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Scott Walker",
+      "title": "The Old Man's Back Again (Dedicated to Lenin)",
+      "album": "Clark",
+      "year": 1969,
+      "reason": "Echoing the dark and brooding mood of Joy Division and The Cure, Scott Walker utilizes dramatic vocals and stark arrangements to explore themes of alienation and despair.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "The Cure"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Delia Derbyshire",
+      "title": "Zinzun",
+      "album": "Sonic Landscapes",
+      "year": 1972,
+      "reason": "Similar to Aphex Twin and Boards of Canada's pioneering electronic soundscapes, 'Zinzun' is a groundbreaking early example of musique concrète and tape manipulation.",
+      "match_score": 80,
+      "match_attributes": [
+        "genre lineage",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Emahoy Tsegué-Maryam Guèbrou",
+      "title": "Homeless Wanderer",
+      "album": "Ethiopiques Vol. 4: Ethiopiques Now!",
+      "year": 2006,
+      "reason": "Like Harold Budd and Grouper, Emahoy’s piano compositions are sparse, melancholic, and deeply evocative, creating a similar sense of isolation and introspection.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Grouper"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "Amon Düül II",
+      "title": "Yeti",
+      "album": "Yeti",
+      "year": 1970,
+      "reason": "Following in the footsteps of Can and early krautrock bands, Amon Düül II combines improvisational jamming with experimental instrumentation and psychedelic textures.",
+      "match_score": 65,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Can"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Penguin Cafe Orchestra",
+      "title": "Perpetuum Mobile",
+      "album": "Music for Commercials",
+      "year": 1982,
+      "reason": "Sharing a playful experimentalism with Broadcast and Stereolab, Penguin Cafe Orchestra blends classical instrumentation with quirky pop sensibilities.",
+      "match_score": 70,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Stereolab"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Shirley Collins & The Albion Country Band",
+      "title": "Polly Voce",
+      "album": "Love's Last Shift",
+      "year": 1975,
+      "reason": "Similar to Talk Talk’s later work and Grouper’s folk-influenced sound, Shirley Collins blends traditional British folk with atmospheric arrangements and a haunting vocal style.",
+      "match_score": 60,
+      "match_attributes": [
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Grouper"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Björk",
+      "title": "Hyperballad",
+      "album": "Post",
+      "year": 1995,
+      "reason": "Echoing the atmospheric depth of Portishead and Massive Attack, Björk's 'Hyperballad' combines electronic beats with emotive vocals and haunting melodies.",
+      "match_score": 78,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Spacemen 3",
+      "title": "Revolution",
+      "album": "The Perfect Prescription",
+      "year": 1987,
+      "reason": "Like My Bloody Valentine and The Cure, Spacemen 3 blends psychedelic textures with driving rhythms and a sense of atmospheric dread.",
+      "match_score": 65,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "My Bloody Valentine",
+        "The Cure"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "The Pop Group",
+      "title": "She Is Beyond Good and Evil",
+      "album": "Y",
+      "year": 1979,
+      "reason": "Similar to Joy Division and Wire in its post-punk intensity, The Pop Group combines angular guitar riffs with dub rhythms and politically charged lyrics.",
+      "match_score": 58,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "Wire"
+      ],
+      "obscurity_score": 72
+    },
+    {
+      "artist": "Rhys Chatham",
+      "title": "Die Donnergötter",
+      "album": "A Crimson Arcana",
+      "year": 1986,
+      "reason": "Echoing the art-rock sensibilities of Television and Suicide, Rhys Chatham creates minimalist compositions with repetitive structures and a focus on texture.",
+      "match_score": 50,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Television",
+        "Suicide"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Yussef Kamaal",
+      "title": "Strings of Concern",
+      "album": "Black Focus",
+      "year": 2016,
+      "reason": "Drawing on the spiritual jazz influence present in Alice Coltrane and Pharoah Sanders, Yussef Kamaal blends modern production techniques with improvisational playing.",
+      "match_score": 55,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 45
+    }
+  ]
+}

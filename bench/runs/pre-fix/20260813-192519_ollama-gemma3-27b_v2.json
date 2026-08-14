@@ -1,0 +1,481 @@
+{
+  "run_id": "20260813-192519_ollama-gemma3-27b_v2",
+  "provider": "ollama:gemma3:27b",
+  "generated_at": "2026-08-14T02:27:59+00:00",
+  "seconds": 83.5,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1960s": 2,
+      "1970s": 7,
+      "1980s": 10,
+      "1990s": 3,
+      "2000s": 2,
+      "2010s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 67.2,
+    "mean_match_score": 69.8,
+    "has_reason": 25,
+    "mean_reason_len": 157.0,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Kraftwerk",
+      "title": "Autobahn",
+      "album": "Autobahn",
+      "year": 1974,
+      "reason": "Like Neu!, Kraftwerk pioneered minimalist, motorik-driven electronic music with a focus on hypnotic repetition and atmospheric textures.",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Neu!"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "The United States of America",
+      "title": "The American Metaphysical Circus",
+      "album": "The United States of America",
+      "year": 1968,
+      "reason": "Employing early synthesizers and experimental tape manipulation akin to Silver Apples, this track delivers a uniquely psychedelic and avant-garde sound.",
+      "match_score": 72,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Silver Apples"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Amon Düül II",
+      "title": "Yeti",
+      "album": "Vortex Surrender",
+      "year": 1972,
+      "reason": "Sharing Can's experimental spirit and lengthy instrumental passages, 'Yeti' creates a similarly immersive and psychedelic soundscape, blending krautrock with free improvisation.",
+      "match_score": 78,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Can"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Gas",
+      "title": "Pop",
+      "album": "Pop",
+      "year": 2000,
+      "reason": "Like Boards of Canada and Aphex Twin's ambient work, 'Pop' utilizes heavily processed samples and atmospheric textures to create a subtly unsettling yet beautiful soundscape.",
+      "match_score": 80,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "This Mortal Coil",
+      "title": "Song to the Siren",
+      "album": "It'll End in Tears",
+      "year": 1984,
+      "reason": "Echoing the dream-pop aesthetics of Cocteau Twins and Slowdive with its ethereal vocals and layered instrumentation.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "Slowdive"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Cluster",
+      "title": "By This River",
+      "album": "Zuckerzeit",
+      "year": 1974,
+      "reason": "Similar to Brian Eno and Harold Budd's ambient work, 'By This River' creates a minimalist soundscape built on subtle electronic textures and evocative melodies.",
+      "match_score": 70,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Spacemen 3",
+      "title": "Big City (Everybody I Know Can Be Found Here)",
+      "album": "Playing with Fire",
+      "year": 1987,
+      "reason": "'Big City' shares a similar psychedelic drone and minimalist repetition found in The Cure and Joy Division, but with a distinctly spaced-out quality.",
+      "match_score": 68,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "The Cure",
+        "Joy Division"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Alice Russell",
+      "title": "Heartbreaker",
+      "album": "To and From",
+      "year": 2003,
+      "reason": "Evoking the smoky jazz-infused trip-hop of Portishead and Massive Attack, 'Heartbreaker' features soulful vocals layered over a downtempo beat.",
+      "match_score": 75,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "The Durutti Column",
+      "title": "Sketch for Summer",
+      "album": "The Return of the Durutti Column",
+      "year": 1980,
+      "reason": "Like Talk Talk’s more atmospheric tracks, ‘Sketch for Summer’ relies on spacious arrangements and evocative guitar melodies to create a melancholic mood.",
+      "match_score": 65,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Talk Talk"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Catherine Lamb",
+      "title": "Birds",
+      "album": "Like Blood",
+      "year": 2016,
+      "reason": "Sharing Grouper's dreamlike ethereal quality and use of reverb-drenched vocals & instrumentation, 'Birds' creates a deeply immersive and emotive atmosphere.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Grouper"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "Popol Vuh",
+      "title": "Aguas Electricas",
+      "album": "Hosianna Mantra",
+      "year": 1972,
+      "reason": "Like Alice Coltrane and Harold Budd, Popol Vuh blends spiritual themes with ambient textures and a focus on spacious soundscapes.",
+      "match_score": 68,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Harold Budd"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Galaxie 500",
+      "title": "Tugboat",
+      "album": "On Fire",
+      "year": 1989,
+      "reason": "Sharing My Bloody Valentine’s hazy, dream-pop aesthetic and reverb-drenched guitars, Galaxie 500 creates a similarly immersive sonic experience.",
+      "match_score": 67,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "My Bloody Valentine",
+        "Slowdive"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Duncan Browne",
+      "title": "Ride on the Water",
+      "album": "Dreams So Real",
+      "year": 1974,
+      "reason": "Echoing Talk Talk's atmospheric and melancholic soundscapes, Duncan Browne creates a dreamlike quality with layered instrumentation.",
+      "match_score": 60,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Slowdive"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "ESG",
+      "title": "Erasing Lines",
+      "album": "ESG",
+      "year": 1983,
+      "reason": "Like Television and Wire, ESG delivers angular rhythms with a minimalist funk style.",
+      "match_score": 58,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Television",
+        "Wire"
+      ],
+      "obscurity_score": 72
+    },
+    {
+      "artist": "Björk",
+      "title": "Hyperballad",
+      "album": "Post",
+      "year": 1995,
+      "reason": "Echoing the atmospheric textures of Portishead and Massive Attack, 'Hyperballad' combines electronic beats with Björk’s emotive vocals to create a dreamlike yet driving experience.",
+      "match_score": 78,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 35
+    },
+    {
+      "artist": "Penguin Cafe Orchestra",
+      "title": "Peru",
+      "album": "Modern Art",
+      "year": 1982,
+      "reason": "Sharing a playful yet melancholic mood with Stereolab and Broadcast, 'Peru' utilizes layered instrumentation—including strings and percussion—to build an unusual sonic landscape.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Broadcast"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Global Communication",
+      "title": "99999",
+      "album": "76:14",
+      "year": 1994,
+      "reason": "Similar to Boards of Canada and Aphex Twin in its ambient techno approach, '99999' creates a hazy, immersive soundscape using evocative samples and subtle rhythmic shifts.",
+      "match_score": 82,
+      "match_attributes": [
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Siouxsie and the Banshees",
+      "title": "Spellbound",
+      "album": "Juju",
+      "year": 1981,
+      "reason": "'Spellbound' shares a similar post-punk energy and dramatic atmosphere with The Cure and Joy Division, utilizing angular guitar work and evocative vocals.",
+      "match_score": 68,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "The Cure",
+        "Joy Division"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Amon Tobin",
+      "title": "Slow Day",
+      "album": "Permutation",
+      "year": 1997,
+      "reason": "Evoking the experimental electronic textures of Suicide and Silver Apples, 'Slow Day' incorporates glitchy samples and unexpected rhythms to create a disorienting yet compelling soundscape.",
+      "match_score": 72,
+      "match_attributes": [
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Suicide",
+        "Silver Apples"
+      ],
+      "obscurity_score": 68
+    },
+    {
+      "artist": "Minimal Compact",
+      "title": "Next One Is Real",
+      "album": "Raging Souls",
+      "year": 1986,
+      "reason": "Sharing Wire's art-punk sensibilities and minimalist approach, 'Next One Is Real' blends angular guitars with a driving rhythm section and detached vocals.",
+      "match_score": 55,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Wire"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Terry Riley",
+      "title": "In C",
+      "album": "In C",
+      "year": 1964,
+      "reason": "Like Alice Coltrane, Pharoah Sanders and Sun Ra, 'In C' is a foundational work of minimalist composition that explores modal improvisation and hypnotic repetition, creating a trance-like atmosphere.",
+      "match_score": 65,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Alice Coltrane",
+        "Sun Ra"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Rhys Chatham",
+      "title": "Die Donnergötter",
+      "album": "A Crimson Arcana",
+      "year": 1982,
+      "reason": "Similar to Television's extended instrumental passages and atmospheric build-ups, 'Die Donnergötter' is a minimalist composition using multiple electric guitars to create a dense and hypnotic sound.",
+      "match_score": 60,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Television"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "King Tubby",
+      "title": "A Rougher Dub",
+      "album": "Dub From the Roots",
+      "year": 1975,
+      "reason": "This dub track shares a similar exploratory approach to rhythm and space as Can and Neu!, using echo and effects to deconstruct traditional song structures.",
+      "match_score": 62,
+      "match_attributes": [
+        "genre lineage",
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Can",
+        "Alice Coltrane"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Brian Gascoigne",
+      "title": "Etruscan Echoes",
+      "album": "Etruscan Echoes",
+      "year": 1983,
+      "reason": "Like many tracks in the playlist, this piece blends ambient soundscapes with a subtly rhythmic structure and evocative textures, creating a hypnotic atmosphere.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Grouper"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Yellow Magic Orchestra",
+      "title": "Rydeen",
+      "album": "Solid State Survivor",
+      "year": 1979,
+      "reason": "Matching the electronic experimentation of Aphex Twin and Boards of Canada, 'Rydeen' integrates quirky synth melodies with a driving beat creating a playful yet sophisticated sound.",
+      "match_score": 68,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Stereolab"
+      ],
+      "obscurity_score": 45
+    }
+  ]
+}

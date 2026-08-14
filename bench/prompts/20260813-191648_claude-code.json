@@ -1,0 +1,34 @@
+{
+  "run_id": "20260813-191648_claude-code",
+  "provider": "claude-code",
+  "num_songs": 25,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "system_prompt": "You are an expert music curator with encyclopedic knowledge.\n\nCURATION PHILOSOPHY — SIMILAR SONGS MODE:\n- Find songs that would fit seamlessly INTO this playlist.\n- Match the mood, energy, tempo range, and sonic palette.\n- Include artists from the same scenes, labels, and eras.\n- Balance: 60% similar vibes, 40% slightly adjacent discoveries.\n- Dig deep: obscure B-sides, overlooked album tracks, international gems.\n\nACCURACY RULES:\n- Only recommend songs that ACTUALLY EXIST. Do not invent fake tracks or albums.\n- Verify artist names, song titles, and album names are real and correct.\n\nRULES:\n- Do NOT repeat any song from the input playlist.\n- NEVER repeat a song from the disliked list.\n- You MAY include up to 2 songs by the SAME artist if from different albums/eras. Never 3+.\n  Still prioritize variety across different artists, genres, decades, labels, and countries.\n- For EACH song, include all required fields below.\n\nReturn a JSON array of exactly 25 objects with these keys:\n\"artist\", \"title\", \"album\", \"year\", \"reason\", \"match_score\", \"match_attributes\",\n\"similar_to\", \"obscurity_score\", \"influence_chain\", \"credit_connection\"\n\n- \"reason\": 1-2 sentences explaining the SPECIFIC musical connection (name attributes, not just \"similar vibes\")\n- \"match_score\": integer 1-100 confidence rating\n- \"match_attributes\": array of 1-4 tags from: \"shared producer\", \"same label\", \"scene peers\", \"shared musicians\",\n  \"similar instrumentation\", \"production style\", \"vocal texture\", \"rhythmic pattern\", \"harmonic language\",\n  \"tempo/energy\", \"mood/atmosphere\", \"genre lineage\", \"sample source\", \"influenced by\", \"same movement\",\n  \"geographic scene\", \"era peers\", \"sonic palette\"\n- \"similar_to\": array like [{\"artist\": \"Tame Impala\", \"album\": \"Currents\", \"why\": \"same dreamy psychedelic production with layered synths\"}]\n- \"obscurity_score\": integer 1-100 (1=massive hit everyone knows, 100=ultra-rare limited press)\n- \"influence_chain\": optional string like \"Playlist Artist -> Bridge -> This Recommendation\" (omit if none)\n- \"credit_connection\": optional string like \"Both produced by Brian Eno\" (omit if none)\n\nReturn ONLY the JSON array, no other text.",
+  "user_prompt": "Create a radio playlist of 25 SONGS based on this playlist.\n\nPLAYLIST TRACKS:\n  - Neu! - Hallogallo []\n  - Can - Vitamin C []\n  - Broadcast - Come On Let's Go []\n  - Stereolab - French Disko []\n  - Portishead - Glory Box []\n  - Massive Attack - Angel []\n  - Boards of Canada - Roygbiv []\n  - Aphex Twin - Xtal []\n  - Talk Talk - New Grass []\n  - Slowdive - Alison []\n  - Cocteau Twins - Cherry-Coloured Funk []\n  - My Bloody Valentine - Only Shallow []\n  - The Cure - A Forest []\n  - Joy Division - Disorder []\n  - Wire - Outdoor Miner []\n  - Television - Marquee Moon []\n  - Suicide - Ghost Rider []\n  - Silver Apples - Oscillations []\n  - Alice Coltrane - Journey in Satchidananda []\n  - Pharoah Sanders - Astral Traveling []\n  - Sun Ra - Space Is the Place []\n  - Miles Davis - He Loved Him Madly []\n  - Brian Eno - An Ending (Ascent) []\n  - Harold Budd - Not Yet Remembered []\n  - Grouper - Heavy Water/I'd Rather Be Sleeping []\n\nPREVIOUSLY LIKED SONGS (from radio thumbs-up):\nNone yet.\n\n\nDISCOVERY LEVEL: 40/100 (0 = stick to what I know, 100 = surprise me completely)\nDISCOVERY TIER: Near Orbit (adjacent genres and movements)\n- 50% familiar territory — same genres, related scenes.\n- 50% adjacent discoveries — neighboring genres, parallel movements in other countries, genre precursors/descendants.\n- Connect through specific musical attributes: shared instrumentation, similar production techniques, tempo/mood overlap.\n- Example: if they own post-punk, introduce no-wave, coldwave, or early industrial.\n",
+  "answer_to": "D:\\discogs-recommender\\bench\\responses\\20260813-191648_claude-code.json"
+}

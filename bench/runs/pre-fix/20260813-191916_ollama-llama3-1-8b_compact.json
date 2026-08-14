@@ -1,0 +1,465 @@
+{
+  "run_id": "20260813-191916_ollama-llama3-1-8b_compact",
+  "provider": "ollama:llama3.1:8b",
+  "generated_at": "2026-08-14T02:19:39+00:00",
+  "seconds": 22.7,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 24,
+    "unique_artists": 23,
+    "artist_diversity": 0.958,
+    "max_per_artist": 2,
+    "unique_decades": 7,
+    "decade_spread": {
+      "1950s": 1,
+      "1960s": 1,
+      "1970s": 3,
+      "1980s": 3,
+      "1990s": 5,
+      "2000s": 8,
+      "2010s": 3
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.042,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 50.8,
+    "mean_match_score": 82.4,
+    "has_reason": 24,
+    "mean_reason_len": 109.0,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Hans Zimmer",
+      "title": "Waltz to Wawa",
+      "album": "No Reservations (Original Motion Picture Soundtrack)",
+      "year": 2007,
+      "reason": "Electronic-infused instrumental soundtrack piece with a similar atmospheric and cinematic scope.",
+      "match_score": 83,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Massive Attack",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "Pavement",
+      "title": "Summer Babe",
+      "album": "Slanted and Enchanted",
+      "year": 1992,
+      "reason": "Lo-fi guitar-driven indie rock song with a similarly dreamy, shoegaze-inspired quality.",
+      "match_score": 75,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Slowdive",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Tinariwen",
+      "title": "Chop Cham (Gidaye)",
+      "album": "Emme Yéni (The Twenty-Fifth Hour)",
+      "year": 2007,
+      "reason": "North African blues-inspired guitar work and desert-rock rhythms, evoking the same sense of atmospheric intensity.",
+      "match_score": 89,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Miles Davis"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Einstürzende Neubauten",
+      "title": "Der Preis der Dummheit",
+      "album": "Halber Mensch",
+      "year": 1985,
+      "reason": "Industrial-tinged post-punk song with a similar sense of avant-garde experimentation and sonic unease.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Wire",
+        "Joy Division"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Moroder",
+      "title": "From Here to Eternity",
+      "album": "To the Sun and All His Angels",
+      "year": 1976,
+      "reason": "Electronic-infused disco-funk song with a similar sense of lush, orchestral arrangement and European sheen.",
+      "match_score": 78,
+      "match_attributes": [
+        "shared instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Can",
+        "Stereolab"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Lamb",
+      "title": "Gabriel",
+      "album": "Lamb",
+      "year": 1996,
+      "reason": "Electronic-folk song with a similar sense of atmospheric intensity and use of found sounds.",
+      "match_score": 82,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "György Ligeti",
+      "title": "Atmosphères",
+      "album": "Musica Ricercata",
+      "year": 1956,
+      "reason": "Experimental classical piece with a similar sense of avant-garde experimentation and dissonant, atmospheric textures.",
+      "match_score": 90,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "The Black Angels",
+      "title": "Bloodhounds on My Trail",
+      "album": "Passover",
+      "year": 2006,
+      "reason": "Psychedelic rock song with a similar sense of dark, brooding intensity and use of repetitive guitar patterns.",
+      "match_score": 76,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "My Bloody Valentine",
+        "Slowdive"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Sun Ra",
+      "title": "Space for a Blindman to See (Untitled)",
+      "album": "The Futuristic Sounds of Sun Ra",
+      "year": 1961,
+      "reason": "Experimental Afro-futurist jazz song with a similar sense of avant-garde experimentation and use of dissonant melodies.",
+      "match_score": 88,
+      "match_attributes": [
+        "shared instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Goran Bregović",
+      "title": "Eto! Zarje",
+      "album": "Kalabalak",
+      "year": 1996,
+      "reason": "Balkan-infused rock song with a similar sense of energetic, driving rhythms and use of folk instrumentation.",
+      "match_score": 79,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Television",
+        "Suicide"
+      ],
+      "obscurity_score": 45
+    },
+    {
+      "artist": "Tangerine Dream",
+      "title": "Phaedra",
+      "album": "Phaedra",
+      "year": "1974",
+      "reason": "Epic, atmospheric soundscapes with a focus on electronic instrumentation reminiscent of Neu! and Can.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared electronics influence",
+        "atmospheric production style"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "Morphine",
+      "title": "Cure for Pain",
+      "album": "The Night",
+      "year": "1996",
+      "reason": "Dark, atmospheric sound with a focus on bass and electronic percussion reminiscent of Stereolab's trip-hop influences.",
+      "match_score": 80,
+      "match_attributes": [
+        "trip-hop/acid house influence",
+        "bass-driven production style"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Portishead"
+      ],
+      "obscurity_score": 10
+    },
+    {
+      "artist": "The Fall",
+      "title": "Totally Wired",
+      "album": " Hex Enduction Hour",
+      "year": "1982",
+      "reason": "Experimental, post-punk sound with a focus on atmospheric texture and abstract instrumentation reminiscent of Joy Division's early work.",
+      "match_score": 90,
+      "match_attributes": [
+        "post-punk influence",
+        "atmospheric production style"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "Wire"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "The Heliocentrics",
+      "title": "Aphrodite's Dream",
+      "album": "Aphrodite's Dream",
+      "year": "2010",
+      "reason": "Funky, percussive sound with a focus on Afrobeat and psychedelic influences reminiscent of Sun Ra's cosmic jazz.",
+      "match_score": 75,
+      "match_attributes": [
+        "Afrobeat influence",
+        "psychedelic production style"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Banco de Gaia",
+      "title": "Opus V",
+      "album": "Needle Dropping",
+      "year": "2000",
+      "reason": "Atmospheric, electronic sound with a focus on ambient textures and atmospheric pads reminiscent of Talk Talk's work.",
+      "match_score": 80,
+      "match_attributes": [
+        "electronic influence",
+        "atmospheric production style"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Grouper"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Lisztomania",
+      "title": "Lisztomania",
+      "album": " Lisztomania",
+      "year": "2010",
+      "reason": "Atmospheric, electronic sound with a focus on ambient textures and atmospheric pads reminiscent of Broadcast's work.",
+      "match_score": 80,
+      "match_attributes": [
+        "electronic influence",
+        "atmospheric production style"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "The Kilimanjaro Darkjazz Ensemble",
+      "title": "Black Metal Massacre",
+      "album": "Black Metal Massacre",
+      "year": "2008",
+      "reason": "Dark, atmospheric sound with a focus on jazz and electronic influences reminiscent of Aphex Twin's work.",
+      "match_score": 85,
+      "match_attributes": [
+        "jazz influence",
+        "electronic production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "The Heliocentrics"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Zombi",
+      "title": "Rituals",
+      "album": "Aeonia",
+      "year": 2015,
+      "reason": "Atmospheric, electronic sound with a focus on ambient textures and synthesizer pads reminiscent of Boards of Canada's work.",
+      "match_score": 85,
+      "match_attributes": [
+        "electronic influence",
+        "atmospheric production style"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Morphine"
+      ],
+      "obscurity_score": 25
+    },
+    {
+      "artist": "Shangaan Electro",
+      "title": "Glamour of the Highlife",
+      "album": "Glamour of the Highlife",
+      "year": "2009",
+      "reason": "Funky, percussive sound with a focus on Afrobeat and electronic influences reminiscent of Portishead's trip-hop sounds.",
+      "match_score": 80,
+      "match_attributes": [
+        "Afrobeat influence",
+        "electronic production style"
+      ],
+      "similar_to": [
+        "Portishead",
+        "The Heliocentrics"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "Haruomi Hosono",
+      "title": "Dolphin Road",
+      "album": "Tropical Dandy",
+      "year": 1978,
+      "reason": "Pulsating rhythms and synthesizer-driven soundscapes, reminiscent of Neu!'s Hallogallo.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Neu!"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "The Necks",
+      "title": "Sweep the Sounds",
+      "album": "New Geography",
+      "year": 2003,
+      "reason": "Jazz-influenced, atmospheric sound with a focus on improvisation and electronic percussion reminiscent of Talk Talk's work.",
+      "match_score": 80,
+      "match_attributes": [
+        "jazz influence",
+        "electronic production style"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Brian Eno"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Laurie Spiegel",
+      "title": "Unseen",
+      "album": "Unseen",
+      "year": 1980,
+      "reason": "Atmospheric electronica and avant-garde textures, drawing from the experimental atmospheres of Can and Aphex Twin.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Can"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "Banco de Gaia",
+      "title": "King Pod",
+      "album": "Needlejuice",
+      "year": 1998,
+      "reason": "Middle Eastern influences and hypnotic rhythms, linking to Stereolab's French Disko.",
+      "match_score": 78,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Stereolab"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Alessandro Cortini",
+      "title": "Slow Revolt (extract)",
+      "album": "As we are Now (Original Soundtrack for a movie by Yann Demange)",
+      "year": 2009,
+      "reason": "Atmospheric electronica and introspective moods, drawing from Portishead's Glory Box and Massive Attack's Angel.",
+      "match_score": 90,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 70
+    }
+  ]
+}

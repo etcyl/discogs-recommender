@@ -1,0 +1,468 @@
+{
+  "run_id": "20260813-192519_ollama-llama3-1-8b_v2",
+  "provider": "ollama:llama3.1:8b",
+  "generated_at": "2026-08-14T02:25:41+00:00",
+  "seconds": 22.0,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1960s": 3,
+      "1970s": 2,
+      "1980s": 4,
+      "1990s": 3,
+      "2000s": 8,
+      "2010s": 5
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 51.6,
+    "mean_match_score": 77.2,
+    "has_reason": 25,
+    "mean_reason_len": 95.1,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Dorian Concept",
+      "title": "The Nature of Imitation",
+      "album": "In case of All-out Mental War",
+      "year": 2009,
+      "reason": "Features intricate, atmospheric electronics reminiscent of Brian Eno and Aphex Twin.",
+      "match_score": 87,
+      "match_attributes": [
+        "production style",
+        "atmosphere/mood"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Brian Eno"
+      ],
+      "obscurity_score": 32
+    },
+    {
+      "artist": "Arca",
+      "title": "Thievery",
+      "album": "Mutant",
+      "year": 2015,
+      "reason": "Explores experimental, industrial textures and rhythms similar to Can and Neu!'s more abrasive moments.",
+      "match_score": 82,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 46
+    },
+    {
+      "artist": "Sunn O)))",
+      "title": "Bathory Legend",
+      "album": "White2: A Tribute to Sunn O)))",
+      "year": 2003,
+      "reason": "Features heavy, distorted drone landscapes reminiscent of Sun Ra and Silver Apples' more experimental works.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared instrumentation",
+        "atmosphere/mood"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Silver Apples"
+      ],
+      "obscurity_score": 67
+    },
+    {
+      "artist": "Oneohtrix Point Never",
+      "title": "I Don't Love You Anymore (The Redispersion of Clean Women)",
+      "album": "Returnal",
+      "year": 2010,
+      "reason": "Pushes the boundaries of electronic music with avant-garde, dissonant harmonies similar to Aphex Twin and Grouper.",
+      "match_score": 91,
+      "match_attributes": [
+        "atmosphere/mood",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Grouper"
+      ],
+      "obscurity_score": 41
+    },
+    {
+      "artist": "William Basinski",
+      "title": "The Disintegration Loops",
+      "album": "The Disintegration Loops",
+      "year": 2002,
+      "reason": "Features decaying, atmospheric soundscapes reminiscent of Harold Budd and Aphex Twin's more melancholic moments.",
+      "match_score": 89,
+      "match_attributes": [
+        "atmosphere/mood",
+        "production style"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 28
+    },
+    {
+      "artist": "Matana Roberts",
+      "title": "Hawk's Revenge",
+      "album": "The Chicago Project",
+      "year": 2010,
+      "reason": "Explores free jazz and electronic fusion, echoing the avant-garde spirit of Pharoah Sanders and Alice Coltrane.",
+      "match_score": 88,
+      "match_attributes": [
+        "genre lineage",
+        "shared instrumentation"
+      ],
+      "similar_to": [
+        "Pharoah Sanders",
+        "Alice Coltrane"
+      ],
+      "obscurity_score": 14
+    },
+    {
+      "artist": "Hans Zimmer & Laddie (FKA Hans Zimmer's collaborator)",
+      "title": "The Iceman Cometh",
+      "album": "Tangerine Dream - Thief (OST)",
+      "year": 1981,
+      "reason": "Features lush, atmospheric electronic scores reminiscent of Brian Eno and Harold Budd.",
+      "match_score": 86,
+      "match_attributes": [
+        "production style",
+        "atmosphere/mood"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 54
+    },
+    {
+      "artist": "Aldous Harding",
+      "title": "Blend",
+      "album": "Party",
+      "year": 2017,
+      "reason": "Showcases eclectic, avant-pop experimentation with dark, introspective lyrics similar to Cocteau Twins and Broadcast.",
+      "match_score": 84,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "Broadcast"
+      ],
+      "obscurity_score": 18
+    },
+    {
+      "artist": "Vashti Bunyan",
+      "title": "Look At Yesterday",
+      "album": "Frome",
+      "year": 2005,
+      "reason": "Showcases soothing, folk-infused electronic textures with introspective lyrics similar to Cocteau Twins and Broadcast.",
+      "match_score": 83,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "Broadcast"
+      ],
+      "obscurity_score": 21
+    },
+    {
+      "artist": "Shabda Khan",
+      "title": "Dance with the Devi",
+      "album": "Love in Exile",
+      "year": 1977,
+      "reason": "Influenced by Indian classical music, similar to Sun Ra's cosmic jazz.",
+      "match_score": 60,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Sun Ra"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Gang Gang Dance",
+      "title": "Primitive",
+      "album": "Staedtischem Mund",
+      "year": 2006,
+      "reason": "Shared producer Daniel Lopatin and Brian DeGraw, with similar atmospheric soundscapes.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Boards of Canada"
+      ],
+      "obscurity_score": 25
+    },
+    {
+      "artist": "Einstürzende Neubauten",
+      "title": "Halber Mensch",
+      "album": "Halber Mensch",
+      "year": 1985,
+      "reason": "Industrial and avant-garde elements, similar to the experimental nature of Throbbing Gristle.",
+      "match_score": 65,
+      "match_attributes": [
+        "genre lineage",
+        "production style"
+      ],
+      "similar_to": [
+        "Wire"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Fennesz",
+      "title": "Endless Summer",
+      "album": "Endless Summer",
+      "year": 2001,
+      "reason": "Similar use of distorted guitars and electronic textures, as seen in My Bloody Valentine.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "My Bloody Valentine"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Diamanda Galas",
+      "title": "Massacre of the Innocents",
+      "album": "Panoptikon",
+      "year": 1983,
+      "reason": "Atmospheric and experimental, similar to the work of Harold Budd.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Harold Budd"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "Aphrodite's Child",
+      "title": "Rain and Tears",
+      "album": "It's Five O'Clock",
+      "year": 1968,
+      "reason": "Psychedelic rock elements, similar to the work of Broadcast.",
+      "match_score": 60,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Broadcast"
+      ],
+      "obscurity_score": 85
+    },
+    {
+      "artist": "Dorothy Ashby",
+      "title": "The Winds of Life",
+      "album": "Children of a Lessor God",
+      "year": 1972,
+      "reason": "Pianist and composer, similar to the jazz piano style of Alice Coltrane.",
+      "match_score": 50,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Alice Coltrane"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Rafaela Aparcida Silva",
+      "title": "Quero Voltar",
+      "album": "Samba e Folclore",
+      "year": 1969,
+      "reason": "Brazilian folk influence, similar to the work of Caetano Veloso.",
+      "match_score": 55,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Aphex Twin"
+      ],
+      "obscurity_score": 95
+    },
+    {
+      "artist": "The Durutti Column",
+      "title": "Requiem for the People of the Earth",
+      "album": "The Return of the Durutti Column",
+      "year": 1981,
+      "reason": "Atmospheric and introspective, similar to the work of Joy Division.",
+      "match_score": 70,
+      "match_attributes": [
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Joy Division"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Asha Bhosle",
+      "title": "Yeh Duniya Yeh Mehfil",
+      "album": "The Golden Voice of Asha Bhosle",
+      "year": 1967,
+      "reason": "Indian playback singing, similar to the work of Sun Ra's use of Indian influences.",
+      "match_score": 40,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Sun Ra"
+      ],
+      "obscurity_score": 98
+    },
+    {
+      "artist": "Yann Tiersen",
+      "title": "Comptine d'un autre été",
+      "album": "Amélie",
+      "year": 2001,
+      "reason": "A French post-rock piece that shares the same neo-classical, minimalist qualities as Brian Eno and Harold Budd.",
+      "match_score": 92,
+      "match_attributes": [
+        "shared instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Harold Budd"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "Bôa",
+      "title": "Ghost in the Machine",
+      "album": "Echoes of Eden",
+      "year": 1993,
+      "reason": "A trip-hop influenced track with a similarly dark, atmospheric mood to Massive Attack and Portishead.",
+      "match_score": 83,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Massive Attack",
+        "Portishead"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "The Heliocentrics",
+      "title": "Sun Ra tribute - Space Odyssey",
+      "album": "A Day in the Life of Brother Sun (Sun Ra Tribute)",
+      "year": 2003,
+      "reason": "An improvisational, cosmic jazz track that shares a similar sense of experimentation and free spirit with Sun Ra and Pharoah Sanders.",
+      "match_score": 92,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Pharoah Sanders"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Morphine",
+      "title": "Ciccone's Stomp",
+      "album": "Bleeding",
+      "year": 1994,
+      "reason": "An experimental, atmospheric rock piece with a similar blend of melodic and dissonant elements to Brian Eno and Wire.",
+      "match_score": 81,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Wire"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Kuniyuki Takahashi",
+      "title": "Rain",
+      "album": "Rain",
+      "year": 2013,
+      "reason": "A slow, atmospheric ambient track with a similar sense of calm and introspection as Harold Budd and Cocteau Twins.",
+      "match_score": 88,
+      "match_attributes": [
+        "shared instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "Tindersticks",
+      "title": "Travelling Light",
+      "album": "Can't Get Together",
+      "year": 1993,
+      "reason": "A brooding, atmospheric track with a similar sense of drama and tension as Joy Division and The Cure.",
+      "match_score": 83,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Joy Division",
+        "The Cure"
+      ],
+      "obscurity_score": 60
+    }
+  ]
+}

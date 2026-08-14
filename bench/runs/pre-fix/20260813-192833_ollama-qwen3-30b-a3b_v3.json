@@ -1,0 +1,230 @@
+{
+  "run_id": "20260813-192833_ollama-qwen3-30b-a3b_v3",
+  "provider": "ollama:qwen3:30b-a3b",
+  "generated_at": "2026-08-14T02:30:09+00:00",
+  "seconds": 95.1,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 10,
+    "unique_artists": 10,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 4,
+    "decade_spread": {
+      "1960s": 1,
+      "1970s": 4,
+      "1990s": 4,
+      "2000s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.2,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 66.0,
+    "mean_match_score": 82.4,
+    "has_reason": 10,
+    "mean_reason_len": 153.1,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Popol Vuh",
+      "title": "Aguirre",
+      "album": "Aguirre (Original Motion Picture Soundtrack)",
+      "year": 1975,
+      "reason": "Shares Can's hypnotic, repetitive bassline structure and spiritual atmosphere through minimalist drone, but with a distinct German krautrock sensibility.",
+      "match_score": 88,
+      "match_attributes": [
+        "hypnotic drone",
+        "minimalist structure",
+        "spiritual atmosphere"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 80
+    },
+    {
+      "artist": "The Orb",
+      "title": "The Amazing Mr. K",
+      "album": "The Orb's Adventures Beyond the Ultraworld",
+      "year": 1992,
+      "reason": "Merges Portishead's atmospheric tension with Massive Attack's dub experimentation, using ambient textures and sparse percussion instead of vocals.",
+      "match_score": 82,
+      "match_attributes": [
+        "atmospheric tension",
+        "dub-inspired production",
+        "ambient texture"
+      ],
+      "similar_to": [
+        "Portishead",
+        "Massive Attack"
+      ],
+      "obscurity_score": 75
+    },
+    {
+      "artist": "Yusef Lateef",
+      "title": "African Cookbook",
+      "album": "The African Cookbook",
+      "year": 1967,
+      "reason": "Channels Alice Coltrane's spiritual jazz exploration through saxophone-driven modal improvisation and meditative rhythms, with a similar focus on transcendence.",
+      "match_score": 85,
+      "match_attributes": [
+        "spiritual jazz",
+        "modal improvisation",
+        "meditative rhythm"
+      ],
+      "similar_to": [
+        "Alice Coltrane"
+      ],
+      "obscurity_score": 90
+    },
+    {
+      "artist": "A Certain Ratio",
+      "title": "The Sun Is Shining",
+      "album": "Nite Klub",
+      "year": 1979,
+      "reason": "Blends Wire's angular post-punk guitar with Television's rhythmic interplay through a funk-infused, minimalist groove that avoids traditional song structure.",
+      "match_score": 78,
+      "match_attributes": [
+        "angular guitar",
+        "minimalist groove",
+        "post-punk funk"
+      ],
+      "similar_to": [
+        "Wire",
+        "Television"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Lush",
+      "title": "Mad Love",
+      "album": "Gala",
+      "year": 1990,
+      "reason": "Captures Cocteau Twins' ethereal vocal layers and shoegaze textures through dreamy guitar swells and whispery harmonies, but with more accessible songcraft.",
+      "match_score": 80,
+      "match_attributes": [
+        "ethereal vocals",
+        "shoegaze textures",
+        "dreamy guitar"
+      ],
+      "similar_to": [
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "Heldon",
+      "title": "H2O",
+      "album": "H2O",
+      "year": 1979,
+      "reason": "Shares Neu!'s repetitive motorik pulse and Can's experimental edge through synthesizer-driven krautrock, with a focus on texture over traditional songform.",
+      "match_score": 84,
+      "match_attributes": [
+        "motorik pulse",
+        "synthesizer-driven",
+        "experimental krautrock"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 88
+    },
+    {
+      "artist": "Bardo Pond",
+      "title": "Astral Plane",
+      "album": "Barn Owl",
+      "year": 1998,
+      "reason": "Mirrors Broadcast's ambient pop experimentation through drone-based guitar textures and hypnotic rhythms, focusing on mood over melody like 'Come On Let's Go'.",
+      "match_score": 76,
+      "match_attributes": [
+        "ambient pop",
+        "drone-based textures",
+        "hypnotic rhythm"
+      ],
+      "similar_to": [
+        "Broadcast"
+      ],
+      "obscurity_score": 72
+    },
+    {
+      "artist": "Hank Williams Jr.",
+      "title": "All My Rowdy Friends Are Coming Over Tonight",
+      "album": "The Best of Hank Williams Jr.",
+      "year": 1971,
+      "reason": "Uses Broadcast's playful vocal delivery and Radiohead-esque rhythmic interplay through country-infused post-punk arrangements, avoiding traditional country tropes.",
+      "match_score": 72,
+      "match_attributes": [
+        "playful vocal delivery",
+        "post-punk arrangements",
+        "rhythmic interplay"
+      ],
+      "similar_to": [
+        "Broadcast"
+      ],
+      "obscurity_score": 35
+    },
+    {
+      "artist": "Stereolab",
+      "title": "Switched On",
+      "album": "Transient Random-Noise Bursts with Announcements",
+      "year": 1993,
+      "reason": "Connects to Stereolab's own 'French Disko' through minimalist synth-pop and French-language vocals, but with a heavier, more abrasive production style.",
+      "match_score": 87,
+      "match_attributes": [
+        "minimalist synth-pop",
+        "French-language vocals",
+        "abrasive production"
+      ],
+      "similar_to": [
+        "Stereolab"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Grouper",
+      "title": "The Longest Road",
+      "album": "Dragging a Dead Deer Up a Hill",
+      "year": 2008,
+      "reason": "Deepens Grouper's ambient guitar textures from 'Heavy Water' with even greater vocal intimacy and sparse, melancholic arrangements.",
+      "match_score": 92,
+      "match_attributes": [
+        "ambient guitar textures",
+        "vocal intimacy",
+        "melancholic arrangements"
+      ],
+      "similar_to": [
+        "Grouper"
+      ],
+      "obscurity_score": 40
+    }
+  ]
+}

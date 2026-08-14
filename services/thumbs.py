@@ -524,10 +524,12 @@ def _atomic_write_json(filepath: Path, data) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=True)
-        # On Windows, we need to remove the target first if it exists
-        if filepath.exists():
-            filepath.unlink()
-        os.rename(tmp_path, str(filepath))
+            f.flush()
+            os.fsync(f.fileno())
+        # os.replace is atomic on POSIX *and* Windows. The older
+        # unlink-then-rename dance left a window with no file at all, which
+        # is exactly the TOCTOU gap this function is supposed to close.
+        os.replace(tmp_path, str(filepath))
     except Exception:
         # Clean up temp file on failure
         try:

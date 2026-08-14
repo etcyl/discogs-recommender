@@ -66,6 +66,7 @@ radio = RadioService(
     anthropic_api_key=settings.anthropic_api_key,
     ollama_base_url=settings.ollama_base_url,
     ollama_model=settings.ollama_model,
+    prompt_tier=settings.prompt_tier,
 )
 scene_service = SceneService()
 preference_service = PreferenceService()
@@ -291,9 +292,34 @@ def _parse_era(era: str) -> tuple:
     return None, None
 
 
+# Raw upstream errors are accurate but useless to a user — "401: Invalid
+# consumer token" tells them nothing about what to do. Map the ones we
+# actually see onto an instruction.
+_FRIENDLY_ERRORS = (
+    ("invalid consumer token",
+     "Discogs rejected the API token. Check DISCOGS_TOKEN in your .env — "
+     "generate a new one at discogs.com/settings/developers."),
+    ("401",
+     "Discogs rejected the credentials. Check DISCOGS_TOKEN and "
+     "DISCOGS_USERNAME in your .env."),
+    ("403",
+     "Discogs refused the request. Your token may lack permission for this "
+     "collection, or the collection is private."),
+    ("404",
+     "Discogs could not find that — check DISCOGS_USERNAME in your .env."),
+    ("429",
+     "Discogs rate limit reached (60 requests/minute). Wait a minute and "
+     "try again."),
+    ("cannot connect to ollama",
+     "Ollama isn't reachable. Start it with `ollama serve`, or switch the "
+     "channel's AI model."),
+)
+
+
 def _sanitize_error(error: Exception) -> str:
-    """Return a safe error message without leaking internals (CWE-209)."""
+    """Return a safe, actionable error message without leaking internals (CWE-209)."""
     msg = str(error)
+
     sensitive_patterns = []
     if settings.discogs_token:
         sensitive_patterns.append(settings.discogs_token)
@@ -302,6 +328,13 @@ def _sanitize_error(error: Exception) -> str:
     for pattern in sensitive_patterns:
         if pattern in msg:
             msg = msg.replace(pattern, "[REDACTED]")
+
+    lowered = msg.lower()
+    for needle, friendly in _FRIENDLY_ERRORS:
+        if needle in lowered:
+            logger.warning("Upstream error surfaced to user: %s", msg)
+            return friendly
+
     return msg
 
 
@@ -388,7 +421,7 @@ async def login_page(request: Request):
             auth_service.set_session_cookie(response, new_session)
             return response
 
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request,"login.html", {"request": request})
 
 
 @app.post("/login")
@@ -396,7 +429,7 @@ async def login_submit(request: Request):
     """Admin login with Discogs token."""
     client_ip = request.client.host if request.client else "unknown"
     if _is_rate_limited(f"login:{client_ip}", max_requests=5, window_seconds=60):
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request,"login.html", {
             "request": request, "error": "Too many login attempts. Please wait a minute.",
         })
 
@@ -404,7 +437,7 @@ async def login_submit(request: Request):
     token = str(form.get("discogs_token", "")).strip()
 
     if not token:
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request,"login.html", {
             "request": request, "error": "Please enter your Discogs personal access token.",
         })
 
@@ -415,7 +448,7 @@ async def login_submit(request: Request):
         auth_service.set_session_cookie(response, session_id)
         return response
 
-    return templates.TemplateResponse("login.html", {
+    return templates.TemplateResponse(request,"login.html", {
         "request": request, "error": "Invalid token.",
     })
 
@@ -425,11 +458,11 @@ async def invite_page(request: Request, token: str):
     """Show invite acceptance / setup page."""
     invite = auth_service.get_invite(token)
     if not invite:
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request,"login.html", {
             "request": request,
             "error": "This invite link is invalid or has expired.",
         })
-    return templates.TemplateResponse("setup.html", {
+    return templates.TemplateResponse(request,"setup.html", {
         "request": request, "token": token,
     })
 
@@ -439,7 +472,7 @@ async def invite_accept(request: Request, token: str):
     """Process invite acceptance: create user, set session, redirect."""
     client_ip = request.client.host if request.client else "unknown"
     if _is_rate_limited(f"invite:{client_ip}", max_requests=5, window_seconds=60):
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request,"login.html", {
             "request": request, "error": "Too many attempts. Please wait a minute.",
         })
 
@@ -449,7 +482,7 @@ async def invite_accept(request: Request, token: str):
     discogs_token = str(form.get("discogs_token", "")).strip()[:200]
 
     if not display_name:
-        return templates.TemplateResponse("setup.html", {
+        return templates.TemplateResponse(request,"setup.html", {
             "request": request, "token": token,
             "error": "Display name is required.",
         })
@@ -462,7 +495,7 @@ async def invite_accept(request: Request, token: str):
             discogs_token=discogs_token or "",
         )
     except ValueError as e:
-        return templates.TemplateResponse("setup.html", {
+        return templates.TemplateResponse(request,"setup.html", {
             "request": request, "token": token, "error": str(e),
         })
 
@@ -494,7 +527,7 @@ async def admin_page(request: Request):
         return RedirectResponse(url="/", status_code=302)
     invites = auth_service.list_invites(user["id"])
     users = auth_service.list_users()
-    return templates.TemplateResponse("admin.html",
+    return templates.TemplateResponse(request,"admin.html",
                                       _template_context(request, invites=invites, users=users))
 
 
@@ -641,7 +674,7 @@ async def home(request: Request):
         except Exception as e:
             error = _sanitize_error(e)
 
-    return templates.TemplateResponse("index.html",
+    return templates.TemplateResponse(request,"index.html",
                                       _template_context(request, profile=profile, error=error,
                                                         discogs_configured=discogs_configured))
 
@@ -664,7 +697,7 @@ async def collection(request: Request, page: int = Query(1, ge=1)):
         total_pages = 1
         error = _sanitize_error(e)
 
-    return templates.TemplateResponse("collection.html",
+    return templates.TemplateResponse(request,"collection.html",
                                       _template_context(request, releases=page_items, page=page,
                                                         total_pages=total_pages, error=error))
 
@@ -762,7 +795,7 @@ async def recommendations(request: Request,
         error = _sanitize_error(e)
 
     allowed_models = list(auth_service.get_allowed_models(user))
-    return templates.TemplateResponse("recommendations.html",
+    return templates.TemplateResponse(request,"recommendations.html",
                                       _template_context(request, recommendations=recs,
                                                         engine=engine, discovery=discovery,
                                                         era_from=era_from, era_to=era_to,
@@ -801,7 +834,7 @@ async def search(request: Request,
         except Exception as e:
             error = _sanitize_error(e)
 
-    return templates.TemplateResponse("search.html",
+    return templates.TemplateResponse(request,"search.html",
                                       _template_context(request, results=results,
                                                         query=query_params, error=error))
 
@@ -820,7 +853,7 @@ async def release_detail(request: Request, release_id: int):
         release = None
         error = _sanitize_error(e)
 
-    return templates.TemplateResponse("release.html",
+    return templates.TemplateResponse(request,"release.html",
                                       _template_context(request, release=release, error=error))
 
 
@@ -848,7 +881,7 @@ async def radio_page(request: Request):
     channels = channel_service.load_channels(
         data_dir=user_dir, discogs_configured=settings.discogs_configured)
     allowed_models = list(auth_service.get_allowed_models(user))
-    return templates.TemplateResponse("radio.html",
+    return templates.TemplateResponse(request,"radio.html",
                                       _template_context(request, channels=channels,
                                                         allowed_models=allowed_models,
                                                         discogs_configured=settings.discogs_configured))
@@ -1111,7 +1144,7 @@ async def radio_playlist_stream(request: Request,
                         except Exception:
                             pass
                 except LLMError as e:
-                    yield _sse("error", {"message": str(e)})
+                    yield _sse("error", {"message": _sanitize_error(e)})
                     return
 
                 if not playlist:
@@ -1191,7 +1224,7 @@ async def radio_playlist_stream(request: Request,
                             except Exception:
                                 pass
                     except LLMError as e:
-                        yield _sse("error", {"message": str(e)})
+                        yield _sse("error", {"message": _sanitize_error(e)})
                         return
 
                 if not playlist:
@@ -1262,7 +1295,7 @@ async def radio_playlist_stream(request: Request,
                             except Exception:
                                 pass
                     except LLMError as e:
-                        yield _sse("error", {"message": str(e)})
+                        yield _sse("error", {"message": _sanitize_error(e)})
                         return
 
                 if not playlist:
@@ -1334,7 +1367,7 @@ async def radio_playlist_stream(request: Request,
                             except Exception:
                                 pass
                     except LLMError as e:
-                        yield _sse("error", {"message": str(e)})
+                        yield _sse("error", {"message": _sanitize_error(e)})
                         return
 
                 if not playlist:
@@ -1409,7 +1442,12 @@ async def radio_playlist_stream(request: Request,
             yield _sse("complete", {"cached": False, "ai_model": model_label})
 
         except Exception as e:
-            yield _sse("error", {"message": str(e)})
+            # This path used to yield str(e) straight to the browser, which
+            # both leaked raw upstream text (CWE-209 — the same redaction the
+            # rest of the app does) and showed the user things like
+            # "401: Invalid consumer token" with no hint what to do.
+            logger.exception("Playlist stream failed for channel %s", channel_id)
+            yield _sse("error", {"message": _sanitize_error(e)})
 
     return StreamingResponse(
         event_generator(),
@@ -1558,7 +1596,7 @@ async def radio_likes_page(request: Request):
     user_dir = _get_user_data_dir(user)
     liked = thumbs.load_thumbs(data_dir=user_dir)
     liked.reverse()  # newest first
-    return templates.TemplateResponse("likes.html",
+    return templates.TemplateResponse(request,"likes.html",
                                       _template_context(request, songs=liked, total=len(liked)))
 
 
@@ -1569,7 +1607,7 @@ async def radio_history_page(request: Request):
     user_dir = _get_user_data_dir(user)
     history = thumbs.load_history(data_dir=user_dir)
     history.reverse()  # newest first
-    return templates.TemplateResponse("history.html",
+    return templates.TemplateResponse(request,"history.html",
                                       _template_context(request, songs=history, total=len(history)))
 
 

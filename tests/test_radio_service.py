@@ -104,15 +104,16 @@ class TestGenerateThemedPlaylist:
 class TestResolveYoutubeIds:
     """Tests for resolve_youtube_ids()."""
 
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
     @patch("services.radio_service.VideosSearch")
     @patch("services.radio_service.cache")
-    def test_resolves_successfully(self, mock_cache, mock_search_cls, radio_svc):
+    def test_resolves_successfully(self, mock_cache, mock_search_cls, _mock_meta, radio_svc):
         mock_cache.get.return_value = None
         mock_search_instance = MagicMock()
         mock_search_instance.result.return_value = {
             "result": [
                 {"id": "abc123", "thumbnails": [{"url": "thumb.jpg"}],
-                 "duration": "3:45", "title": "Artist - Song"}
+                 "duration": "3:45", "title": "Test - Song (Official Audio)"}
             ]
         }
         mock_search_cls.return_value = mock_search_instance
@@ -152,18 +153,26 @@ class TestResolveYoutubeIds:
         result = radio_svc.resolve_youtube_ids([])
         assert result == []
 
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
     @patch("services.radio_service.VideosSearch")
     @patch("services.radio_service.cache")
-    def test_preserves_order(self, mock_cache, mock_search_cls, radio_svc):
+    def test_preserves_order(self, mock_cache, mock_search_cls, _mock_meta, radio_svc):
         mock_cache.get.return_value = None
-        mock_search_instance = MagicMock()
-        mock_search_instance.result.return_value = {
-            "result": [
-                {"id": "vid", "thumbnails": [{"url": "t.jpg"}],
-                 "duration": "3:00", "title": "T"}
-            ]
-        }
-        mock_search_cls.return_value = mock_search_instance
+
+        def _search_for(query, limit=8):
+            # Echo the query back as the video title so the title/artist
+            # match scorer accepts each result.
+            instance = MagicMock()
+            instance.result.return_value = {
+                "result": [
+                    {"id": "vid", "thumbnails": [{"url": "t.jpg"}],
+                     "duration": "3:00",
+                     "title": query.replace(" official audio", "")}
+                ]
+            }
+            return instance
+
+        mock_search_cls.side_effect = _search_for
 
         playlist = [
             {"artist": f"Artist{i}", "title": f"Song{i}"} for i in range(5)
@@ -184,7 +193,7 @@ class TestFindYoutubeVideo:
         mock_instance.result.return_value = {
             "result": [
                 {"id": "xyz", "thumbnails": [{"url": "small.jpg"}, {"url": "large.jpg"}],
-                 "duration": "5:30", "title": "Official Audio"}
+                 "duration": "5:30", "title": "Artist - Song (Official Audio)"}
             ]
         }
         mock_search_cls.return_value = mock_instance
@@ -202,7 +211,8 @@ class TestFindYoutubeVideo:
         mock_empty.result.return_value = {"result": []}
         mock_found = MagicMock()
         mock_found.result.return_value = {
-            "result": [{"id": "fallback", "thumbnails": [], "duration": "3:00", "title": "F"}]
+            "result": [{"id": "fallback", "thumbnails": [], "duration": "3:00",
+                        "title": "Artist - Song"}]
         }
         mock_search_cls.side_effect = [mock_empty, mock_found]
 

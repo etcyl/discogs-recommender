@@ -24,3 +24,8 @@ data/
 # IDE / Tools
 .claude/
 .vscode/
+
+# Bench — the lookup cache is a local artifact; seeds/prompts/runs are kept
+# because they are the evidence behind bench/comparison.md and
+# bench/verification.md.
+bench/.verify_cache.json

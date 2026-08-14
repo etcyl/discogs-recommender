@@ -407,9 +407,10 @@ def _atomic_write_json(filepath: Path, data) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=True)
-        if filepath.exists():
-            filepath.unlink()
-        os.rename(tmp_path, str(filepath))
+            f.flush()
+            os.fsync(f.fileno())
+        # os.replace is atomic on POSIX *and* Windows; unlink-then-rename is not.
+        os.replace(tmp_path, str(filepath))
     except Exception:
         try:
             os.unlink(tmp_path)

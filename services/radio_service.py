@@ -16,14 +16,51 @@ logger = logging.getLogger(__name__)
 class RadioService:
     def __init__(self, anthropic_api_key: str = "",
                  ollama_base_url: str = "http://localhost:11434",
-                 ollama_model: str = "llama3.1:8b"):
+                 ollama_model: str = "llama3.1:8b",
+                 prompt_tier: str = "auto"):
         self.anthropic_api_key = anthropic_api_key
         self.ollama_base_url = ollama_base_url
         self.ollama_model = ollama_model
+        # "auto"    — compact prompt for Ollama/Haiku, rich prompt for Sonnet
+        # "compact" — always the short prompt (small or heavily quantised models)
+        # "rich"    — always the full curator prompt (large local models, 24B+)
+        self.prompt_tier = prompt_tier if prompt_tier in ("auto", "compact", "rich") else "auto"
+
+    def _use_compact_prompt(self, ai_model: str) -> bool:
+        """Whether to use the short prompt variant for this model."""
+        if self.prompt_tier == "compact":
+            return True
+        if self.prompt_tier == "rich":
+            return False
+        return ai_model in ("ollama", "claude-haiku")
 
     BATCH_SIZE = 25
     HAIKU_BATCH_SIZE = 15   # Haiku is smaller — fewer songs per batch for reliability
     OLLAMA_BATCH_SIZE = 10  # Smaller batches for local models to avoid truncation
+
+    # JSON Schema for a song recommendation. Passed to Ollama so decoding is
+    # constrained to valid JSON; local models otherwise wander into prose and
+    # the whole batch is lost.
+    SONG_SCHEMA = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "artist": {"type": "string"},
+                "title": {"type": "string"},
+                "album": {"type": "string"},
+                "year": {"type": "integer"},
+                "reason": {"type": "string"},
+                "match_score": {"type": "integer"},
+                "match_attributes": {"type": "array", "items": {"type": "string"}},
+                "similar_to": {"type": "array", "items": {"type": "string"}},
+                "obscurity_score": {"type": "integer"},
+                "influence_chain": {"type": "string"},
+                "credit_connection": {"type": "string"},
+            },
+            "required": ["artist", "title", "year", "reason"],
+        },
+    }
 
     def _call_and_parse(self, system_text: str, user_text: str,
                         ai_model: str = "claude-sonnet",
@@ -37,6 +74,7 @@ class RadioService:
             anthropic_api_key=self.anthropic_api_key,
             ollama_base_url=self.ollama_base_url,
             ollama_model=self.ollama_model,
+            response_schema=self.SONG_SCHEMA if ai_model == "ollama" else None,
         )
         result = parse_llm_json(text)
         if not result:
@@ -389,7 +427,7 @@ class RadioService:
                           preference_summary: str = "",
                           prefer_deep_cuts: bool = False) -> list[dict]:
         """Ask LLM to generate a radio playlist (batched for reliability)."""
-        is_small_model = ai_model in ("ollama", "claude-haiku")
+        is_small_model = self._use_compact_prompt(ai_model)
         summary = self._build_profile_summary(profile, collection, compact=is_small_model)
         discovery_guide = self._discovery_guidance(discovery)
         era_guide = self._era_guidance(era_from, era_to)
@@ -449,11 +487,10 @@ Label-mates often share sonic DNA even across genres.
 - Target an obscurity_score of 60+ for every recommendation.
 """
 
-        is_ollama = ai_model == "ollama"
-        is_haiku = ai_model == "claude-haiku"
+        use_compact = self._use_compact_prompt(ai_model)
 
         def build_prompts(batch_size, already_picked):
-            if is_ollama or is_haiku:
+            if use_compact:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs.
 {era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
 Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.
@@ -1000,11 +1037,10 @@ RECENTLY PLAYED SONGS (the listener has heard these recently — DO NOT repeat a
         if preference_summary:
             pref_block = f"\n{preference_summary}\n"
 
-        is_ollama = ai_model == "ollama"
-        is_haiku = ai_model == "claude-haiku"
+        use_compact = self._use_compact_prompt(ai_model)
 
         def build_prompts(batch_size, already_picked):
-            if is_ollama or is_haiku:
+            if use_compact:
                 mode_hint = "new discoveries from different genres" if mode == "new_discoveries" else "similar songs"
                 system_text = f"""You are a music curator. Recommend {batch_size} {mode_hint}.
 {era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
@@ -1135,11 +1171,10 @@ BEHIND-THE-SCENES CONNECTIONS:
         if preference_summary:
             pref_block = f"\n{preference_summary}\n"
 
-        is_ollama = ai_model == "ollama"
-        is_haiku = ai_model == "claude-haiku"
+        use_compact = self._use_compact_prompt(ai_model)
 
         def build_prompts(batch_size, already_picked):
-            if is_ollama or is_haiku:
+            if use_compact:
                 system_text = f"""You are a music curator. Recommend {batch_size} songs matching the theme: "{theme}"
 {era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
 Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.

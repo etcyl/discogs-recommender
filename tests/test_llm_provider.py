@@ -37,7 +37,23 @@ class TestCallLlm:
         mock_ollama.assert_called_once_with(
             "sys", "user", 6000,
             "http://localhost:11434", "llama3.1:8b",
+            response_schema=None,
         )
+
+    @patch("services.llm_provider._call_ollama")
+    def test_ollama_forwards_response_schema(self, mock_ollama):
+        mock_ollama.return_value = "[]"
+        schema = {"type": "array"}
+        call_llm("sys", "user", provider="ollama", response_schema=schema)
+        assert mock_ollama.call_args.kwargs["response_schema"] is schema
+
+    @patch("services.llm_provider._call_claude")
+    def test_schema_not_forwarded_to_claude(self, mock_claude):
+        """Claude follows the prompt's format instructions; it takes no schema."""
+        mock_claude.return_value = "[]"
+        call_llm("sys", "user", anthropic_api_key="sk-ant-test",
+                 response_schema={"type": "array"})
+        assert "response_schema" not in mock_claude.call_args.kwargs
 
 
 class TestCallClaude:
@@ -108,6 +124,32 @@ class TestParseLlmJson:
         text = '[{"a": 1}, {"b": 2}, {"c":'
         result = parse_llm_json(text)
         assert result == [{"a": 1}, {"b": 2}]
+
+    def test_truncated_with_bracket_inside_string_value(self):
+        """Song titles containing [] must not break truncation recovery.
+
+        The old rfind("]") scan landed inside the string value and produced
+        an unparseable fragment, dropping the whole batch.
+        """
+        text = ('[{"artist": "New Order", "title": "Blue Monday [12\\" Mix]"}, '
+                '{"artist": "A Guy Called Gerald", "title": "Voodoo Ray"}, '
+                '{"artist": "808 State", "title": "Paci')
+        result = parse_llm_json(text)
+        assert len(result) == 2
+        assert result[0]["title"] == 'Blue Monday [12" Mix]'
+        assert result[1]["artist"] == "A Guy Called Gerald"
+
+    def test_nested_arrays_and_objects_survive(self):
+        text = ('[{"artist": "Neu!", "match_attributes": ["a", "b"], '
+                '"similar_to": [{"artist": "Can", "why": "motorik"}]}, '
+                '{"artist": "Cluster", "similar_to": [{"artist": "Har')
+        result = parse_llm_json(text)
+        assert len(result) == 1
+        assert result[0]["similar_to"][0]["artist"] == "Can"
+
+    def test_trailing_commentary_after_array(self):
+        text = '[{"a": 1}]\n\nHope that helps! Let me know if you want more.'
+        assert parse_llm_json(text) == [{"a": 1}]
 
     def test_empty_on_garbage(self):
         assert parse_llm_json("not json at all") == []

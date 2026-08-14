@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3:latest"
+    # auto | compact | rich — "rich" gives local models the full curator prompt.
+    # Worth setting for 24B+ local models; leave on auto for 8B-class models.
+    prompt_tier: str = "auto"
     app_name: str = "DiscogsRecommender/1.0"
     cache_ttl_seconds: int = 3600
     max_thumbs_entries: int = 500

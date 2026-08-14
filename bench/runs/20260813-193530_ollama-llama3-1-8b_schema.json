@@ -1,0 +1,458 @@
+{
+  "run_id": "20260813-193530_ollama-llama3-1-8b_schema",
+  "provider": "ollama:llama3.1:8b",
+  "generated_at": "2026-08-14T02:35:50+00:00",
+  "seconds": 20.3,
+  "seed": {
+    "kind": "tracks",
+    "name": "demo_playlist",
+    "size": 25,
+    "sample": [
+      "Neu! - Hallogallo",
+      "Can - Vitamin C",
+      "Broadcast - Come On Let's Go",
+      "Stereolab - French Disko",
+      "Portishead - Glory Box",
+      "Massive Attack - Angel",
+      "Boards of Canada - Roygbiv",
+      "Aphex Twin - Xtal",
+      "Talk Talk - New Grass",
+      "Slowdive - Alison"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 40,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1960s": 4,
+      "1970s": 6,
+      "1980s": 2,
+      "1990s": 5,
+      "2000s": 7,
+      "2010s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 40.8,
+    "mean_match_score": 85.5,
+    "has_reason": 25,
+    "mean_reason_len": 108.3,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "The Young Gods",
+      "title": "Envoye",
+      "year": 1991,
+      "reason": "This Swiss industrial band shares the same blend of atmospheric electronica and dissonant guitars as Neu! and Can.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "The Haxan Cloak",
+      "title": "Excavation",
+      "year": 2011,
+      "reason": "This British electronic musician crafts dark, atmospheric soundscapes that evoke the mood of Aphex Twin and Boards of Canada.",
+      "match_score": 90,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Mira",
+      "title": "Cinderella Man",
+      "year": 1995,
+      "reason": "This experimental electronic project features lush, dreamy textures reminiscent of Broadcast and Stereolab.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Stereolab"
+      ],
+      "obscurity_score": 70
+    },
+    {
+      "artist": "Fennesz",
+      "title": "Endless Summer",
+      "year": 2001,
+      "reason": "This Austrian electronic musician's soothing, ambient textures recall the ethereal quality of Cocteau Twins and My Bloody Valentine.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "My Bloody Valentine"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "The Olivia Tremor Control",
+      "title": "Jumping Fences (Penthouse Lamps)",
+      "year": 1996,
+      "reason": "This American psychedelic band's dreamy, swirling soundscapes recall the epic quality of Stereolab and Broadcast.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Broadcast"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "William Basinski",
+      "title": "The Disintegration Loops, Pt. 1",
+      "year": 2002,
+      "reason": "This American composer's use of decay and repetition creates a sense of nostalgia and longing similar to Talk Talk and Slowdive.",
+      "match_score": 80,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Slowdive"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "The United States of America",
+      "title": "The American Metaphysical Circus",
+      "year": 1968,
+      "reason": "Their avant-garde sound shares similarities with Neu!'s Hallogallo's motorik beats and atmospheric textures.",
+      "match_score": 82,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Kaito",
+      "title": "Nebula",
+      "year": 2003,
+      "reason": "This Japanese musician's blend of electronic and organic elements shares the same sense of experimentation as Neu! and Can.",
+      "match_score": 75,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 65
+    },
+    {
+      "artist": "La Düsseldorf",
+      "title": "Lilac Haze",
+      "year": 1976,
+      "reason": "This Krautrock band's blend of electronic and folk elements is reminiscent of Can's Vitamin C.",
+      "match_score": 88,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 35
+    },
+    {
+      "artist": "Tujiko Norne",
+      "title": "The Red Tree (A Song for the Sun)",
+      "year": 2007,
+      "reason": "This Swedish electronic musician's blend of ambient textures and vocal samples shares the same sense of experimentation as Aphex Twin and Boards of Canada.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Aphex Twin",
+        "Boards of Canada"
+      ],
+      "obscurity_score": 50
+    },
+    {
+      "artist": "Galaxie 2000",
+      "title": "Camera Obsolescence II",
+      "year": 1981,
+      "reason": "This French band's eclectic sound, which combines electronic and rock elements, is comparable to Stereolab's French Disko.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Stereolab",
+        "Cocteau Twins"
+      ],
+      "obscurity_score": 45
+    },
+    {
+      "artist": "The Advisory Circle",
+      "title": "Heritage",
+      "year": 2005,
+      "reason": "This British electronic musician's soothing, ambient soundscapes recall the ethereal quality of Cocteau Twins and My Bloody Valentine.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "My Bloody Valentine"
+      ],
+      "obscurity_score": 60
+    },
+    {
+      "artist": "Boredoms",
+      "title": "Super Roots 9",
+      "year": 1998,
+      "reason": "Their experimental and psychedelic sound shares similarities with Boards of Canada's Roygbiv.",
+      "match_score": 92,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Boards of Canada",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 55
+    },
+    {
+      "artist": "Harold Budd & Robin Guthrie",
+      "title": "The Pearl",
+      "year": 2006,
+      "reason": "This collaboration between Harold Budd and Robin Guthrie creates a sense of intimacy and atmosphere similar to Talk Talk and Slowdive.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Talk Talk",
+        "Slowdive"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Sun Ra Arkestra",
+      "title": "Discipline 27 2/3",
+      "year": 1964,
+      "reason": "This jazz group's avant-garde sound and experimental approach is comparable to Sun Ra's work, such as Space Is the Place.",
+      "match_score": 89,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Miles Davis"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "Tangerine Dream",
+      "title": "Phaedra",
+      "year": 1974,
+      "reason": "Their electronic and atmospheric sound is comparable to Harold Budd's ambient work, such as Not Yet Remembered.",
+      "match_score": 90,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Harold Budd",
+        "Brian Eno"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "György Ligeti",
+      "title": "Atmosphères",
+      "year": 1961,
+      "reason": "This Hungarian composer's avant-garde and atmospheric soundscapes share similarities with Brian Eno's An Ending (Ascent).",
+      "match_score": 95,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Brian Eno",
+        "Aphex Twin"
+      ],
+      "obscurity_score": 10
+    },
+    {
+      "artist": "The Residents",
+      "title": "The Third Reich 'n Roll",
+      "year": 1976,
+      "reason": "This experimental group's eclectic and avant-garde sound shares similarities with Neu!'s Hallogallo.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 25
+    },
+    {
+      "artist": "Os Mutantes",
+      "title": "Baby",
+      "year": 1968,
+      "reason": "Brazilian psychedelic rock's intersection with Krautrock and Can's influences.",
+      "match_score": 88,
+      "match_attributes": [
+        "shared instrumentation",
+        "psychedelic atmosphere"
+      ],
+      "similar_to": [
+        "Can",
+        "Stereolab"
+      ],
+      "obscurity_score": 20
+    },
+    {
+      "artist": "Kraftwerk",
+      "title": "Radio-Aktivität",
+      "year": 1975,
+      "reason": "Their pioneering electronic sound is comparable to Can's Vitamin C.",
+      "match_score": 87,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 38
+    },
+    {
+      "artist": "The Heliocentrics",
+      "title": "Aurora",
+      "year": 2008,
+      "reason": "Blending psychedelic rock with African rhythms and electronic elements, reminiscent of Sun Ra.",
+      "match_score": 92,
+      "match_attributes": [
+        "shared experimental spirit",
+        "global influences"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "Brian Eno"
+      ],
+      "obscurity_score": 40
+    },
+    {
+      "artist": "Heldon",
+      "title": "Electronic Happening No. 2",
+      "year": 1976,
+      "reason": "This French band's electronic and experimental sound shares similarities with Broadcast's Come On Let's Go.",
+      "match_score": 83,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Broadcast",
+        "Stereolab"
+      ],
+      "obscurity_score": 42
+    },
+    {
+      "artist": "Mazzy Star",
+      "title": "Fade into You",
+      "year": 1993,
+      "reason": "Dream pop's melancholic atmosphere, connecting with Cocteau Twins and Slowdive.",
+      "match_score": 85,
+      "match_attributes": [
+        "shared dreamy quality",
+        "mellow instrumentation"
+      ],
+      "similar_to": [
+        "Cocteau Twins",
+        "Slowdive"
+      ],
+      "obscurity_score": 10
+    },
+    {
+      "artist": "Einstürzende Neubauten",
+      "title": "Alles hat ein Ende",
+      "year": 1981,
+      "reason": "German industrial music's avant-garde edge, linked to Neu! and Can.",
+      "match_score": 87,
+      "match_attributes": [
+        "shared experimental approach",
+        "industrial sounds"
+      ],
+      "similar_to": [
+        "Neu!",
+        "Can"
+      ],
+      "obscurity_score": 30
+    },
+    {
+      "artist": "Nico",
+      "title": "Janitor for God",
+      "year": 1974,
+      "reason": "Berlin-inspired art rock and electronic influences, connecting with Can and Neu!",
+      "match_score": 90,
+      "match_attributes": [
+        "shared avant-garde spirit",
+        "German influences"
+      ],
+      "similar_to": [
+        "Can",
+        "Neu!"
+      ],
+      "obscurity_score": 60
+    }
+  ]
+}

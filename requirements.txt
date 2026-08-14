@@ -1,6 +1,10 @@
 fastapi>=0.110.0
+# Pinned explicitly because the TemplateResponse signature matters: Starlette
+# 1.0 removed the legacy TemplateResponse(name, context) form. app.py uses the
+# request-first form, which needs 0.36+.
+starlette>=0.36.0
 uvicorn[standard]>=0.29.0
-jinja2>=3.1.3
+jinja2>=3.1.3,<4
 python-dotenv>=1.0.1
 python3-discogs-client>=2.7
 anthropic>=0.49.0
