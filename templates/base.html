@@ -43,6 +43,7 @@
             <li><a href="/radio" {% if active_page == 'radio' %}aria-current="page"{% endif %}>Radio</a></li>
             <li><a href="/radio/likes" {% if active_page == 'likes' %}aria-current="page"{% endif %}>Likes</a></li>
             <li><a href="/search" {% if active_page == 'search' %}aria-current="page"{% endif %}>Search</a></li>
+            <li><a href="/household" {% if active_page == 'household' %}aria-current="page"{% endif %}>Household</a></li>
             <li><a href="/audit" {% if active_page == 'audit' %}aria-current="page"{% endif %}>Audit</a></li>
             {% if user and user.is_admin %}<li><a href="/admin" {% if active_page == 'admin' %}aria-current="page"{% endif %}>Admin</a></li>{% endif %}
         </ul>

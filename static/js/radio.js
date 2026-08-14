@@ -926,12 +926,32 @@ function togglePlay() {
     }
 }
 
+// Tell the household view what's playing. Fire-and-forget: this is a nicety,
+// and it must never delay or break playback. The server drops it if the
+// account has sharing turned off.
+function reportNowPlaying(track) {
+    if (!track) return;
+    const channelEl = document.querySelector('.channel-item.channel-active .channel-name');
+    fetch('/api/now-playing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            artist: track.artist || '',
+            title: track.title || '',
+            album: track.album || '',
+            videoId: track.videoId || '',
+            channel: channelEl ? channelEl.textContent.trim() : '',
+        }),
+    }).catch(() => {});
+}
+
 function loadTrack(track, autoplay = true) {
     if (!track) return;
 
     // Record start time for skip detection
     trackStartTime = Date.now();
     saveResume(true);
+    reportNowPlaying(track);
 
     // Always update UI even if YouTube player hasn't loaded yet
     updateTrackInfo(track);

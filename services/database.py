@@ -27,6 +27,19 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires_at TEXT NOT NULL
 );
 
+-- What each person is listening to right now, for the household view.
+-- One row per user, overwritten as they play — this is presence, not history,
+-- and history already lives in each user's own history.json.
+CREATE TABLE IF NOT EXISTS now_playing (
+    user_id      TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    artist       TEXT NOT NULL DEFAULT '',
+    title        TEXT NOT NULL DEFAULT '',
+    album        TEXT NOT NULL DEFAULT '',
+    video_id     TEXT NOT NULL DEFAULT '',
+    channel_name TEXT NOT NULL DEFAULT '',
+    updated_at   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS invite_tokens (
     token TEXT PRIMARY KEY,
     created_by TEXT NOT NULL REFERENCES users(id),
@@ -61,6 +74,11 @@ _MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN failed_logins INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN locked_until TEXT",
     "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+    # Whether this account shows what it's playing to the rest of the
+    # household. On by default — the feature is opt-out, not opt-in, because
+    # everyone here is in the same house and asked for it — but it is a
+    # switch, not a fact of life.
+    "ALTER TABLE users ADD COLUMN share_activity INTEGER NOT NULL DEFAULT 1",
 ]
 
 _INDEXES = [

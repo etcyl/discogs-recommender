@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active_page = 'household' %}
+{% block title %}Household - Discogs Recommender{% endblock %}
+
+{% block content %}
+<div class="household-page">
+    <header>
+        <h2>Household</h2>
+        <p class="household-sub">
+            What everyone else here is listening to, and the songs they've liked.
+            Play history, dislikes and private channels stay private.
+        </p>
+    </header>
+
+    {% if error %}<p class="auth-error" role="alert">{{ error }}</p>{% endif %}
+
+    {% if not sharing %}
+    <p class="auth-note--prompt">
+        You've turned sharing off, so you can't see others and they can't see you.
+        Turn it back on under <a href="/account/password">Password &amp; sharing</a>.
+    </p>
+    {% elif not people %}
+    <p class="household-empty">
+        Nobody else has an account yet.
+        {% if user and user.is_admin %}
+        Add someone from the <a href="/admin">Admin</a> page.
+        {% endif %}
+    </p>
+    {% else %}
+
+    <div class="household-grid" id="household-grid">
+        {% for person in people %}
+        <article class="person-card" data-user-id="{{ person.id }}">
+            <div class="person-head">
+                <span class="person-name">{{ person.name }}</span>
+                {% if person.track and person.track.live %}
+                <span class="person-live"><span class="live-dot"></span>listening</span>
+                {% endif %}
+            </div>
+
+            {% if person.track %}
+            <div class="person-track">
+                <div class="person-title">{{ person.track.title }}</div>
+                <div class="person-artist">{{ person.track.artist }}</div>
+                {% if person.track.channel %}
+                <div class="person-channel">from {{ person.track.channel }}</div>
+                {% endif %}
+                <div class="person-when" data-at="{{ person.track.at }}">
+                    {% if person.track.live %}now playing{% else %}last played{% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p class="person-idle">Hasn't played anything yet.</p>
+            {% endif %}
+
+            <div class="person-actions">
+                <a class="person-btn" href="/household/{{ person.id }}/likes">
+                    {{ person.liked_count }} liked song{{ '' if person.liked_count == 1 else 's' }}
+                </a>
+                {% if person.liked_count %}
+                <button class="person-btn person-btn--play"
+                        data-play-likes="{{ person.id }}"
+                        data-name="{{ person.name }}">
+                    Play their likes
+                </button>
+                {% endif %}
+                {% if person.track and person.track.videoId %}
+                <a class="person-btn" target="_blank" rel="noopener"
+                   href="https://www.youtube.com/watch?v={{ person.track.videoId }}">
+                    Listen along
+                </a>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/household.js"></script>
+{% endblock %}

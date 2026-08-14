@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% set active_page = 'household' %}
+{% block title %}{{ owner_name }}'s likes - Discogs Recommender{% endblock %}
+
+{% block content %}
+<div class="household-page">
+    <p class="back-link"><a href="/household">&larr; Household</a></p>
+
+    <header>
+        <h2>{% if is_self %}Your likes{% else %}{{ owner_name }}'s likes{% endif %}</h2>
+        <p class="household-sub">
+            {{ songs|length }} song{{ '' if songs|length == 1 else 's' }}, newest first.
+            {% if not is_self %}Read-only — liking something here won't change their list.{% endif %}
+        </p>
+    </header>
+
+    {% if songs and not is_self %}
+    <button class="person-btn person-btn--play" data-play-likes="{{ owner_id }}"
+            data-name="{{ owner_name }}">
+        Play these as a channel
+    </button>
+    {% endif %}
+
+    {% if not songs %}
+    <p class="household-empty">Nothing liked yet.</p>
+    {% else %}
+    <ol class="likes-list">
+        {% for song in songs %}
+        <li class="like-row">
+            <div class="like-main">
+                <span class="like-title">{{ song.title }}</span>
+                <span class="like-artist">{{ song.artist }}</span>
+            </div>
+            {% if song.album %}<span class="like-album">{{ song.album }}</span>{% endif %}
+            <a class="like-link" target="_blank" rel="noopener"
+               href="https://www.youtube.com/results?search_query={{ (song.artist ~ ' ' ~ song.title)|urlencode }}">
+                Play
+            </a>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/household.js"></script>
+{% endblock %}

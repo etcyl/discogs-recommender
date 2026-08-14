@@ -36,6 +36,7 @@ from services import guardrails
 from services import audit
 from services import network
 from services import passwords
+from services import household
 from services.database import init_db
 from services import auth_service
 from services.scene_service import SceneService
@@ -859,6 +860,125 @@ async def system_hardware(request: Request):
     from services.hardware_service import get_hardware_info
     info = await asyncio.to_thread(get_hardware_info, settings.ollama_base_url)
     return info
+
+
+# ---------------------------------------------------------------------------
+# Household — see and play what other people here are listening to
+# ---------------------------------------------------------------------------
+
+@app.post("/api/now-playing")
+async def report_now_playing(request: Request):
+    """The player reports the track it just started, for the household view."""
+    user = request.state.user
+    if not user.get("share_activity", 1):
+        return {"shared": False}
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    await asyncio.to_thread(
+        household.set_now_playing,
+        user["id"],
+        guardrails.sanitize(str(body.get("artist", "")), 300),
+        guardrails.sanitize(str(body.get("title", "")), 300),
+        guardrails.sanitize(str(body.get("album", "")), 300),
+        re.sub(r"[^A-Za-z0-9_-]", "", str(body.get("videoId", "")))[:32],
+        guardrails.sanitize(str(body.get("channel", "")), 100),
+    )
+    return {"shared": True}
+
+
+@app.get("/api/household")
+async def household_status(request: Request):
+    """Who else is here and what they're playing."""
+    people = await asyncio.to_thread(household.household, request.state.user)
+    return {"people": people,
+            "sharing": bool(request.state.user.get("share_activity", 1))}
+
+
+@app.get("/household", response_class=HTMLResponse)
+async def household_page(request: Request):
+    user = request.state.user
+    people = await asyncio.to_thread(household.household, user)
+    return templates.TemplateResponse(request, "household.html", _template_context(
+        request, people=people,
+        sharing=bool(user.get("share_activity", 1)),
+        active_page="household"))
+
+
+@app.get("/household/{user_id}/likes", response_class=HTMLResponse)
+async def household_likes(request: Request, user_id: str):
+    """Someone else's liked songs, read-only."""
+    user = request.state.user
+    if not re.match(r"^[a-zA-Z0-9]+$", user_id):
+        return RedirectResponse(url="/household", status_code=302)
+    if not household.can_view(user, user_id):
+        return templates.TemplateResponse(request, "household.html", _template_context(
+            request, people=[], sharing=bool(user.get("share_activity", 1)),
+            error="That list isn't shared with you.",
+            active_page="household"), status_code=403)
+
+    songs = await asyncio.to_thread(household.liked_songs, user_id)
+    return templates.TemplateResponse(request, "household_likes.html", _template_context(
+        request, songs=songs, owner_id=user_id,
+        owner_name=household.display_name(user_id),
+        is_self=(user_id == user["id"]),
+        active_page="household"))
+
+
+@app.post("/household/{user_id}/play-likes")
+async def play_household_likes(request: Request, user_id: str):
+    """Copy someone's liked songs into a channel of your own and play it.
+
+    A copy, not a live mirror: their list keeps changing as they listen, and a
+    playlist that reshuffles under you while it plays is worse than one you
+    chose. Re-run it to pick up their newer likes.
+    """
+    user = request.state.user
+    if not re.match(r"^[a-zA-Z0-9]+$", user_id) or not household.can_view(user, user_id):
+        return JSONResponse(status_code=403, content={"error": "Not shared with you"})
+
+    songs = await asyncio.to_thread(household.liked_songs, user_id)
+    if not songs:
+        return JSONResponse(status_code=400,
+                            content={"error": "They haven't liked anything yet."})
+
+    owner_name = household.display_name(user_id)
+    tracks = [{
+        "artist": s.get("artist", ""), "title": s.get("title", ""),
+        "album": s.get("album", ""), "year": "",
+        "reason": f"Liked by {owner_name}",
+    } for s in songs if s.get("artist") and s.get("title")]
+
+    user_dir = _get_user_data_dir(user)
+    name = f"{owner_name}'s Likes"
+    for ch in channel_service.load_channels(data_dir=user_dir):
+        if ch.get("name") == name and not ch.get("is_default"):
+            try:
+                channel_service.delete_channel(ch["id"], data_dir=user_dir)
+            except ValueError:
+                pass
+
+    channel = await asyncio.to_thread(
+        channel_service.create_channel,
+        name=name, source_type="upload", source_data={"tracks": tracks},
+        mode="play_playlist", num_songs=min(100, len(tracks)),
+        data_dir=user_dir)
+
+    cache.invalidate(f"radio_playlist:{user['id']}:{channel['id']}")
+    return {"channel_id": channel["id"], "name": channel["name"],
+            "tracks": len(tracks)}
+
+
+@app.post("/account/sharing")
+async def update_sharing(request: Request):
+    """Turn household sharing on or off for the signed-in account."""
+    user = request.state.user
+    form = await request.form()
+    enabled = str(form.get("share_activity", "")).lower() in ("1", "true", "on", "yes")
+    await asyncio.to_thread(household.set_sharing, user["id"], enabled)
+    return RedirectResponse(url="/account/password?sharing=1", status_code=302)
 
 
 # ---------------------------------------------------------------------------
