@@ -134,6 +134,27 @@ enough to prove two runs used the same prompt, without duplicating your data.
 Runs are pruned after `AUDIT_RETENTION_DAYS` (default 90). The log is for
 accountability, not analytics.
 
+### The playback log
+
+A verified song is not necessarily a playable one. The catalogue confirms the
+recording exists; the video the app found for it can still be blocked, private
+or deleted. That gap is invisible from inside the app — the track simply goes
+quiet and the next one starts — so "some songs aren't playing" was, until now,
+an unanswerable report.
+
+Every failure is recorded: the track, the account, the channel, the player's
+error code, and whether a backup video rescued it. `/audit` shows the reasons
+in plain language and the tracks that fail most often, which is what a playlist
+needs in order to be repaired rather than quietly eroded.
+
+The codes that matter are 101 and 150 — both mean the uploader has disallowed
+playback outside YouTube. Nothing the app does can fix those; the fix is a
+different video, or a different song.
+
+Scope follows the rest of the app: a person sees their own failures, and only
+an admin can ask for everyone's. Entries are pruned on the same retention
+schedule as the audit log.
+
 ---
 
 ## 3. Prompt injection â€” the prompt is not all yours
@@ -302,6 +323,10 @@ Honest list, in rough priority order:
    output impossible there too.
 5. **No rate limit on the verification fan-out.** A very large playlist issues
    a lot of catalogue lookups; MusicBrainz is paced, the other two are not.
+   This has a visible cost: screening a 533-track list produced eight false
+   "unverified" verdicts that all passed when re-checked on their own. The
+   accuracy figures are therefore a floor, not a measurement — but a real song
+   being thrown away as invented is the wrong direction to be wrong in.
 6. **The audit log is not tamper-evident.** It is append-only by convention,
    not by construction â€” anyone with database access can edit it.
 

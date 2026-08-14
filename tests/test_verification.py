@@ -26,6 +26,18 @@ class TestNormalize:
         assert verification.normalize("Sigur Rós") == "sigur ros"
         assert verification.normalize("Björk") == "bjork"
 
+    def test_a_name_made_entirely_of_version_words_survives(self):
+        """The bands Live and Mono were normalising to nothing, so every one
+        of their songs was reported as invented."""
+        assert verification.normalize("Live") == "live"
+        assert verification.normalize("Mono") == "mono"
+        assert verification.normalize("Demo") == "demo"
+        assert verification.similarity("Live", "Live") == 1.0
+
+    def test_version_words_are_still_stripped_when_they_are_a_suffix(self):
+        assert verification.normalize("Alive - Live") == "alive"
+        assert verification.normalize("Dreams - 2004 Remaster") == "dreams 2004"
+
     def test_drops_punctuation(self):
         # Punctuation becomes a separator rather than vanishing, so "N.W.A"
         # and "N W A" compare equal without "a.b" collapsing into "ab".

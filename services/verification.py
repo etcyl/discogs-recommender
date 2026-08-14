@@ -103,8 +103,13 @@ def normalize(text: str) -> str:
     text = text.lower()
     text = _FEAT.sub(" ", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
-    text = _VERSION_NOISE.sub(" ", text)
-    return re.sub(r"\s+", " ", text).strip()
+    stripped = re.sub(r"\s+", " ", _VERSION_NOISE.sub(" ", text)).strip()
+    # Some of those words are also the whole name — the bands Live and Mono,
+    # a track called "Demo". Stripping them to nothing makes the name match
+    # nothing, so the song is reported as invented when it plainly exists.
+    # Falling back to the unstripped form costs nothing: it only applies where
+    # the stripped form was unusable.
+    return stripped or re.sub(r"\s+", " ", text).strip()
 
 
 def similarity(a: str, b: str) -> float:

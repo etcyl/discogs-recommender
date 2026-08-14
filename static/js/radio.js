@@ -175,15 +175,44 @@ function onPlayerReady() {
     loadPlaylist();
 }
 
+// Report a playback problem so "some songs aren't playing" becomes a list of
+// which ones and why. Fire-and-forget — never let logging affect playback.
+function reportPlaybackEvent(kind, track, code, detail) {
+    if (!track) return;
+    const channelEl = document.querySelector(
+        '.channel-item.channel-active .channel-name');
+    fetch('/api/playback/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            event: kind,
+            artist: track.artist || '',
+            title: track.title || '',
+            videoId: track.videoId || '',
+            errorCode: code,
+            channelId: activeChannelId,
+            channel: channelEl ? channelEl.textContent.trim() : '',
+            detail: detail || '',
+        }),
+    }).catch(() => {});
+}
+
 function onPlayerError(event) {
     const track = queue[currentIndex];
+    const code = event.data;
+
     if (track && track.altVideoIds && track.altVideoIds.length > 0) {
         const nextId = track.altVideoIds.shift();
-        console.warn('YouTube error:', event.data, '— trying alt video', nextId);
+        console.warn('YouTube error:', code, '— trying alt video', nextId);
+        // Logged as 'recovered': the track still played, but the first video
+        // for it is dead and the playlist should be repaired.
+        reportPlaybackEvent('recovered', track, code,
+                            `fell back to ${nextId}`);
         track.videoId = nextId;
         player.loadVideoById(nextId);
     } else {
-        console.warn('YouTube error:', event.data, '— no alternatives, skipping');
+        console.warn('YouTube error:', code, '— no alternatives, skipping');
+        reportPlaybackEvent('error', track, code, 'no alternatives left');
         playNext();
     }
 }

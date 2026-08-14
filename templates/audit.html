@@ -87,6 +87,75 @@
   {% endif %}
 
   <section class="audit-section">
+    <h3>Playback problems{% if scope_all %} &mdash; all users{% endif %}</h3>
+    <p class="audit-note">
+      When a song goes silent it is almost always the video, not the song: the
+      uploader blocked playback outside YouTube, or the upload is gone. These are
+      the ones that failed, so the playlist can be repaired instead of quietly
+      skipping.
+    </p>
+
+    {% if not playback or not playback.total %}
+    <p class="audit-empty">
+      No playback failures recorded.
+      {% if playback and playback.recovered %}
+      {{ playback.recovered }} track{{ '' if playback.recovered == 1 else 's' }}
+      needed a backup video but played fine.
+      {% endif %}
+    </p>
+    {% else %}
+    <p class="audit-note">
+      {{ playback.total }} failed to play.
+      {% if playback.recovered %}
+      Another {{ playback.recovered }} recovered on a backup video.
+      {% endif %}
+    </p>
+
+    <div class="audit-table-wrap">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Reason</th>
+            <th class="num">Times</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in playback.by_reason %}
+          <tr>
+            <td>{{ r.meaning }}{% if r.error_code %} <span class="audit-chip is-muted">code {{ r.error_code }}</span>{% endif %}</td>
+            <td class="num">{{ r.n }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="audit-table-wrap">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Artist</th>
+            <th>Track</th>
+            <th>Why</th>
+            <th class="num">Times</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in playback.worst %}
+          <tr>
+            <td>{{ t.artist or '—' }}</td>
+            <td>{{ t.title or '—' }}</td>
+            <td>{{ t.meaning }}</td>
+            <td class="num">{{ t.n }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="audit-section">
     <h3>Generations{% if scope_all %} &mdash; all users{% endif %}</h3>
 
     {% if not runs %}

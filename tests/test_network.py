@@ -71,3 +71,40 @@ class TestLanAddresses:
     def test_returns_only_non_loopback_addresses(self):
         for ip in network.lan_addresses():
             assert not network.is_loopback(ip)
+
+
+class TestLocalHostnames:
+    """Names the machine answers to, so a short alias can be typed instead
+    of an IP address. These end up in the trusted-host list, so a bad value
+    must be dropped rather than widened into a wildcard."""
+
+    def test_includes_the_machine_name(self):
+        import socket
+        assert socket.gethostname().lower() in network.local_hostnames()
+
+    def test_each_name_gets_an_mdns_form(self):
+        import socket
+        assert f"{socket.gethostname().lower()}.local" in network.local_hostnames()
+
+    def test_names_are_lowercased(self):
+        assert all(n == n.lower() for n in network.local_hostnames())
+
+    def test_no_duplicates(self):
+        names = network.local_hostnames()
+        assert len(names) == len(set(names))
+
+    @pytest.mark.parametrize("bad", [
+        "*", "*.com", "evil.com:80", "a/b", "", "   ", None,
+    ])
+    def test_a_junk_alias_is_ignored(self, bad, monkeypatch):
+        """A registry value is not a URL. Anything with a wildcard, port or
+        path would turn the trusted-host list into a match-everything rule."""
+        monkeypatch.setattr(network.socket, "gethostname", lambda: bad)
+        assert all("*" not in n and "/" not in n and ":" not in n
+                   for n in network.local_hostnames())
+
+    def test_a_missing_hostname_does_not_raise(self, monkeypatch):
+        def boom():
+            raise OSError("no hostname")
+        monkeypatch.setattr(network.socket, "gethostname", boom)
+        assert isinstance(network.local_hostnames(), list)

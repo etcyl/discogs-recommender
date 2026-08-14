@@ -150,13 +150,36 @@ To let someone else on the same network use it:
 LAN_ACCESS=true
 ```
 
-```bash
-uvicorn app:app --port 8000 --host 0.0.0.0
+```powershell
+.\serve.ps1          # port 80, prints the addresses to hand out
 ```
 
 Then open **Admin → Add someone on this network**, give them a username and an
-initial password, and send them `http://<your-ip>:8000/login`. The admin page
-shows the address to use.
+initial password, and send them the address. The admin page shows it too.
+
+### Give it a name instead of an IP address
+
+Nobody wants to retype `192.168.0.151:8000` on a phone. `serve.ps1` defaults to
+port 80 so the port disappears, and the app already answers to the machine's own
+name — `http://your-pc/` on Windows and Android, `http://your-pc.local/` on
+iPhone, iPad and Mac.
+
+For something shorter, run this once in an **elevated** PowerShell:
+
+```powershell
+.\tools\setup_lan_name.ps1 -Name radio
+```
+
+That opens the port for private networks only and registers `radio` as an extra
+name for the machine, so the address becomes `http://radio/`. The app picks the
+alias up automatically — it reads the names the OS publishes rather than keeping
+a second copy in config. Undo it with `-Undo`.
+
+If a device resolves none of the names, its hosts file always works:
+
+```text
+192.168.0.151  radio
+```
 
 Each account is completely separate: its own channels, likes, dislikes, play
 history, preferences and audit log. Nobody sees anyone else's playlists or
@@ -209,6 +232,11 @@ Alongside that:
 - **Catalogue identity beats a video title.** When YouTube resolution rewrites
   a track's name into something a catalogue contradicts — an interview clip, a
   podcast episode — the confirmed name is restored.
+- **Songs that go silent are recorded.** A verified song can still be
+  unplayable: rights holders block embedding, and uploads get deleted. When
+  that happens the player logs the track and the reason, and `/audit` lists the
+  ones failing most often, so a playlist can be repaired instead of quietly
+  losing a song every few minutes.
 
 Full threat model, what each layer does, and where each one stops:
 **[docs/SAFETY.md](docs/SAFETY.md)**.

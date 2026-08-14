@@ -402,6 +402,87 @@ class TestCaching:
         assert "no-store" in cc
 
 
+# ===========================================================================
+# CWE-20 / CWE-200: the playback failure log
+# ===========================================================================
+
+class TestPlaybackEventEndpoint:
+    """The player posts here whenever a track fails. It is browser-supplied
+    input written to a database, and the log is read back on a page, so both
+    directions need checking."""
+
+    def _post(self, client, **body):
+        return client.post("/api/playback/event", json=body)
+
+    def test_a_failure_is_accepted(self, client):
+        with patch("app.playback_log") as log:
+            r = self._post(client, event="error", artist="Magazine",
+                           title="Shot by Both Sides", videoId="abc123",
+                           errorCode=150)
+            assert r.status_code == 200
+            assert log.record.called
+
+    def test_an_unknown_event_type_is_rejected(self, client):
+        with patch("app.playback_log") as log:
+            r = self._post(client, event="drop_tables", artist="A", title="B")
+            assert r.status_code == 400
+            assert not log.record.called
+
+    def test_malformed_json_is_rejected(self, client):
+        r = client.post("/api/playback/event", content=b"not json",
+                        headers={"Content-Type": "application/json"})
+        assert r.status_code == 400
+
+    def test_a_non_numeric_error_code_becomes_none(self, client):
+        with patch("app.playback_log") as log:
+            self._post(client, event="error", errorCode="'; DROP TABLE--")
+            assert log.record.call_args.kwargs["error_code"] is None
+
+    def test_a_forged_video_id_is_stripped_to_safe_characters(self, client):
+        with patch("app.playback_log") as log:
+            self._post(client, event="error",
+                       videoId="<script>alert(1)</script>")
+            stored = log.record.call_args.kwargs["video_id"]
+            assert "<" not in stored and ">" not in stored
+
+    def test_an_oversized_track_name_is_truncated(self, client):
+        """A track name is a few words. Nothing stops a caller sending a
+        megabyte, so the cap is applied before it reaches the database."""
+        with patch("app.playback_log") as log:
+            self._post(client, event="error", artist="x" * 100_000, title="B")
+            stored = log.record.call_args.kwargs["artist"]
+            assert len(stored) < 400 and stored.endswith("…")
+
+    def test_markup_in_a_track_name_is_escaped_on_the_page(self, client):
+        """The log is rendered back to a person, so a hostile 'artist' must
+        not become live markup."""
+        with patch("app.playback_log") as log:
+            log.summary.return_value = {
+                "by_reason": [],
+                "worst": [{"artist": "<img src=x onerror=alert(1)>",
+                           "title": "B", "video_id": "", "n": 1,
+                           "error_code": 150, "meaning": "blocked"}],
+                "total": 1, "recovered": 0}
+            body = client.get("/audit").text
+            assert "<img src=x onerror=alert(1)>" not in body
+            assert "&lt;img" in body
+
+    def test_the_event_is_attributed_to_the_signed_in_account(self, client):
+        """A caller must not be able to write failures onto someone else."""
+        with patch("app.playback_log") as log:
+            self._post(client, event="error", user_id="somebody-else",
+                       artist="A", title="B")
+            assert log.record.call_args.kwargs["user_id"] == MOCK_USER["id"]
+
+    def test_problems_are_scoped_to_the_caller_by_default(self, client):
+        with patch("app.playback_log") as log:
+            log.summary.return_value = {"by_reason": [], "worst": [],
+                                        "total": 0, "recovered": 0}
+            log.recent.return_value = []
+            client.get("/api/playback/problems")
+            assert log.summary.call_args[0][0] == MOCK_USER["id"]
+
+
 class TestCWE693_ProtectionMechanisms:
     """Verify security headers and protections are active."""
 

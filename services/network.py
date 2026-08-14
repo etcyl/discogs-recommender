@@ -87,6 +87,48 @@ def is_private(ip) -> bool:
                if net.version == addr.version)
 
 
+def local_hostnames() -> list[str]:
+    """Every name this machine answers to on the home network.
+
+    Typing an IP address on a phone is nobody's idea of a good time, so the
+    machine can be given a short alias (tools/setup_lan_name.ps1 registers one
+    as a Windows OptionalName). The alias only helps if the app will also
+    *accept* it as a Host header, and hard-coding it in config would mean two
+    places to keep in sync. Reading the names the OS actually publishes keeps
+    the trusted-host list exactly as wide as reality and no wider.
+    """
+    names: list[str] = []
+
+    def add(name):
+        name = str(name or "").strip().lower()
+        # A Host header is a hostname, not a URL. Reject anything carrying a
+        # port, path, or wildcard so a stray registry value can't widen the
+        # trusted-host list into a match-everything rule.
+        if (name and name not in names
+                and all(c.isalnum() or c in "-." for c in name)):
+            names.append(name)
+            names.append(f"{name}.local")
+
+    try:
+        add(socket.gethostname())
+    except OSError:
+        pass
+
+    try:                                    # Windows NetBIOS aliases
+        import winreg
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
+        ) as key:
+            value, _ = winreg.QueryValueEx(key, "OptionalNames")
+            for name in ([value] if isinstance(value, str) else value or []):
+                add(name)
+    except (ImportError, OSError, FileNotFoundError):
+        pass
+
+    return names
+
+
 def lan_addresses() -> list[str]:
     """This machine's own LAN addresses, for building a shareable link.
 

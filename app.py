@@ -37,6 +37,7 @@ from services import audit
 from services import network
 from services import passwords
 from services import household
+from services import playback_log
 from services.database import init_db
 from services import auth_service
 from services.scene_service import SceneService
@@ -66,11 +67,7 @@ if settings.lan_access:
     from services import network as _network
     _ALLOWED_HOSTS += _network.lan_addresses()
     _ALLOWED_HOSTS += ["*.local", "*.lan", "*.home", "*.internal"]
-    try:
-        import socket as _socket
-        _ALLOWED_HOSTS.append(_socket.gethostname())
-    except OSError:
-        pass
+    _ALLOWED_HOSTS += _network.local_hostnames()
 _ALLOWED_HOSTS += settings.allowed_host_list
 if os.environ.get("TESTING"):
     _ALLOWED_HOSTS.append("testserver")
@@ -114,8 +111,10 @@ youtube_playlist = YouTubePlaylistService()
 # Initialize database and bootstrap admin user
 init_db()
 audit.init_audit_db()
+playback_log.init_playback_db()
 if settings.audit_enabled:
     audit.prune(settings.audit_retention_days)
+    playback_log.prune(settings.audit_retention_days)
 admin_user = auth_service.ensure_admin_exists()
 auth_service.migrate_admin_data()
 auth_service.cleanup_expired_sessions()
@@ -915,6 +914,49 @@ async def report_now_playing(request: Request):
     return {"shared": True}
 
 
+@app.post("/api/playback/event")
+async def record_playback_event(request: Request):
+    """The player reports a track that failed or needed a fallback video."""
+    user = request.state.user
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    event = str(body.get("event", ""))
+    if event not in ("error", "recovered", "unavailable"):
+        return JSONResponse(status_code=400, content={"error": "Unknown event"})
+
+    try:
+        code = int(body.get("errorCode"))
+    except (TypeError, ValueError):
+        code = None
+
+    await asyncio.to_thread(
+        playback_log.record,
+        user_id=user["id"], event=event,
+        artist=guardrails.sanitize(str(body.get("artist", "")), 300),
+        title=guardrails.sanitize(str(body.get("title", "")), 300),
+        video_id=re.sub(r"[^A-Za-z0-9_-]", "", str(body.get("videoId", "")))[:32],
+        error_code=code,
+        channel_id=re.sub(r"[^a-zA-Z0-9_-]", "", str(body.get("channelId", "")))[:64],
+        channel_name=guardrails.sanitize(str(body.get("channel", "")), 100),
+        detail=guardrails.sanitize(str(body.get("detail", "")), 300))
+    return {"recorded": True}
+
+
+@app.get("/api/playback/problems")
+async def playback_problems(request: Request):
+    """Which tracks are failing, for this account or (admin) everyone."""
+    user = request.state.user
+    scope_all = bool(user.get("is_admin")) and \
+        request.query_params.get("all") == "1"
+    scope = None if scope_all else user["id"]
+    data = await asyncio.to_thread(playback_log.summary, scope)
+    data["recent"] = await asyncio.to_thread(playback_log.recent, scope, 100)
+    return data
+
+
 @app.get("/api/household")
 async def household_status(request: Request):
     """Who else is here and what they're playing."""
@@ -1025,9 +1067,11 @@ async def audit_page(request: Request):
         audit.list_runs, None if scope_all else user["id"], 100)
     model_stats = await asyncio.to_thread(
         audit.stats, None if scope_all else user["id"])
+    playback = await asyncio.to_thread(
+        playback_log.summary, None if scope_all else user["id"])
     return templates.TemplateResponse(request, "audit.html", _template_context(
         request, runs=runs, model_stats=model_stats["by_model"],
-        scope_all=scope_all,
+        playback=playback, scope_all=scope_all,
         verification_policy=settings.verification_policy,
         audit_enabled=settings.audit_enabled,
         retention_days=settings.audit_retention_days,
