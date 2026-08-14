@@ -1,0 +1,208 @@
+# Top-up for "Claude's 1000". Same exclusion rules; weighted toward tracks
+# with reliable YouTube coverage, since 115 of the first batch had no match.
+
+# --- Indie rock, widely available ---
+The Replacements - Alex Chilton
+Husker Du - Could You Be the One?
+The Feelies - Crazy Rhythms
+Camper Van Beethoven - Take the Skinheads Bowling
+Meat Puppets - Plateau
+Violent Femmes - Blister in the Sun
+The dB's - Black and White
+Let's Active - Every Word Means No
+Game Theory - Erica's Word
+The Posies - Dream All Day
+Matthew Sweet - Girlfriend
+Superdrag - Sucked Out
+Local H - Bound for the Floor
+Nada Surf - Popular
+Fountains of Wayne - Radiation Vibe
+Ben Folds Five - Song for the Dumped
+The Old 97's - Timebomb
+Whiskeytown - 16 Days
+Uncle Tupelo - No Depression
+Son Volt - Windfall
+Drive-By Truckers - Zip City
+Centro-matic - Flashes and Cables
+Silkworm - Couldn't You Wait
+Archers of Loaf - Harnessed in Slums
+Sunny Day Real Estate - In Circles
+Braid - A Dozen Roses
+The Promise Ring - Is This Thing On?
+Texas Is the Reason - Do You Know Who You Are?
+Christie Front Drive - Radio
+Mineral - Gloria
+American Football - Never Meant
+The Get Up Kids - Action & Action
+Jimmy Eat World - For Me This Is Heaven
+Death Cab excluded, skip
+The Anniversary - All Things Ordinary
+Rainer Maria - Ears Ring
+Cursive - The Recluse
+The Appleseed Cast - Fishing the Sky
+Piebald - American Hearts
+
+# --- Britpop and 90s UK ---
+Suede - Animal Nitrate
+Blur - Beetlebum
+Pulp - This Is Hardcore
+Supergrass - Caught by the Fuzz
+Elastica - Connection
+Sleeper - Sale of the Century
+Ash - Girl from Mars
+The Bluetones - Slight Return
+Gene - Olympian
+Shed Seven - Going for Gold
+The Auteurs - Lenny Valentino
+Denim - Middle of the Road
+Saint Etienne - Only Love Can Break Your Heart
+Stereolab excluded, skip
+The Divine Comedy - Something for the Weekend
+Tindersticks - Travelling Light
+Spiritualized excluded above, skip
+The Verve - A Northern Soul
+Ride excluded above, skip
+Doves - There Goes the Fear
+Elbow - Newborn
+I Am Kloot - Proof
+South - Paint the Silence
+Clinic excluded above, skip
+Six by Seven - Candlelight
+
+# --- Well-known electronic ---
+Orbital - Halcyon and On and On
+Underworld - Rez
+Leftfield - Song of Life
+The Orb - Little Fluffy Clouds
+808 State - Pacific State
+A Guy Called Gerald - Voodoo Ray
+LFO - LFO
+Nightmares on Wax excluded, skip
+Sabres of Paradise - Smokebelch II
+Two Lone Swordsmen - Rico's Helly
+Andrew Weatherall - Feathers
+Fluke - Atom Bomb
+Bomb the Bass excluded, skip
+Dust Brothers - This Is Your Life
+Death in Vegas - Dirge
+Primal Scream - Higher Than the Sun
+Saint Germain excluded, skip
+Groove Armada - At the River
+Faithless - Insomnia
+Way Out West - The Gift
+Chicane - Offshore
+Sasha - Xpander
+BT - Flaming June
+Paul van Dyk - For an Angel
+Robert Miles - Children
+Jam & Spoon - Stella
+Age of Love - The Age of Love
+Cygnus X - Superstring
+Energy 52 - Cafe del Mar
+三 skip malformed
+Salt Tank - Eugina
+Nalin & Kane - Beachball
+
+# --- Hip hop with strong coverage ---
+A Tribe excluded, skip
+The Pharcyde excluded, skip
+Beastie excluded, skip
+Cypress Hill excluded, skip
+House of Pain - Jump Around
+Naughty by Nature - O.P.P.
+Onyx - Slam
+Das EFX - They Want EFX
+Redman - Time 4 Sum Aksion
+Busta Rhymes - Woo Hah!! Got You All in Check
+The Fugees - Ready or Not
+Lauryn Hill - Doo Wop (That Thing)
+Bahamadia - Uknowhowwedu
+Rah Digga - Break Fool
+Jean Grae - Love Song
+Talib Kweli - Get By
+Common excluded, skip
+Little Brother excluded above, skip
+The Pharcyde skip dup
+Ol' Dirty Bastard - Shimmy Shimmy Ya
+Masta Ace - Born to Roll
+Craig Mack - Flava in Ya Ear
+The Notorious B.I.G. - Juicy
+Gang Starr excluded, skip
+Jay Dee skip
+Pete Rock excluded above, skip
+Nas excluded above, skip
+Blackalicious excluded, skip
+Dr. Octagon - Blue Flowers
+Kool Keith - Sex Style
+Deltron 3030 - 3030
+Handsome Boy Modeling School - The Truth
+Gorillaz excluded, skip
+Lyrics Born - Callin' Out
+Latyrx - Lady Don't Tek No
+Blackalicious skip dup
+DJ Shadow excluded, skip
+
+# --- Classic and well-known rock ---
+Television excluded, skip
+Talking Heads excluded, skip
+The Modern Lovers - Roadrunner
+Richard Hell and the Voidoids - Blank Generation
+Wire excluded, skip
+Buzzcocks - Ever Fallen in Love
+The Undertones - Teenage Kicks
+The Jam - Town Called Malice
+The Specials - Ghost Town
+Madness - One Step Beyond
+Dexys Midnight Runners - Geno
+The Beat - Mirror in the Bathroom
+Squeeze - Up the Junction
+XTC - Making Plans for Nigel
+Nick Lowe - Cruel to Be Kind
+Elvis Costello - (I Don't Want to Go to) Chelsea
+Graham Parker - Local Girls
+Joe Jackson - Steppin' Out
+Ian Dury - Hit Me with Your Rhythm Stick
+Wreckless Eric - Whole Wide World
+The Only Ones - Another Girl, Another Planet
+The Saints - (I'm) Stranded
+Radio Birdman - New Race
+The Damned - New Rose
+Wire excluded dup, skip
+Stiff Little Fingers - Alternative Ulster
+Magazine excluded above, skip
+Public Image Ltd - Public Image
+The Slits - Typical Girls
+X-Ray Spex - Oh Bondage Up Yours!
+Siouxsie and the Banshees - Hong Kong Garden
+
+# --- Soul, funk, disco with coverage ---
+Chic excluded, skip
+Nile Rodgers skip
+Sister Sledge - Lost in Music
+Rose Royce - Wishing on a Star
+The Isley Brothers - Between the Sheets
+The Whispers - And the Beat Goes On
+Shalamar - A Night to Remember
+Midnight Star - Curious
+The Gap Band - Outstanding
+Zapp - More Bounce to the Ounce
+Roger - I Want to Be Your Man
+Cameo - Candy
+Con Funk Shun - Ffun
+Lakeside - Fantastic Voyage
+Rick James - Give It to Me Baby
+Teena Marie - Square Biz
+The Brothers Johnson - Strawberry Letter 23
+Heatwave - Boogie Nights
+Atlantic Starr - Am I Dreaming
+Kleeer - Intimate Connection
+Fatback Band - I Found Lovin'
+Brass Construction - Movin'
+BT Express - Do It ('Til You're Satisfied)
+Crown Heights Affair - Dreaming a Dream
+Instant Funk - I Got My Mind Made Up
+Double Exposure - Ten Percent
+MFSB - Love Is the Message
+The Trammps - Disco Inferno
+Vicki Sue Robinson - Turn the Beat Around
+Anita Ward - Ring My Bell

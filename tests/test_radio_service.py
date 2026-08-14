@@ -104,6 +104,31 @@ class TestGenerateThemedPlaylist:
 class TestResolveYoutubeIds:
     """Tests for resolve_youtube_ids()."""
 
+    @patch("services.radio_service.RadioService._fetch_song_metadata")
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
+    def test_skips_metadata_lookup_when_already_enriched(self, mock_cache,
+                                                        mock_search_cls,
+                                                        mock_meta, radio_svc):
+        """A pre-built playlist must not re-fetch metadata on every play."""
+        mock_cache.get.return_value = None
+        playlist = [{"artist": "A", "title": "B", "videoId": "v1",
+                     "albumArt": "art.jpg", "album": "Album", "year": "1999"}]
+        radio_svc.resolve_youtube_ids(playlist)
+        mock_meta.assert_not_called()
+
+    @patch("services.radio_service.RadioService._fetch_song_metadata",
+           return_value={"albumArt": "a.jpg", "album": "Alb", "year": "2001"})
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
+    def test_still_enriches_when_data_is_missing(self, mock_cache, mock_search_cls,
+                                                 mock_meta, radio_svc):
+        mock_cache.get.return_value = None
+        playlist = [{"artist": "A", "title": "B", "videoId": "v1"}]
+        result = radio_svc.resolve_youtube_ids(playlist)
+        mock_meta.assert_called_once()
+        assert result[0]["album"] == "Alb"
+
     @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
     @patch("services.radio_service.VideosSearch")
     @patch("services.radio_service.cache")
@@ -135,6 +160,25 @@ class TestResolveYoutubeIds:
         result = radio_svc.resolve_youtube_ids(playlist)
         assert result[0]["artist"] == "Washed Out"
         assert result[0]["title"] == "Feel It All Around"
+        assert result[0]["videoId"] == "v1"
+
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
+    def test_trust_input_names_beats_the_video_title(self, mock_cache,
+                                                     mock_search_cls, _m, radio_svc):
+        """An explicit playlist's names are authoritative."""
+        mock_cache.get.return_value = None
+        instance = MagicMock()
+        instance.result.return_value = {"result": [
+            {"id": "v1", "thumbnails": [{"url": "t.jpg"}], "duration": "4:00",
+             "title": "Nacho Video | Magazine | The Light Pours Out Of Me | Live"}]}
+        mock_search_cls.return_value = instance
+
+        playlist = [{"artist": "Magazine", "title": "The Light Pours Out of Me"}]
+        result = radio_svc.resolve_youtube_ids(playlist, trust_input_names=True)
+        assert result[0]["artist"] == "Magazine"
+        assert result[0]["title"] == "The Light Pours Out of Me"
         assert result[0]["videoId"] == "v1"
 
     @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})

@@ -631,8 +631,17 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                                       era_from=era_from, era_to=era_to)
 
     def resolve_youtube_ids(self, playlist: list[dict],
-                            exclude_set: set[tuple[str, str]] | None = None) -> list[dict]:
-        """Find YouTube video IDs, correct metadata from YT title, and fetch album info."""
+                            exclude_set: set[tuple[str, str]] | None = None,
+                            trust_input_names: bool = False) -> list[dict]:
+        """Find YouTube video IDs, correct metadata from YT title, and fetch album info.
+
+        trust_input_names: the caller already knows what these tracks are
+        called — a hand-written or externally verified list — so the video
+        title must not overwrite them. Without it, a track picks up whatever
+        the uploader typed: "Nacho Video - Magazine | The Light Pours Out Of
+        Me | Live 1980" for what should be "Magazine - The Light Pours Out of
+        Me".
+        """
         def _resolve_one(song):
             artist = song.get("artist", "")
             title = song.get("title", "")
@@ -658,8 +667,8 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 # music catalogue, the catalogue outranks whatever an uploader
                 # typed: otherwise a confirmed track picks up "(vinyl rip)",
                 # "(432hz)", or the uploader's channel name as its artist.
-                if (song.get("verification") or {}).get("status") in (
-                        "verified", "corrected"):
+                if trust_input_names or (song.get("verification") or {}).get(
+                        "status") in ("verified", "corrected"):
                     return song
 
                 yt_artist, yt_song = self._parse_youtube_title(
@@ -677,11 +686,22 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
             return None
 
         def _enrich_metadata(song):
-            """Look up album name, year, and artwork via iTunes/Deezer."""
+            """Look up album name, year, and artwork via iTunes/Deezer.
+
+            Skipped when the track already carries this data. A pre-built
+            playlist stores it at build time, and re-fetching would mean an
+            iTunes and a Deezer round trip per track on every single play —
+            two thousand requests to start a thousand-track channel.
+            """
+            if song.get("albumArt") and song.get("album") and song.get("year"):
+                return
             artist = song.get("artist", "")
             title = song.get("title", "")
             meta = self._fetch_song_metadata(artist, title)
-            song["albumArt"] = meta.get("albumArt", "")
+            if meta.get("albumArt"):
+                song["albumArt"] = meta["albumArt"]
+            elif "albumArt" not in song:
+                song["albumArt"] = ""
             if meta.get("album"):
                 song["album"] = meta["album"]
             if meta.get("year"):

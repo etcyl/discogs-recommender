@@ -98,6 +98,10 @@ def main() -> int:
                    help="cap the playlist at this many tracks")
     p.add_argument("--no-interleave", action="store_true",
                    help="keep file order instead of alternating between sections")
+    p.add_argument("--append-to", default=None, metavar="CHANNEL_ID",
+                   help="add these tracks to an existing channel instead of "
+                        "creating one, so a large playlist can be topped up "
+                        "without re-resolving everything already in it")
     args = p.parse_args()
 
     tracks = load_sectioned(args.tracks)
@@ -159,7 +163,8 @@ def main() -> int:
     # --- 2. resolve to YouTube -------------------------------------------
     print(f"\nResolving {len(tracks)} tracks to YouTube videos...")
     radio = RadioService()
-    resolved = radio.resolve_youtube_ids(tracks)
+    # These names came from an explicit list, so they win over video titles.
+    resolved = radio.resolve_youtube_ids(tracks, trust_input_names=True)
     print(f"  {len(resolved)} playable, {len(tracks) - len(resolved)} with no match")
 
     # resolve_youtube_ids rewrites artist/title from the video title; where a
@@ -198,6 +203,24 @@ def main() -> int:
         "duration": s.get("duration", ""),
         "verification": s.get("verification", {}),
     } for s in resolved]
+
+    if args.append_to:
+        channels = channel_service.load_channels(data_dir=user_dir)
+        target = next((c for c in channels if c["id"] == args.append_to), None)
+        if not target:
+            raise SystemExit(f"No channel {args.append_to} in {user_dir}")
+        existing_tracks = target["source_data"].get("tracks", [])
+        have = {(t.get("artist", "").lower(), t.get("title", "").lower())
+                for t in existing_tracks}
+        fresh = [t for t in payload
+                 if (t["artist"].lower(), t["title"].lower()) not in have]
+        target["source_data"]["tracks"] = existing_tracks + fresh
+        channel_service._atomic_write_json(
+            user_dir / "channels.json", channels)
+        print(f"\nAppended {len(fresh)} tracks to '{target['name']}' "
+              f"({target['id']}) — now {len(existing_tracks) + len(fresh)} total")
+        print(f"  {user_dir / 'channels.json'}")
+        return 0
 
     existing = [c for c in channel_service.load_channels(data_dir=user_dir)
                 if c.get("name") == name]

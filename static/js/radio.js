@@ -1866,7 +1866,7 @@ function initSilentAudio() {
         silentMediaDest = silentAudioCtx.createMediaStreamDestination();
         silentOscillator = silentAudioCtx.createOscillator();
         silentGain = silentAudioCtx.createGain();
-        silentGain.gain.value = 0.001; // nearly inaudible
+        silentGain.gain.value = 0; // truly silent — 0.001 (-60 dBFS) is audible on high-gain amps
         silentOscillator.connect(silentGain);
         silentGain.connect(silentMediaDest);
         silentOscillator.start();
