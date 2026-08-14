@@ -4,8 +4,72 @@
 {% block content %}
 <h2>Admin Panel</h2>
 
+{% if request.query_params.get('error') %}
+<p class="auth-error" role="alert">{{ request.query_params.get('error') }}</p>
+{% endif %}
+{% if request.query_params.get('created') %}
+<p class="auth-ok" role="status">
+    Account <strong>{{ request.query_params.get('created') }}</strong> created.
+    They can sign in from any device on this network.
+</p>
+{% endif %}
+{% if request.query_params.get('reset') %}
+<p class="auth-ok" role="status">Password reset. They'll be asked to choose a new one.</p>
+{% endif %}
+
+<!-- Accounts -->
+<section class="admin-section">
+    <h3>Add someone on this network</h3>
+    <p>
+        Creates a separate account with its own playlists, likes and history.
+        They sign in at
+        {% if lan_urls %}<code>{{ lan_urls[0] }}/login</code>{% else %}<code>/login</code>{% endif %}
+        from any device on the same network.
+    </p>
+
+    {% if not lan_access %}
+    <p class="auth-note--prompt">
+        Network access is currently off, so only this machine can reach the app.
+        Set <code>LAN_ACCESS=true</code> in <code>.env</code> and restart, then
+        start it with <code>--host 0.0.0.0</code>.
+    </p>
+    {% endif %}
+
+    <form method="post" action="/admin/create-account" class="admin-form">
+        <div>
+            <label for="new-display-name">Display name</label>
+            <input type="text" id="new-display-name" name="display_name"
+                   maxlength="100" placeholder="e.g. Sam" required>
+        </div>
+        <div>
+            <label for="new-login-name">Username</label>
+            <input type="text" id="new-login-name" name="login_name"
+                   maxlength="32" pattern="[A-Za-z0-9._\-]{2,32}"
+                   autocapitalize="none" spellcheck="false"
+                   placeholder="sam" required>
+        </div>
+        <div>
+            <label for="new-password">Initial password</label>
+            <input type="text" id="new-password" name="password"
+                   minlength="10" placeholder="at least 10 characters" required>
+        </div>
+        <div>
+            <label for="new-models">AI models</label>
+            <select id="new-models" name="allowed_models">
+                <option value="ollama">Ollama only (free, local)</option>
+                <option value="all">All available</option>
+            </select>
+        </div>
+        <button type="submit">Create account</button>
+    </form>
+    <p class="auth-note">
+        Give them the password directly, then have them change it under
+        <strong>Password</strong> — they'll be prompted on first sign-in.
+    </p>
+</section>
+
 <!-- Invite Links Section -->
-<section>
+<section class="admin-section">
     <h3>Invite Links</h3>
     <p>Generate invite links to let others use the app with their own isolated data.</p>
 

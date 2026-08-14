@@ -1,26 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Login - Discogs Recommender{% endblock %}
+{% block title %}Sign in - Discogs Recommender{% endblock %}
 
 {% block content %}
-<article style="max-width: 500px; margin: 2rem auto;">
-    <header>
-        <h2>Discogs Recommender</h2>
-    </header>
+<div class="auth-page">
+    <h1 class="auth-title">Sign in</h1>
+    <p class="auth-sub">Discogs Recommender</p>
 
     {% if error %}
-    <p style="color: var(--pico-del-color);"><strong>{{ error }}</strong></p>
+    <p class="auth-error" role="alert">{{ error }}</p>
     {% endif %}
 
-    <p>This app is invite-only. If someone shared a link with you, use that to join.</p>
+    <form method="post" action="/login" class="auth-form" autocomplete="on">
+        <input type="hidden" name="next" value="{{ next or '' }}">
 
-    <details>
-        <summary>Admin Login</summary>
-        <form method="post" action="/login" style="margin-top: 1rem;">
-            <label for="discogs_token">Discogs Personal Access Token</label>
-            <input type="password" id="discogs_token" name="discogs_token"
-                   placeholder="Enter your Discogs token" required>
-            <button type="submit">Login</button>
-        </form>
-    </details>
-</article>
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username"
+               value="{{ username or '' }}"
+               autocomplete="username" autocapitalize="none"
+               autocorrect="off" spellcheck="false" required autofocus>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               autocomplete="current-password" required>
+
+        <button type="submit">Sign in</button>
+    </form>
+
+    <p class="auth-note">
+        Ask whoever set this up for an account. Sign-in only works from
+        devices on the same network as the machine running it.
+    </p>
+</div>
 {% endblock %}

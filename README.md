@@ -140,6 +140,43 @@ A walkthrough of how the playlist pipeline actually works, the bugs found in
 it, and where the remaining performance and structural wins are, is in
 **[docs/REVIEW.md](docs/REVIEW.md)**.
 
+## Sharing it with the rest of the house
+
+Off by default — the app binds to localhost and only your machine can reach it.
+To let someone else on the same network use it:
+
+```bash
+# .env
+LAN_ACCESS=true
+```
+
+```bash
+uvicorn app:app --port 8000 --host 0.0.0.0
+```
+
+Then open **Admin → Add someone on this network**, give them a username and an
+initial password, and send them `http://<your-ip>:8000/login`. The admin page
+shows the address to use.
+
+Each account is completely separate: its own channels, likes, dislikes, play
+history, preferences and audit log. Nobody sees anyone else's playlists or
+record collection.
+
+| Where they are | What happens |
+|---|---|
+| Your machine | Signed in automatically, as before |
+| Another device on your network | Signs in with username and password |
+| Anywhere else | Can't reach it at all |
+
+Passwords are hashed with scrypt, wrong username and wrong password are
+indistinguishable, and eight failed attempts locks an account for fifteen
+minutes. Guest accounts default to local models only, so they can't spend your
+API credits.
+
+> **Don't port-forward this.** Sign-in is plain HTTP, which is fine on a home
+> network you control and not acceptable on the open internet. See
+> [docs/SAFETY.md](docs/SAFETY.md#4-sharing-it-on-your-home-network).
+
 ## Accuracy and guardrails
 
 Language models invent songs. Measured on this app's own prompts, the share of

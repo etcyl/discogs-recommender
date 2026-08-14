@@ -946,6 +946,104 @@ main.container.page-wide {
 }
 
 /* ---------------------------------------------------------------------------
+   Sign-in and account
+   ------------------------------------------------------------------------ */
+
+.auth-page {
+    max-width: 380px;
+    margin: var(--space-7) auto;
+}
+.auth-title { margin: 0 0 var(--space-1); font-size: var(--text-2xl); }
+.auth-sub {
+    margin: 0 0 var(--space-6);
+    color: var(--text-3);
+    font-size: var(--text-sm);
+}
+
+.auth-form { display: flex; flex-direction: column; }
+.auth-form label {
+    margin-bottom: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--text-2);
+}
+.auth-form input {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3);
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--text-1);
+    font-size: var(--text-base);
+}
+.auth-form input:focus { border-color: var(--accent); }
+.auth-form button {
+    margin: var(--space-2) 0 0;
+    padding: var(--space-3);
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--accent-contrast);
+    font-size: var(--text-base);
+    font-weight: 550;
+    cursor: pointer;
+}
+.auth-form button:hover { background: var(--accent-strong); }
+
+.auth-error,
+.auth-ok,
+.auth-note--prompt {
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    margin: 0 0 var(--space-4);
+}
+.auth-error { background: var(--danger-bg); color: var(--danger); }
+.auth-ok { background: var(--success-bg); color: var(--success); }
+.auth-note--prompt { background: var(--info-bg); color: var(--info); }
+
+.auth-note {
+    margin-top: var(--space-5);
+    color: var(--text-3);
+    font-size: var(--text-xs);
+    line-height: 1.6;
+}
+
+.admin-section {
+    margin-bottom: var(--space-7);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--line);
+}
+.admin-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-3) var(--space-4);
+    margin: var(--space-4) 0 var(--space-2);
+}
+.admin-form > div { display: flex; flex-direction: column; min-width: 160px; }
+.admin-form label {
+    margin-bottom: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--text-3);
+}
+.admin-form input,
+.admin-form select {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--text-1);
+    font-size: var(--text-sm);
+}
+.admin-form button {
+    margin: 0;
+    padding: var(--space-2) var(--space-5);
+    width: auto;
+    font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------------------
    Utility
    ------------------------------------------------------------------------ */
 

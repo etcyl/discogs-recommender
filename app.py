@@ -10,6 +10,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx as _httpx
 from fastapi import FastAPI, Request, Query, UploadFile, File, Form
@@ -33,6 +34,8 @@ from services import channel_service
 from services import verification
 from services import guardrails
 from services import audit
+from services import network
+from services import passwords
 from services.database import init_db
 from services import auth_service
 from services.scene_service import SceneService
@@ -54,6 +57,20 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 _ALLOWED_HOSTS = [
     "localhost", "127.0.0.1", "*.trycloudflare.com",
 ]
+if settings.lan_access:
+    # Reached by IP from other devices on the network, and often by the
+    # machine's own name. The Host header is not an authentication mechanism —
+    # it only stops rebinding-style attacks — so widening it here is safe;
+    # who may actually sign in is decided by the auth middleware.
+    from services import network as _network
+    _ALLOWED_HOSTS += _network.lan_addresses()
+    _ALLOWED_HOSTS += ["*.local", "*.lan", "*.home", "*.internal"]
+    try:
+        import socket as _socket
+        _ALLOWED_HOSTS.append(_socket.gethostname())
+    except OSError:
+        pass
+_ALLOWED_HOSTS += settings.allowed_host_list
 if os.environ.get("TESTING"):
     _ALLOWED_HOSTS.append("testserver")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
@@ -251,25 +268,59 @@ PUBLIC_PATHS = {"/login", "/favicon.ico", "/api/system/status"}
 PUBLIC_PREFIXES = ("/invite/", "/static/")
 
 
+def _client_ip(request: Request) -> str:
+    return network.client_ip(request, trust_proxy=settings.trust_proxy_headers)
+
+
+def _is_local_request(request: Request) -> bool:
+    """True only for requests originating on this machine.
+
+    A forwarded header means the request passed through something else, so
+    the connection address is no longer proof of origin — unless the operator
+    has told us the proxy is theirs.
+    """
+    if not settings.trust_proxy_headers and (
+            request.headers.get("x-forwarded-for")
+            or request.headers.get("x-real-ip")
+            or request.headers.get("cf-connecting-ip")):
+        return False
+    return network.is_loopback(_client_ip(request))
+
+
+def _cookie_secure(request: Request) -> bool:
+    """Whether the session cookie should carry the Secure flag.
+
+    True on HTTPS. On plain HTTP a Secure cookie is discarded by the browser
+    (localhost excepted), which over a home network looks like a login that
+    silently does nothing.
+    """
+    if request.url.scheme == "https":
+        return True
+    if settings.trust_proxy_headers and \
+            request.headers.get("x-forwarded-proto", "").lower() == "https":
+        return True
+    return False
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Check session cookie and attach user to request state."""
+    """Attach the signed-in user to the request, or send them to /login.
+
+    Order matters. A real session is checked *first*, before the single-user
+    convenience: with the old order, every visitor was silently handed the
+    admin account and a second person could never be themselves — their
+    session cookie was ignored.
+
+    The convenience is also now restricted to this machine. It exists so the
+    owner isn't asked to log into their own laptop; extending it to the
+    network would hand admin to anyone who can reach the port.
+    """
     path = request.url.path
 
-    # Allow public paths through without auth
     if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
         request.state.user = None
         return await call_next(request)
 
-    # Auto-login mode: when no Discogs credentials are configured,
-    # automatically authenticate all visitors as the local admin (single-user mode)
-    if settings.single_user_mode:
-        admin = auth_service.get_admin_user()
-        if admin:
-            request.state.user = admin
-            return await call_next(request)
-
-    # Check session cookie
     session_id = request.cookies.get(auth_service.COOKIE_NAME)
     if session_id:
         user = auth_service.validate_session(session_id)
@@ -277,7 +328,12 @@ async def auth_middleware(request: Request, call_next):
             request.state.user = user
             return await call_next(request)
 
-    # Not authenticated
+    if settings.single_user_mode and _is_local_request(request):
+        admin = auth_service.get_admin_user()
+        if admin:
+            request.state.user = admin
+            return await call_next(request)
+
     return RedirectResponse(url="/login", status_code=302)
 
 
@@ -361,17 +417,24 @@ def _get_user_data_dir(user: dict) -> Path:
 
 
 def _get_user_discogs(user: dict) -> DiscogsService | None:
-    """Return a DiscogsService for this user. Falls back to admin's if no creds.
-    Returns None if no Discogs credentials are configured anywhere."""
-    if user.get("discogs_username") and user.get("discogs_token"):
+    """Return a DiscogsService for this user, or None if they have no Discogs.
+
+    Only the admin falls back to the server-configured account. Everyone else
+    gets their own or nothing — otherwise a second person on the network would
+    silently browse and get recommendations from the owner's record collection.
+    """
+    if user.get("discogs_username"):
         cache_key = f"discogs_service:{user['id']}"
         svc = cache.get(cache_key)
         if not svc:
-            svc = DiscogsService(settings.app_name, user["discogs_token"],
+            svc = DiscogsService(settings.app_name,
+                                 user.get("discogs_token") or "",
                                  user["discogs_username"])
             cache.set(cache_key, svc, ttl=3600)
         return svc
-    return discogs  # May be None if no Discogs configured
+    if user.get("is_admin"):
+        return discogs  # May be None if no Discogs configured
+    return None
 
 
 def _get_user_collection(user: dict) -> list[dict]:
@@ -394,6 +457,19 @@ def _get_user_username(user: dict) -> str:
     if username and username != "local":
         return username
     return user.get("display_name", "User")
+
+
+def _user_has_discogs(user: dict) -> bool:
+    """Whether *this* user has a Discogs collection to work from.
+
+    Not the same question as settings.discogs_configured, which describes the
+    server. A guest on the home network has no Discogs of their own, and
+    handing them a collection-backed default channel just produces an error
+    they can do nothing about.
+    """
+    if user.get("discogs_username"):
+        return True
+    return bool(user.get("is_admin") and settings.discogs_configured)
 
 
 def _get_analyzer(collection: list[dict]) -> CollectionAnalyzer:
@@ -419,53 +495,111 @@ def _template_context(request: Request, **kwargs) -> dict:
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """Show login page. Auto-login admin from localhost."""
-    # If already logged in, redirect home
+    """Sign-in form. The owner is signed in automatically on this machine."""
     session_id = request.cookies.get(auth_service.COOKIE_NAME)
     if session_id and auth_service.validate_session(session_id):
         return RedirectResponse(url="/", status_code=302)
 
-    # Auto-login admin when accessing directly from localhost (not through proxy)
-    client_ip = request.client.host if request.client else ""
-    is_proxied = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
-    if not is_proxied and client_ip in ("127.0.0.1", "::1"):
+    if settings.single_user_mode and _is_local_request(request):
         admin = auth_service.get_admin_user()
         if admin:
             new_session = auth_service.create_session(admin["id"])
             response = RedirectResponse(url="/", status_code=302)
-            auth_service.set_session_cookie(response, new_session)
+            auth_service.set_session_cookie(response, new_session,
+                                            secure=_cookie_secure(request))
             return response
 
-    return templates.TemplateResponse(request,"login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {
+        "request": request,
+        "app_version": APP_VERSION,
+        "next": _safe_next(request.query_params.get("next", "")),
+    })
+
+
+def _safe_next(target: str) -> str:
+    """Only allow redirects to a path on this site (CWE-601).
+
+    A bare "/path" is fine; anything with a scheme or host, or the
+    protocol-relative "//evil.example", is not.
+    """
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return ""
+    return target[:200]
 
 
 @app.post("/login")
 async def login_submit(request: Request):
-    """Admin login with Discogs token."""
-    client_ip = request.client.host if request.client else "unknown"
-    if _is_rate_limited(f"login:{client_ip}", max_requests=5, window_seconds=60):
-        return templates.TemplateResponse(request,"login.html", {
-            "request": request, "error": "Too many login attempts. Please wait a minute.",
-        })
+    """Verify a username and password, then start a session."""
+    ip = _client_ip(request) or "unknown"
+    if _is_rate_limited(f"login:{ip}", max_requests=8, window_seconds=60):
+        return templates.TemplateResponse(request, "login.html", {
+            "request": request, "app_version": APP_VERSION,
+            "error": "Too many attempts from this device. Wait a minute and try again.",
+        }, status_code=429)
 
     form = await request.form()
-    token = str(form.get("discogs_token", "")).strip()
+    login_name = str(form.get("username", "")).strip()
+    password = str(form.get("password", ""))
+    target = _safe_next(str(form.get("next", "")))
 
-    if not token:
-        return templates.TemplateResponse(request,"login.html", {
-            "request": request, "error": "Please enter your Discogs personal access token.",
-        })
+    try:
+        user = auth_service.authenticate(login_name, password)
+    except auth_service.AuthError as e:
+        logger.info("Failed sign-in for %r from %s", login_name[:40], ip)
+        return templates.TemplateResponse(request, "login.html", {
+            "request": request, "app_version": APP_VERSION,
+            "error": str(e), "username": login_name[:64],
+            "next": target,
+        }, status_code=401)
 
-    admin = auth_service.get_admin_user()
-    if admin and hmac.compare_digest(admin.get("discogs_token", ""), token):
-        session_id = auth_service.create_session(admin["id"])
-        response = RedirectResponse(url="/", status_code=302)
-        auth_service.set_session_cookie(response, session_id)
-        return response
+    session_id = auth_service.create_session(user["id"])
+    destination = "/account/password" if user.get("must_change_password") else (target or "/")
+    response = RedirectResponse(url=destination, status_code=302)
+    auth_service.set_session_cookie(response, session_id,
+                                    secure=_cookie_secure(request))
+    logger.info("Signed in: %s from %s", user.get("login_name") or user["id"], ip)
+    return response
 
-    return templates.TemplateResponse(request,"login.html", {
-        "request": request, "error": "Invalid token.",
-    })
+
+@app.get("/account/password", response_class=HTMLResponse)
+async def password_page(request: Request):
+    """Let the signed-in user change their own password."""
+    user = request.state.user
+    return templates.TemplateResponse(request, "password.html", _template_context(
+        request, must_change=bool(user.get("must_change_password")),
+        has_password=bool(user.get("password_hash")), active_page="account"))
+
+
+@app.post("/account/password")
+async def password_change(request: Request):
+    user = request.state.user
+    form = await request.form()
+    current = str(form.get("current_password", ""))
+    new = str(form.get("new_password", ""))
+    confirm = str(form.get("confirm_password", ""))
+
+    def fail(message: str):
+        return templates.TemplateResponse(request, "password.html", _template_context(
+            request, error=message,
+            must_change=bool(user.get("must_change_password")),
+            has_password=bool(user.get("password_hash")),
+            active_page="account"), status_code=400)
+
+    if new != confirm:
+        return fail("The two new passwords don't match.")
+
+    try:
+        if user.get("password_hash"):
+            auth_service.change_password(user["id"], current, new)
+        else:
+            # Admin accounts created before passwords existed have none yet.
+            auth_service.set_password(user["id"], new, revoke_sessions=False)
+    except (auth_service.AuthError, passwords.PasswordError) as e:
+        return fail(str(e))
+
+    return templates.TemplateResponse(request, "password.html", _template_context(
+        request, saved=True, must_change=False, has_password=True,
+        active_page="account"))
 
 
 @app.get("/invite/{token}", response_class=HTMLResponse)
@@ -516,8 +650,61 @@ async def invite_accept(request: Request, token: str):
 
     session_id = auth_service.create_session(user["id"])
     response = RedirectResponse(url="/", status_code=302)
-    auth_service.set_session_cookie(response, session_id)
+    auth_service.set_session_cookie(response, session_id,
+                                    secure=_cookie_secure(request))
     return response
+
+
+@app.post("/admin/create-account")
+async def admin_create_account(request: Request):
+    """Create a username/password account for someone else on the network."""
+    user = request.state.user
+    if not user.get("is_admin"):
+        return JSONResponse(status_code=403, content={"error": "Admin only"})
+
+    form = await request.form()
+    display_name = str(form.get("display_name", "")).strip()[:100]
+    login_name = str(form.get("login_name", "")).strip()
+    password = str(form.get("password", ""))
+    models = str(form.get("allowed_models", "ollama")).strip() or "ollama"
+
+    try:
+        account = auth_service.create_account(
+            display_name=display_name or login_name,
+            login_name=login_name,
+            password=password,
+            allowed_models=models,
+        )
+    except (auth_service.AuthError, passwords.PasswordError) as e:
+        return RedirectResponse(url=f"/admin?error={quote(str(e))}", status_code=302)
+
+    logger.info("Admin created account %s", account.get("login_name"))
+    return RedirectResponse(
+        url=f"/admin?created={quote(account.get('login_name') or '')}",
+        status_code=302)
+
+
+@app.post("/admin/reset-password")
+async def admin_reset_password(request: Request):
+    """Set a new password for another account, forcing them to change it."""
+    user = request.state.user
+    if not user.get("is_admin"):
+        return JSONResponse(status_code=403, content={"error": "Admin only"})
+
+    form = await request.form()
+    user_id = str(form.get("user_id", "")).strip()
+    password = str(form.get("password", ""))
+
+    target = auth_service.get_user(user_id)
+    if not target or target.get("is_admin"):
+        return RedirectResponse(url="/admin?error=Unknown+account", status_code=302)
+
+    try:
+        auth_service.set_password(user_id, password, must_change=True)
+    except passwords.PasswordError as e:
+        return RedirectResponse(url=f"/admin?error={quote(str(e))}", status_code=302)
+
+    return RedirectResponse(url="/admin?reset=1", status_code=302)
 
 
 @app.get("/logout")
@@ -542,8 +729,11 @@ async def admin_page(request: Request):
         return RedirectResponse(url="/", status_code=302)
     invites = auth_service.list_invites(user["id"])
     users = auth_service.list_users()
-    return templates.TemplateResponse(request,"admin.html",
-                                      _template_context(request, invites=invites, users=users))
+    lan_urls = [f"http://{ip}:8000" for ip in network.lan_addresses()]
+    return templates.TemplateResponse(request, "admin.html", _template_context(
+        request, invites=invites, users=users,
+        lan_access=settings.lan_access, lan_urls=lan_urls,
+        active_page="admin"))
 
 
 @app.post("/admin/invite")
@@ -744,7 +934,7 @@ async def home(request: Request):
     user = request.state.user
     profile = None
     error = None
-    discogs_configured = settings.discogs_configured
+    discogs_configured = _user_has_discogs(user)
 
     if discogs_configured:
         try:
@@ -959,13 +1149,14 @@ async def radio_page(request: Request):
     """Radio player page."""
     user = request.state.user
     user_dir = _get_user_data_dir(user)
+    has_discogs = _user_has_discogs(user)
     channels = channel_service.load_channels(
-        data_dir=user_dir, discogs_configured=settings.discogs_configured)
+        data_dir=user_dir, discogs_configured=has_discogs)
     allowed_models = list(auth_service.get_allowed_models(user))
     return templates.TemplateResponse(request,"radio.html",
                                       _template_context(request, channels=channels,
                                                         allowed_models=allowed_models,
-                                                        discogs_configured=settings.discogs_configured))
+                                                        discogs_configured=has_discogs))
 
 
 @app.get("/api/radio/playlist")
@@ -1922,7 +2113,8 @@ async def list_channels(request: Request):
     """List all radio channels."""
     user = request.state.user
     user_dir = _get_user_data_dir(user)
-    channels = channel_service.load_channels(data_dir=user_dir)
+    channels = channel_service.load_channels(
+        data_dir=user_dir, discogs_configured=_user_has_discogs(user))
     return {"channels": channels, "spotify_enabled": True}
 
 

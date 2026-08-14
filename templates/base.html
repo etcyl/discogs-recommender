@@ -54,7 +54,10 @@
         </button>
         {% if user %}
         <span class="site-nav__user">{{ user.display_name }}</span>
-        <ul class="site-nav__links"><li><a href="/logout">Logout</a></li></ul>
+        <ul class="site-nav__links">
+            <li><a href="/account/password" {% if active_page == 'account' %}aria-current="page"{% endif %}>Password</a></li>
+            <li><a href="/logout">Logout</a></li>
+        </ul>
         {% endif %}
     </nav>
 

@@ -25,6 +25,21 @@ class Settings(BaseSettings):
     # checked out). Disable only if you have a reason to.
     audit_enabled: bool = True
     audit_retention_days: int = 90
+
+    # --- Local network access ---------------------------------------------
+    # Off by default: the app binds to localhost and only this machine can
+    # reach it. Turn on to let other people on the same network sign in with
+    # a username and password. Does NOT expose anything to the internet —
+    # that would additionally require a port forward, which you should not do
+    # without HTTPS in front.
+    lan_access: bool = False
+    # Extra hostnames the app will answer to (comma separated). Private IPs
+    # are accepted automatically when lan_access is on.
+    extra_allowed_hosts: str = ""
+    # Only enable behind a reverse proxy you control. X-Forwarded-For is
+    # caller-supplied, so trusting it without a proxy lets anyone claim a
+    # local address.
+    trust_proxy_headers: bool = False
     app_name: str = "DiscogsRecommender/1.0"
     cache_ttl_seconds: int = 3600
     max_thumbs_entries: int = 500
@@ -104,6 +119,10 @@ class Settings(BaseSettings):
     def discogs_public_mode(self) -> bool:
         """Collection readable, but no token — so no catalogue search."""
         return bool(self.discogs_username and not self.discogs_token)
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        return [h.strip() for h in self.extra_allowed_hosts.split(",") if h.strip()]
 
     @property
     def single_user_mode(self) -> bool:

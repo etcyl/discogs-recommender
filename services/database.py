@@ -54,6 +54,21 @@ _MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN is_suspended INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE invite_tokens ADD COLUMN label TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE users ADD COLUMN allowed_models TEXT NOT NULL DEFAULT 'all'",
+    # Username + password sign-in, so people other than the machine's owner
+    # can use the app over the local network.
+    "ALTER TABLE users ADD COLUMN login_name TEXT",
+    "ALTER TABLE users ADD COLUMN password_hash TEXT",
+    "ALTER TABLE users ADD COLUMN failed_logins INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN locked_until TEXT",
+    "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+]
+
+_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
+    # Login names are the lookup key for sign-in and must be unique. A partial
+    # index keeps the constraint off rows that have no login name.
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_login_name "
+    "ON users(login_name) WHERE login_name IS NOT NULL",
 ]
 
 
@@ -67,6 +82,13 @@ def init_db() -> None:
                 conn.execute(sql)
             except sqlite3.OperationalError:
                 pass  # Column already exists
+        for sql in _INDEXES:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError as e:
+                # A duplicate login_name in existing data would block the
+                # unique index. Say so rather than failing silently.
+                logger.warning("Could not create index (%s): %s", e, sql)
         conn.commit()
         logger.info("Database initialized at %s", DB_PATH)
     finally:
