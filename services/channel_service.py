@@ -6,7 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from services.paths import data_dir
+
+DATA_DIR = data_dir()
 CHANNELS_FILE = DATA_DIR / "channels.json"
 
 MAX_CHANNELS = 20

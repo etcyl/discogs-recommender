@@ -12,7 +12,9 @@ from services.database import get_db
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from services.paths import data_dir
+
+DATA_DIR = data_dir()
 
 COOKIE_NAME = "session_id"
 COOKIE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days

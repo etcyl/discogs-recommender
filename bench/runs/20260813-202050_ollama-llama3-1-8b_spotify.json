@@ -1,0 +1,742 @@
+{
+  "run_id": "20260813-202050_ollama-llama3-1-8b_spotify",
+  "provider": "ollama:llama3.1:8b",
+  "generated_at": "2026-08-14T03:22:40+00:00",
+  "seconds": 22.5,
+  "seed": {
+    "kind": "spotify",
+    "name": "Liked Songs Copy",
+    "size": 100,
+    "sample": [
+      "DJ Dan - That Zipper Track (Needle Damage)",
+      "Aazure - Love In A French Cafe",
+      "Kings Of Tomorrow - KOT Anthem - Soul Vision Remix",
+      "oOoOO - 3; 51 A.M.",
+      "DJ Ghoster - I Can't Explain Vs Cola - Remix",
+      "Pixies - All I Think About Now",
+      "Pixies - The Thing",
+      "Eyedress - Jealous",
+      "De La Soul - Oodles of O's",
+      "Milton Jackson - Breathe - David Labeij Remix"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 45,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 25,
+    "artist_diversity": 1.0,
+    "max_per_artist": 1,
+    "unique_decades": 6,
+    "decade_spread": {
+      "1950s": 1,
+      "1960s": 4,
+      "1970s": 3,
+      "2000s": 6,
+      "2010s": 10,
+      "2020s": 1
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.0,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 34.0,
+    "mean_match_score": 82.6,
+    "has_reason": 25,
+    "mean_reason_len": 101.1,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Four Tet",
+      "title": "Two Thousand and Seventeen",
+      "year": 2017,
+      "reason": "Similar ambient electronic textures to DJ Dan's work",
+      "match_score": 82,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "DJ Dan"
+      ],
+      "obscurity_score": 42,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Four Tet",
+        "matched_title": "Two Thousand and Seventeen",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Four Tet — Two Thousand and Seventeen"
+      }
+    },
+    {
+      "artist": "Nujabes",
+      "title": "Aruarian Dance",
+      "year": 2005,
+      "reason": "Jazzy, instrumental soundscapes reminiscent of Modest Mouse's eclectic style",
+      "match_score": 84,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Modest Mouse"
+      ],
+      "obscurity_score": 28,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Nujabes",
+        "matched_title": "aruarian dance",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Nujabes — Aruarian Dance"
+      }
+    },
+    {
+      "artist": "Sango",
+      "title": "Mama",
+      "year": 2015,
+      "reason": "Tropical, laid-back vibes reminiscent of oOoOO's atmospheric soundscapes",
+      "match_score": 87,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "oOoOO"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.95,
+        "matched_artist": "Sángo Groove",
+        "matched_title": "Mamá Loca",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Sango — Mama"
+      }
+    },
+    {
+      "artist": "The Cinematic Orchestra",
+      "title": "All That You Give",
+      "year": 2002,
+      "reason": "Instrumental, jazzy soundscapes reminiscent of The Dave Brubeck Quartet's classic style",
+      "match_score": 92,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "The Dave Brubeck Quartet"
+      ],
+      "obscurity_score": 24,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "The Cinematic Orchestra",
+        "matched_title": "All That You Give",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "The Cinematic Orchestra — All That You Give"
+      }
+    },
+    {
+      "artist": "The Heliocentrics",
+      "title": "Sax 'N' Sitar",
+      "year": 2012,
+      "reason": "Influenced by Eastern musical traditions, much like Thievery Corporation's eclectic sound",
+      "match_score": 91,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Thievery Corporation"
+      ],
+      "obscurity_score": 29,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "The Heliocentrics — Sax 'N' Sitar"
+      }
+    },
+    {
+      "artist": "Sun Ra",
+      "title": "Space is the Place",
+      "year": 1972,
+      "reason": "A jazz pioneer and influential figure in avant-garde music, connecting to the eclectic and experimental spirit of many tracks in your playlist.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Pixies",
+        "Flying Lotus"
+      ],
+      "obscurity_score": 25,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Sun Ra",
+        "matched_title": "Space is the Place",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Sun Ra — Space is the Place"
+      }
+    },
+    {
+      "artist": "Mild High Club",
+      "title": "Windowpane",
+      "year": 2016,
+      "reason": "Jazzy, psychedelic soundscapes reminiscent of Shuggie Otis's soulful style",
+      "match_score": 85,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Shuggie Otis"
+      ],
+      "obscurity_score": 32,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Mild High Club",
+        "matched_title": "Windowpane",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Mild High Club — Windowpane"
+      }
+    },
+    {
+      "artist": "Kraftwerk",
+      "title": "The Hall of Mirrors",
+      "year": 1977,
+      "reason": "A pioneering electronic music group, echoing the synth-heavy and atmospheric elements present in some tracks from your playlist.",
+      "match_score": 80,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Air",
+        "Thievery Corporation"
+      ],
+      "obscurity_score": 10,
+      "verification": {
+        "status": "verified",
+        "source": "itunes",
+        "confidence": 1.0,
+        "matched_artist": "Kraftwerk",
+        "matched_title": "The Hall of Mirrors (Live)",
+        "checked_sources": [
+          "deezer",
+          "itunes"
+        ],
+        "claimed_as": "Kraftwerk — The Hall of Mirrors"
+      }
+    },
+    {
+      "artist": "Daniel Caesar",
+      "title": "Get You",
+      "year": 2017,
+      "reason": "Soulful, bluesy soundscapes reminiscent of De La Soul's jazzy style",
+      "match_score": 88,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "De La Soul"
+      ],
+      "obscurity_score": 41,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Daniel Caesar",
+        "matched_title": "Get You (feat. Kali Uchis)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Daniel Caesar — Get You"
+      }
+    },
+    {
+      "artist": "Can",
+      "title": "Mother Sky",
+      "year": 1968,
+      "reason": "A key band in the development of Krautrock, influencing the experimental and psychedelic aspects found in some tracks from your playlist.",
+      "match_score": 78,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Milton Jackson",
+        "De La Soul"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.975,
+        "matched_artist": "Can",
+        "matched_title": "Mother Sky (from Deep End)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Can — Mother Sky"
+      }
+    },
+    {
+      "artist": "Khruangbin",
+      "title": "A Hymn",
+      "year": 2015,
+      "reason": "Tropical, laid-back vibes reminiscent of Aazure's atmospheric soundscapes",
+      "match_score": 86,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Aazure"
+      ],
+      "obscurity_score": 31,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Khruangbin",
+        "matched_title": "A Hymn",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Khruangbin — A Hymn"
+      }
+    },
+    {
+      "artist": "Boris",
+      "title": "No",
+      "year": 2003,
+      "reason": "A Japanese experimental rock band, sharing similarities with the heavier and more distorted elements present in some tracks from your playlist.",
+      "match_score": 75,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Incubus",
+        "Deftones"
+      ],
+      "obscurity_score": 20,
+      "verification": {
+        "status": "corrected",
+        "source": "itunes",
+        "confidence": 0.975,
+        "matched_artist": "Boris & Uniform",
+        "matched_title": "No",
+        "checked_sources": [
+          "deezer",
+          "itunes"
+        ],
+        "claimed_as": "Boris — No"
+      }
+    },
+    {
+      "artist": "Yotam Silberman",
+      "title": "Woven Heart",
+      "year": 2019,
+      "reason": "Instrumental, ambient soundscapes reminiscent of Lone's electronic style",
+      "match_score": 89,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Lone"
+      ],
+      "obscurity_score": 25,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Yotam Silberman — Woven Heart"
+      }
+    },
+    {
+      "artist": "Yma Sumac",
+      "title": "Donde Estabas Tu?",
+      "year": 1959,
+      "reason": "A Peruvian soprano, blending folk and classical elements with a unique voice, reflecting the eclectic nature of your playlist.",
+      "match_score": 72,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "St Germain",
+        "Funki Porcini"
+      ],
+      "obscurity_score": 50,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Yma Sumac — Donde Estabas Tu?"
+      }
+    },
+    {
+      "artist": "Tenderlonious",
+      "title": "Bodhi Tree",
+      "year": 2017,
+      "reason": "Instrumental, jazzy soundscapes reminiscent of Milton Jackson's soulful style",
+      "match_score": 90,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Milton Jackson"
+      ],
+      "obscurity_score": 33,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Tenderlonious — Bodhi Tree"
+      }
+    },
+    {
+      "artist": "La Monte Young",
+      "title": "Composition for Two Elephants",
+      "year": 1961,
+      "reason": "An American composer and key figure in minimalism, influencing the ambient and experimental aspects found in some tracks from your playlist.",
+      "match_score": 70,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Shlohmo",
+        "Mount Kimbie"
+      ],
+      "obscurity_score": 60,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "La Monte Young — Composition for Two Elephants"
+      }
+    },
+    {
+      "artist": "The Residents",
+      "title": "Constantinople",
+      "year": 1978,
+      "reason": "An experimental music collective, influencing the avant-garde and psychedelic aspects found in some tracks from your playlist.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Sun Ra",
+        "La Monte Young"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "The Residents",
+        "matched_title": "Constantinople (Live)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "The Residents — Constantinople"
+      }
+    },
+    {
+      "artist": "The Velvet Underground",
+      "title": "Sister Ray",
+      "year": 1968,
+      "reason": "A pioneering rock band, sharing similarities with the experimental and avant-garde elements present in some tracks from your playlist.",
+      "match_score": 85,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Daedelus",
+        "Flying Lotus"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "The Velvet Underground",
+        "matched_title": "Sister Ray",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "The Velvet Underground — Sister Ray"
+      }
+    },
+    {
+      "artist": "Aphex Twin",
+      "title": "Avril 14th",
+      "year": 2001,
+      "reason": "A pioneering electronic music artist, sharing similarities with the experimental and avant-garde elements present in some tracks from your playlist.",
+      "match_score": 90,
+      "match_attributes": [
+        "similar instrumentation",
+        "production style"
+      ],
+      "similar_to": [
+        "Flying Lotus",
+        "Daedelus"
+      ],
+      "obscurity_score": 15,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Aphex Twin",
+        "matched_title": "Avril 14th",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Aphex Twin — Avril 14th"
+      }
+    },
+    {
+      "artist": "Bert Jansch",
+      "title": "Black Water Side",
+      "year": 1966,
+      "reason": "A Scottish folk singer-songwriter, reflecting the acoustic and introspective elements found in some tracks from your playlist.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Puzzle",
+        "Adina Howard"
+      ],
+      "obscurity_score": 20,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.975,
+        "matched_artist": "Bert Jansch",
+        "matched_title": "Black Water Side (Remastered 2015)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Bert Jansch — Black Water Side"
+      }
+    },
+    {
+      "artist": "Kamasi Washington",
+      "title": "Change of the Guard",
+      "year": 2015,
+      "reason": "Similar blend of jazz, funk, and electronic elements with a strong focus on percussion.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Thundercat"
+      ],
+      "obscurity_score": 20,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Kamasi Washington",
+        "matched_title": "Change of the Guard",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Kamasi Washington — Change of the Guard"
+      }
+    },
+    {
+      "artist": "Mungo's Hi-Fi",
+      "title": "Jah Bless",
+      "year": 2001,
+      "reason": "Dub-influenced electronic music with a strong focus on basslines and percussive elements.",
+      "match_score": 75,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Thievery Corporation"
+      ],
+      "obscurity_score": 50,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Mungo's Hi-Fi — Jah Bless"
+      }
+    },
+    {
+      "artist": "Masego",
+      "title": "Tadow",
+      "year": 2016,
+      "reason": "Fusion of jazz, R&B, and electronic music with a strong emphasis on soulful vocals.",
+      "match_score": 85,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Shur-I-Kan"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Masego",
+        "matched_title": "Tadow",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Masego — Tadow"
+      }
+    },
+    {
+      "artist": "Hajime Yoshino",
+      "title": "Shunen",
+      "year": 2004,
+      "reason": "Experimental electronic music with a focus on atmospheric soundscapes and percussive elements.",
+      "match_score": 70,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Flying Lotus"
+      ],
+      "obscurity_score": 80,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Hajime Yoshino — Shunen"
+      }
+    },
+    {
+      "artist": "Arooj Aftab",
+      "title": "Mah Waali Baithi Hai",
+      "year": 2020,
+      "reason": "Blending of traditional Pakistani music with electronic elements and soulful vocals.",
+      "match_score": 80,
+      "match_attributes": [
+        "shared producer",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Purity Ring"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Arooj Aftab — Mah Waali Baithi Hai"
+      }
+    }
+  ],
+  "verification": {
+    "confirmed": 17,
+    "unconfirmed": 8,
+    "confirmed_pct": 68.0
+  }
+}

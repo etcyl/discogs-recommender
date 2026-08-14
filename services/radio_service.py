@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 from youtubesearchpython import VideosSearch
 
+from services import guardrails
 from services.cache import cache
 from services.llm_provider import call_llm, parse_llm_json
 from services.thumbs import normalize_song_key
@@ -1063,6 +1064,8 @@ Discovery: {discovery}/100
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
 
+{guardrails.UNTRUSTED_PREAMBLE}
+
 {philosophy}
 ACCURACY RULES:
 - Only recommend songs that ACTUALLY EXIST. Do not invent fake tracks or albums.
@@ -1173,9 +1176,22 @@ BEHIND-THE-SCENES CONNECTIONS:
 
         use_compact = self._use_compact_prompt(ai_model)
 
+        # The theme is free text typed by the listener and it lands inside the
+        # SYSTEM prompt, which is the most valuable place for an injected
+        # instruction to end up. Sanitise it, fence it, and tell the model the
+        # fenced block is a description to satisfy, not a directive to obey.
+        theme = guardrails.sanitize(theme, guardrails.MAX_THEME)
+        _theme_nonce = guardrails.new_nonce()
+        theme_fenced, _theme_findings = guardrails.prepare(
+            "theme", theme, _theme_nonce, max_len=guardrails.MAX_THEME)
+        if _theme_findings:
+            logger.warning("Theme matched injection patterns: %s", _theme_findings)
+
         def build_prompts(batch_size, already_picked):
             if use_compact:
-                system_text = f"""You are a music curator. Recommend {batch_size} songs matching the theme: "{theme}"
+                system_text = f"""You are a music curator. Recommend {batch_size} songs matching the theme below.
+{guardrails.UNTRUSTED_PREAMBLE}
+{theme_fenced}
 {era_guide}Maximize variety. You may include up to 2 songs by the same artist ONLY if from different albums/eras; never 3+.
 Only recommend songs that ACTUALLY EXIST -- real artists, real titles, real albums.
 The "year" field MUST be the correct, actual release year of each song.
@@ -1187,7 +1203,7 @@ Return a JSON array of objects with keys: artist, title, album, year, reason, ma
 - "obscurity_score": integer 1-100 (1=massive hit, 100=ultra-rare)
 Return ONLY the JSON array, no other text."""
 
-                user_text = f"""Recommend {batch_size} songs matching "{theme}" for a listener with this taste:
+                user_text = f"""Recommend {batch_size} songs matching the theme block above, for a listener with this taste:
 {era_guide}{summary}
 {f"Liked: {thumbs_summary}" if thumbs_summary else ""}
 {f"Disliked (AVOID): {dislikes_summary}" if dislikes_summary else ""}
@@ -1197,15 +1213,18 @@ Discovery: {discovery}/100
             else:
                 system_text = f"""You are an expert music curator with encyclopedic knowledge.
 
-Create a themed radio playlist of {batch_size} SONGS focused on the theme: "{theme}"
+Create a themed radio playlist of {batch_size} SONGS focused on the theme in the block below.
 Interpret the theme broadly -- it could be a genre, mood, era, activity, scenario, or vibe.
+
+{guardrails.UNTRUSTED_PREAMBLE}
+{theme_fenced}
 
 ACCURACY RULES:
 - Only recommend songs that ACTUALLY EXIST. Do not invent fake tracks or albums.
 - Verify artist names, song titles, and album names are real and correct.
 
 CURATION PHILOSOPHY:
-- Every song should fit the theme "{theme}"
+- Every song should fit the themed block above
 - Still connect to the listener's taste -- use their collection as a taste anchor
 - Dig deep: obscure B-sides, overlooked album tracks, international gems
 - Create flow: sequence songs so each transition feels intentional
@@ -1326,7 +1345,16 @@ DISCOVERY LEVEL: {discovery}/100
 
         # Theme context if available
         theme = channel_context.get("theme", "")
-        theme_block = f'\nTHEME: Playlist is themed around "{theme}". Stay on-theme.\n' if theme else ""
+        if theme:
+            _t = guardrails.sanitize(theme, guardrails.MAX_THEME)
+            _fenced, _f = guardrails.prepare("theme", _t, guardrails.new_nonce(),
+                                             max_len=guardrails.MAX_THEME)
+            if _f:
+                logger.warning("Replacement theme matched injection patterns: %s", _f)
+            theme_block = (f"\nTHEME: stay on the theme described below.\n"
+                           f"{guardrails.UNTRUSTED_PREAMBLE}\n{_fenced}\n")
+        else:
+            theme_block = ""
 
         collection_block = ""
         if collection_summary:
@@ -1405,12 +1433,26 @@ DISCOVERY LEVEL: {discovery}/100
         return deduped[:num_songs]
 
     def _build_track_listing(self, tracks: list[dict], max_tracks: int = 80) -> str:
-        """Format Spotify tracks for the Claude prompt."""
+        """Format imported tracks for the prompt, fenced as untrusted data.
+
+        These names come from a playlist someone else authored — a track can
+        legally be titled "Ignore all previous instructions". Fencing them in
+        a nonce-delimited block, and telling the model the block is data,
+        means a title cannot pose as an instruction. See services/guardrails.
+        """
         lines = []
         for t in tracks[:max_tracks]:
-            year = f" ({t['year']})" if t.get("year") else ""
-            lines.append(f"  - {t['artist']} - {t['title']} [{t.get('album', '')}]{year}")
-        return "\n".join(lines)
+            artist = guardrails.sanitize(t.get("artist", ""))
+            title = guardrails.sanitize(t.get("title", ""))
+            album = guardrails.sanitize(t.get("album", ""))
+            year = f" ({guardrails.sanitize(str(t['year']), 8)})" if t.get("year") else ""
+            lines.append(f"  - {artist} - {title} [{album}]{year}")
+
+        nonce = guardrails.new_nonce()
+        fenced, findings = guardrails.prepare("playlist", "\n".join(lines), nonce)
+        if findings:
+            logger.warning("Track listing matched injection patterns: %s", findings)
+        return fenced
 
     def _build_profile_summary(self, profile: dict, collection: list[dict],
                                compact: bool = False) -> str:

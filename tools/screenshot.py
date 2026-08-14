@@ -21,6 +21,7 @@ PAGES = [
     ("collection", "/collection"),
     ("search", "/search"),
     ("likes", "/radio/likes"),
+    ("audit", "/audit"),
 ]
 
 

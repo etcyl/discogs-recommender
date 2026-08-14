@@ -1,0 +1,760 @@
+{
+  "run_id": "20260813-202050_ollama-gemma3-27b_spotify",
+  "provider": "ollama:gemma3:27b",
+  "generated_at": "2026-08-14T03:21:55+00:00",
+  "seconds": 65.7,
+  "seed": {
+    "kind": "spotify",
+    "name": "Liked Songs Copy",
+    "size": 100,
+    "sample": [
+      "DJ Dan - That Zipper Track (Needle Damage)",
+      "Aazure - Love In A French Cafe",
+      "Kings Of Tomorrow - KOT Anthem - Soul Vision Remix",
+      "oOoOO - 3; 51 A.M.",
+      "DJ Ghoster - I Can't Explain Vs Cola - Remix",
+      "Pixies - All I Think About Now",
+      "Pixies - The Thing",
+      "Eyedress - Jealous",
+      "De La Soul - Oodles of O's",
+      "Milton Jackson - Breathe - David Labeij Remix"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 45,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 21,
+    "artist_diversity": 0.84,
+    "max_per_artist": 2,
+    "unique_decades": 5,
+    "decade_spread": {
+      "1970s": 1,
+      "1980s": 1,
+      "1990s": 10,
+      "2000s": 7,
+      "2010s": 6
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.04,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 41.2,
+    "mean_match_score": 70.5,
+    "has_reason": 25,
+    "mean_reason_len": 146.3,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "DJ Koze",
+      "title": "Picknick",
+      "year": 2013,
+      "reason": "Like Milton Jackson’s work, 'Picknick' masterfully blends jazzy samples with a subtly driving electronic beat, creating a similarly hypnotic and atmospheric experience.",
+      "match_score": 85,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "sampling techniques"
+      ],
+      "similar_to": [
+        "Milton Jackson",
+        "Funki Porcini"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "DJ Koze — Picknick"
+      }
+    },
+    {
+      "artist": "Boards of Canada",
+      "title": "Roygbiv",
+      "year": 1998,
+      "reason": "'Roygbiv' shares the textural warmth and nostalgic, slightly melancholic mood found in much of the oOoOO and Shlohmo material.",
+      "match_score": 78,
+      "match_attributes": [
+        "mood/atmosphere",
+        "analog synths",
+        "ambient textures"
+      ],
+      "similar_to": [
+        "oOoOO",
+        "Shlohmo"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Boards Of Canada",
+        "matched_title": "Roygbiv",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Boards of Canada — Roygbiv"
+      }
+    },
+    {
+      "artist": "Flying Lotus",
+      "title": "Never Catch Me (feat. Kendrick Lamar)",
+      "year": 2014,
+      "reason": "Similar to Thundercat's collaboration with Flying Lotus, this track combines complex jazz-influenced harmonies with a forward-thinking hip-hop beat and vocal performance.",
+      "match_score": 82,
+      "match_attributes": [
+        "genre lineage",
+        "beat construction",
+        "improvisational feel"
+      ],
+      "similar_to": [
+        "Thundercat",
+        "Flying Lotus"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Flying Lotus",
+        "matched_title": "Never Catch Me (feat. Kendrick Lamar)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Flying Lotus — Never Catch Me (feat. Kendrick Lamar)"
+      }
+    },
+    {
+      "artist": "Bonobo",
+      "title": "Cirrus",
+      "year": 2006,
+      "reason": "Like St Germain and Thievery Corporation, 'Cirrus' blends downtempo electronic beats with jazzy instrumentation, creating a sophisticated and chill soundscape.",
+      "match_score": 75,
+      "match_attributes": [
+        "genre lineage",
+        "instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "St Germain",
+        "Thievery Corporation"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Bonobo",
+        "matched_title": "Cirrus",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Bonobo — Cirrus"
+      }
+    },
+    {
+      "artist": "Aphex Twin",
+      "title": "Alberto Balsalm",
+      "year": 1996,
+      "reason": "Like Lone's work, 'Alberto Balsalm' offers a blend of dreamy textures and subtly complex rhythms, creating an immersive and atmospheric listening experience.",
+      "match_score": 72,
+      "match_attributes": [
+        "electronic sound design",
+        "rhythmic complexity",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Lone",
+        "Caribou"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Aphex Twin",
+        "matched_title": "Alberto Balsalm",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Aphex Twin — Alberto Balsalm"
+      }
+    },
+    {
+      "artist": "J Dilla",
+      "title": "So Far To Go (feat. Common & D'Angelo)",
+      "year": 2006,
+      "reason": "Echoing the soulful sampling and boom-bap aesthetics of De La Soul and The Pharcyde, this track presents a beautifully melancholic beat with thoughtful lyrics.",
+      "match_score": 80,
+      "match_attributes": [
+        "sampling techniques",
+        "beat construction",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "De La Soul",
+        "The Pharcyde"
+      ],
+      "obscurity_score": 45,
+      "verification": {
+        "status": "verified",
+        "source": "itunes",
+        "confidence": 1.0,
+        "matched_artist": "J Dilla feat. Common & D'Angelo",
+        "matched_title": "So Far to Go",
+        "checked_sources": [
+          "deezer",
+          "itunes"
+        ],
+        "claimed_as": "J Dilla — So Far To Go (feat. Common & D'Angelo)"
+      }
+    },
+    {
+      "artist": "Four Tet",
+      "title": "Parallel Jalebi",
+      "year": 2017,
+      "reason": "Similar to Teebs and Ras G, 'Parallel Jalebi' utilizes intricate sampling and a lo-fi aesthetic to create a hypnotic and textured soundscape.",
+      "match_score": 70,
+      "match_attributes": [
+        "sampling techniques",
+        "lo-fi production",
+        "rhythmic feel"
+      ],
+      "similar_to": [
+        "Teebs",
+        "Ras G"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Four Tet",
+        "matched_title": "Parallel Jalebi",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Four Tet — Parallel Jalebi"
+      }
+    },
+    {
+      "artist": "Portishead",
+      "title": "Glory Box",
+      "year": 1994,
+      "reason": "'Glory Box' shares a similar moody and atmospheric vibe with Shuggie Otis, offering a blend of trip-hop beats, soulful vocals, and melancholic melodies.",
+      "match_score": 65,
+      "match_attributes": [
+        "mood/atmosphere",
+        "vocal style",
+        "instrumentation"
+      ],
+      "similar_to": [
+        "Shuggie Otis",
+        "Air"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Portishead",
+        "matched_title": "Glory Box",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Portishead — Glory Box"
+      }
+    },
+    {
+      "artist": "Madlib",
+      "title": "Mystikal Message",
+      "year": 2003,
+      "reason": "Like Puzzle and DJ Dan, this track delivers a funky and energetic blend of hip-hop beats and psychedelic samples.",
+      "match_score": 68,
+      "match_attributes": [
+        "beat construction",
+        "sampling techniques",
+        "energy"
+      ],
+      "similar_to": [
+        "Puzzle",
+        "DJ Dan"
+      ],
+      "obscurity_score": 50,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Madlib — Mystikal Message"
+      }
+    },
+    {
+      "artist": "Tortoise",
+      "title": "Ten Card Stud",
+      "year": 1996,
+      "reason": "Reflecting the instrumental complexity and atmospheric textures of Modest Mouse and Menomena, 'Ten Card Stud' blends post-rock with jazz and electronic elements.",
+      "match_score": 60,
+      "match_attributes": [
+        "instrumentation",
+        "experimental structure",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Modest Mouse",
+        "Menomena"
+      ],
+      "obscurity_score": 75,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Tortoise — Ten Card Stud"
+      }
+    },
+    {
+      "artist": "Can",
+      "title": "Vitamin C",
+      "year": 1972,
+      "reason": "The hypnotic groove and krautrock experimentation in 'Vitamin C' connects to the driving, yet atmospheric, elements present in tracks from Thievery Corporation and Funki Porcini.",
+      "match_score": 58,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Quantic",
+        "Funki Porcini"
+      ],
+      "obscurity_score": 60,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.975,
+        "matched_artist": "Can",
+        "matched_title": "Vitamin C (2004 Remastered Version)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Can — Vitamin C"
+      }
+    },
+    {
+      "artist": "DJ Shadow",
+      "title": "Midnight in a Perfect World",
+      "year": 1996,
+      "reason": "This track shares the sample-heavy, atmospheric trip-hop sensibilities with artists like DJ Ghoster and Milton Jackson, focusing on creating textural soundscapes.",
+      "match_score": 80,
+      "match_attributes": [
+        "production style",
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "DJ Dan",
+        "Shlohmo"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "DJ Shadow",
+        "matched_title": "Midnight In A Perfect World",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "DJ Shadow — Midnight in a Perfect World"
+      }
+    },
+    {
+      "artist": "Brian Eno",
+      "title": "An Ending (Ascent)",
+      "year": 1983,
+      "reason": "Like the ambient textures of Home and Teebs, this piece builds a spacious, emotive soundscape perfect for introspection.",
+      "match_score": 60,
+      "match_attributes": [
+        "mood/atmosphere",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Home",
+        "Teebs"
+      ],
+      "obscurity_score": 45,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.975,
+        "matched_artist": "Brian Eno",
+        "matched_title": "An Ending (Ascent) (Remastered 2005)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Brian Eno — An Ending (Ascent)"
+      }
+    },
+    {
+      "artist": "Massive Attack",
+      "title": "Teardrop",
+      "year": 1998,
+      "reason": "With its downtempo beat and haunting vocals, 'Teardrop' evokes a similar emotional depth as tracks by Aazure or even the more atmospheric Deftones songs.",
+      "match_score": 75,
+      "match_attributes": [
+        "mood/atmosphere",
+        "genre lineage",
+        "vocal style"
+      ],
+      "similar_to": [
+        "Pixies",
+        "Air"
+      ],
+      "obscurity_score": 20,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Massive Attack",
+        "matched_title": "Teardrop",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Massive Attack — Teardrop"
+      }
+    },
+    {
+      "artist": "J Dilla",
+      "title": "Donuts (Outro)",
+      "year": 2006,
+      "reason": "Similar to the chopped and screwed vibes of Ras G and Shlohmo, this outro is a masterclass in beatmaking with dusty samples and smooth transitions.",
+      "match_score": 72,
+      "match_attributes": [
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Ras G",
+        "Shlohmo"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "J Dilla",
+        "matched_title": "Donuts (Outro)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "J Dilla — Donuts (Outro)"
+      }
+    },
+    {
+      "artist": "Aphex Twin",
+      "title": "Windowlicker",
+      "year": 1997,
+      "reason": "Sharing a similar playful and experimental electronic approach with artists like Flying Lotus or Lone, 'Windowlicker' showcases complex rhythms and bizarre sound design.",
+      "match_score": 70,
+      "match_attributes": [
+        "production style",
+        "similar instrumentation",
+        "experimental"
+      ],
+      "similar_to": [
+        "Lone",
+        "Flying Lotus"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Aphex Twin",
+        "matched_title": "Windowlicker",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Aphex Twin — Windowlicker"
+      }
+    },
+    {
+      "artist": "Bonobo",
+      "title": "Kerala",
+      "year": 2006,
+      "reason": "Like Milton Jackson's work, 'Kerala' blends organic instrumentation with electronic textures creating a warm and atmospheric soundscape.",
+      "match_score": 85,
+      "match_attributes": [
+        "mood/atmosphere",
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Milton Jackson",
+        "St Germain"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Bonobo",
+        "matched_title": "Kerala",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Bonobo — Kerala"
+      }
+    },
+    {
+      "artist": "Gang Starr",
+      "title": "Mass Appeal",
+      "year": 1994,
+      "reason": "Reflecting the raw energy and classic hip-hop beats found in Run-DMC, De La Soul, Cypress Hill, and Beastie Boys, 'Mass Appeal' showcases lyrical prowess over a hard-hitting beat.",
+      "match_score": 68,
+      "match_attributes": [
+        "genre lineage",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Run–D.M.C.",
+        "A Tribe Called Quest"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Gang Starr",
+        "matched_title": "Mass Appeal",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Gang Starr — Mass Appeal"
+      }
+    },
+    {
+      "artist": "Gotan Project",
+      "title": "Santa Maria (Del Buen Ayre)",
+      "year": 2005,
+      "reason": "This track shares the downtempo, Latin-infused electronic vibe and melodic sensibility present in Thievery Corporation's music.",
+      "match_score": 80,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Thievery Corporation",
+        "Air"
+      ],
+      "obscurity_score": 45,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Gotan Project",
+        "matched_title": "Santa María (Del Buen Ayre)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Gotan Project — Santa Maria (Del Buen Ayre)"
+      }
+    },
+    {
+      "artist": "Stereolab",
+      "title": "Ping Pong",
+      "year": 1997,
+      "reason": "With its blend of electronic elements and jazzy instrumentation – reminiscent of The Dave Brubeck Quartet but with a distinctly modern edge - 'Ping Pong' offers a sophisticated groove.",
+      "match_score": 55,
+      "match_attributes": [
+        "similar instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "The Dave Brubeck Quartet",
+        "Air"
+      ],
+      "obscurity_score": 65,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Stereolab",
+        "matched_title": "Ping Pong",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Stereolab — Ping Pong"
+      }
+    },
+    {
+      "artist": "Four Tet",
+      "title": "Two Thousand and Seventeen",
+      "year": 2017,
+      "reason": "Similar to Caribou and Teebs, this track displays a masterful use of sampling and textural layering within an ambient electronic framework.",
+      "match_score": 75,
+      "match_attributes": [
+        "production style",
+        "similar instrumentation"
+      ],
+      "similar_to": [
+        "Caribou",
+        "Teebs"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Four Tet",
+        "matched_title": "Two Thousand and Seventeen",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Four Tet — Two Thousand and Seventeen"
+      }
+    },
+    {
+      "artist": "Amón Tobin",
+      "title": "Slow Day",
+      "year": 2007,
+      "reason": "Like Shlohmo's work, 'Slow Day' has a glitchy and cinematic quality with complex sound design.",
+      "match_score": 70,
+      "match_attributes": [
+        "production style"
+      ],
+      "similar_to": [
+        "Shlohmo",
+        "Flying Lotus"
+      ],
+      "obscurity_score": 50,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Amón Tobin — Slow Day"
+      }
+    },
+    {
+      "artist": "Sven Väth",
+      "title": "L.I.E.B.",
+      "year": 1998,
+      "reason": "Reflecting the driving techno energy of DJ Dan and Martin Buttrich, this track is a hypnotic blend of minimal beats and atmospheric textures.",
+      "match_score": 60,
+      "match_attributes": [
+        "genre lineage"
+      ],
+      "similar_to": [
+        "DJ Dan",
+        "Martin Buttrich"
+      ],
+      "obscurity_score": 65,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Sven Väth — L.I.E.B."
+      }
+    },
+    {
+      "artist": "Khruangbin",
+      "title": "Maria También",
+      "year": 2018,
+      "reason": "Like Quantic and Shuggie Otis, this song blends global influences with a relaxed instrumental groove.",
+      "match_score": 62,
+      "match_attributes": [
+        "similar instrumentation",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Quantic",
+        "Shuggie Otis"
+      ],
+      "obscurity_score": 40,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Khruangbin",
+        "matched_title": "Maria También",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Khruangbin — Maria También"
+      }
+    },
+    {
+      "artist": "BADBADNOTGOOD",
+      "title": "Time Moves Slow (feat. Samuel T. Herring)",
+      "year": 2016,
+      "reason": "Similar to Modest Mouse and Pixies, this track combines alternative instrumentation with an unconventional song structure.",
+      "match_score": 58,
+      "match_attributes": [
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Modest Mouse",
+        "Pixies"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "corrected",
+        "source": "itunes",
+        "confidence": 0.975,
+        "matched_artist": "BADBADNOTGOOD & Samuel T. Herring",
+        "matched_title": "Time Moves Slow",
+        "checked_sources": [
+          "deezer",
+          "itunes"
+        ],
+        "claimed_as": "BADBADNOTGOOD — Time Moves Slow (feat. Samuel T. Herring)"
+      }
+    }
+  ],
+  "verification": {
+    "confirmed": 20,
+    "unconfirmed": 5,
+    "confirmed_pct": 80.0
+  }
+}

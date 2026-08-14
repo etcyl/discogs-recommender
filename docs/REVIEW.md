@@ -253,6 +253,10 @@ it removes the whole atomic-write problem class and makes concurrent tabs safe.
 Anyone with read access to `data/users.db` has every user's Discogs
 credentials. `cryptography` is already in the dependency tree.
 
+> Partly mitigated: a **public** collection now needs no token at all, so the
+> common single-user setup can avoid storing one. See
+> `DiscogsService.public_mode`.
+
 **12. No CSRF protection** on the state-changing form posts (`/login`,
 `/admin/*`). Session auth is cookie-based, so these are cross-site submittable.
 
@@ -264,13 +268,12 @@ handlers. Nonces would let that come off.
 
 ### Recommendation quality
 
-**15. Verify picks before showing them.** This is the biggest quality lever
-available and the measurements are in [`bench/verification.md`](../bench/verification.md):
-models differ *substantially* in how often they invent tracks, and the app
-currently surfaces invented ones as real recommendations. The catalogue lookup
-already exists — `_fetch_song_metadata` hits iTunes and Deezer during
-enrichment. Checking "did anything match?" at that point and dropping the
-misses costs nothing extra and would remove hallucinations from the UI.
+**15. ~~Verify picks before showing them.~~ Done** — see
+[SAFETY.md](SAFETY.md). Recommendations are now resolved against Deezer,
+iTunes and MusicBrainz before reaching the player, with an `off` / `flag` /
+`strict` policy, badges in the UI, and an audit log at `/audit`. The
+measurements that motivated it are in
+[`bench/verification.md`](../bench/verification.md).
 
 **16. Give large local models the full prompt.** The prompt branch was chosen
 by `ai_model in ("ollama", "claude-haiku")`, so a 27B local model got the same

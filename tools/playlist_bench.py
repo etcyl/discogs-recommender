@@ -396,6 +396,9 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     src = p.add_argument_group("seed source (pick one)")
     src.add_argument("--tracks", type=Path, help="text file, 'Artist - Title' per line")
+    src.add_argument("--seed-file", type=Path,
+                     help="a saved seed JSON from bench/seeds/ "
+                          "(reproducible: no refetch, so the seed can't drift)")
     src.add_argument("--spotify", help="public Spotify playlist URL")
     src.add_argument("--youtube", help="public YouTube playlist URL")
     src.add_argument("--discogs", action="store_true", help="use a Discogs collection")
@@ -433,7 +436,14 @@ def main() -> int:
         return 0
 
     # -- load seed --------------------------------------------------------
-    if args.tracks:
+    if args.seed_file:
+        saved = json.loads(args.seed_file.read_text(encoding="utf-8"))
+        seed = {"kind": saved.get("kind", "tracks"), "items": saved["items"],
+                "name": saved.get("name", args.seed_file.stem)}
+        if seed["kind"] == "discogs":
+            from services.recommendation import CollectionAnalyzer
+            seed["profile"] = CollectionAnalyzer(seed["items"]).get_profile()
+    elif args.tracks:
         items = load_tracks_file(args.tracks)
         seed = {"kind": "tracks", "items": items, "name": args.tracks.stem}
     elif args.spotify:
@@ -451,7 +461,8 @@ def main() -> int:
         seed = {"kind": "discogs", "items": items, "profile": profile,
                 "name": f"{args.discogs_username} collection"}
     else:
-        return p.error("pick a seed: --tracks / --spotify / --youtube / --discogs")
+        return p.error("pick a seed: --seed-file / --tracks / --spotify / "
+                       "--youtube / --discogs")
 
     if not seed["items"]:
         return p.error("seed is empty")

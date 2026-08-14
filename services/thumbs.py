@@ -5,7 +5,9 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from services.paths import data_dir
+
+DATA_DIR = data_dir()
 THUMBS_FILE = DATA_DIR / "thumbs.json"
 DISLIKES_FILE = DATA_DIR / "dislikes.json"
 HISTORY_FILE = DATA_DIR / "history.json"

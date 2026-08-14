@@ -25,7 +25,13 @@ data/
 .claude/
 .vscode/
 
-# Bench — the lookup cache is a local artifact; seeds/prompts/runs are kept
-# because they are the evidence behind bench/comparison.md and
+# Bench — the lookup cache is a local artifact; the demo seed, prompts and
+# runs are kept because they are the evidence behind bench/comparison.md and
 # bench/verification.md.
 bench/.verify_cache.json
+
+# Personal seeds: a dump of someone's actual collection or playlist is their
+# listening history. Keep it local unless you decide otherwise. The demo seed
+# (bench/seeds/demo_playlist.txt) is committed; your own exports are not.
+bench/seeds/*.json
+!bench/seeds/demo_*.json

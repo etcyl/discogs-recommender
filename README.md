@@ -138,6 +138,44 @@ A walkthrough of how the playlist pipeline actually works, the bugs found in
 it, and where the remaining performance and structural wins are, is in
 **[docs/REVIEW.md](docs/REVIEW.md)**.
 
+## Accuracy and guardrails
+
+Language models invent songs. Measured on this app's own prompts, the share of
+recommendations that resolve to a real recording ranged from **44% to 100%**
+depending on the model — and the failures are not obvious noise:
+`Portishead — Silent Shout` is a The Knife song, `Nico — Janitor for God`
+should be *Janitor of Lunacy*, `Galaxie 2000` should be Galaxie 500.
+
+So the app checks. Every recommendation is resolved against Deezer, then
+iTunes, then MusicBrainz before it reaches the player, and each one carries a
+badge saying what backed it up:
+
+| `VERIFICATION_POLICY` | Behaviour |
+|---|---|
+| `off` | No checking. Fastest; you are trusting the model. |
+| `flag` | **Default.** Everything shown, with a badge. |
+| `strict` | Unconfirmed recommendations are dropped before you see them. |
+
+Alongside that:
+
+- **Model-written explanations are labelled as claims**, not facts. Nothing
+  verifies the assertion that two records share a producer.
+- **Every generation is logged** — model, settings, timing, and each song's
+  verification outcome, *including songs that were dropped*. Readable at
+  `/audit`, with per-run JSON export.
+- **Untrusted text is fenced.** Imported playlists are authored by strangers,
+  and a track can legally be titled `Ignore all previous instructions`. Song
+  titles, themes and uploads are sanitised and wrapped in nonce-delimited
+  blocks before they reach the prompt.
+- **Catalogue identity beats a video title.** When YouTube resolution rewrites
+  a track's name into something a catalogue contradicts — an interview clip, a
+  podcast episode — the confirmed name is restored.
+
+Full threat model, what each layer does, and where each one stops:
+**[docs/SAFETY.md](docs/SAFETY.md)**.
+
+![Audit log](docs/after/audit.png)
+
 ## Configuration
 
 All configuration is optional. The app works with no `.env` file at all.
@@ -148,12 +186,16 @@ cp .env.example .env   # optional
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DISCOGS_TOKEN` | No | Enables collection-based features. Get one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) |
-| `DISCOGS_USERNAME` | No | Your Discogs username (needed with token) |
+| `DISCOGS_USERNAME` | No | Your Discogs username. **On its own this is enough** if your collection is public — no token needed. |
+| `DISCOGS_TOKEN` | No | Only needed for a *private* collection, or for the genre/style engine, which searches the Discogs catalogue. Get one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) |
 | `ANTHROPIC_API_KEY` | No | Enables Claude AI recommendations. Get one at [console.anthropic.com](https://console.anthropic.com) |
 | `OLLAMA_BASE_URL` | No | Ollama API URL (default: `http://localhost:11434`) |
 | `OLLAMA_MODEL` | No | Ollama model name (default: `llama3.1:8b`) |
 | `PROMPT_TIER` | No | `auto` (default), `compact`, or `rich`. `auto` gives Ollama and Haiku the short prompt and Sonnet the full curator prompt. Set `rich` for 24B+ local models. |
+| `VERIFICATION_POLICY` | No | `flag` (default), `off`, or `strict`. How hard to fact-check AI recommendations against public music catalogues. See [docs/SAFETY.md](docs/SAFETY.md) |
+| `AUDIT_ENABLED` | No | `true` (default). Record every generation to the audit log at `/audit` |
+| `AUDIT_RETENTION_DAYS` | No | `90` (default). How long audit runs are kept |
+| `DISCOGS_DATA_DIR` | No | Move all on-disk state (database, per-user JSON) somewhere else |
 | `SECRET_KEY` | No | Session secret; auto-generated if not set (sessions won't survive restarts without it) |
 
 > **Security note:** Never commit your `.env` file. It is already listed in `.gitignore`.
@@ -335,7 +377,9 @@ python tools/screenshot.py --out docs/after
 
 ## Testing
 
-The project includes a comprehensive test suite of **339 unit tests** covering functional correctness and security hardening mapped to modern CWE categories.
+The project includes a comprehensive test suite of **456 unit tests** covering functional correctness, the accuracy and guardrail layers, and security hardening mapped to modern CWE categories.
+
+Tests write to a throwaway directory (`DISCOGS_DATA_DIR`), so running them never touches your real collection data or database.
 
 ### Running the tests
 
@@ -372,6 +416,10 @@ tests/
   test_radio_service.py      Radio: playlist generation, YouTube resolution, caching
   test_app.py                FastAPI routes: all endpoints, validation, security headers
   test_security.py           Security-focused tests organized by CWE category
+  test_verification.py       Catalogue matching, verification policies, reconciliation
+  test_audit.py              Audit log: recording, scoping, retention, failure isolation
+  test_guardrails.py         Prompt-injection: sanitising, fencing, detection
+  test_discogs_public.py     Token-free public collection access
 ```
 
 ### CWE security coverage
@@ -418,6 +466,10 @@ The test suite validates protections against these vulnerability classes:
 | `/api/radio/youtube-channel` | POST | Yes | Create channel from YouTube playlist |
 | `/api/radio/spotify-preview` | POST | Yes | Preview a Spotify playlist |
 | `/api/radio/feedback` | POST | Yes | Submit track feedback |
+| `/audit` | GET | Yes | AI generation audit log |
+| `/api/audit/runs` | GET | Yes | List generation runs |
+| `/api/audit/runs/{id}` | GET | Yes | One run with every song and its verification |
+| `/api/audit/export/{id}` | GET | Yes | Download a run as JSON |
 
 ## Project Configuration
 

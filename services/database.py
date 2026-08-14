@@ -4,7 +4,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-DB_DIR = Path(__file__).resolve().parent.parent / "data"
+from services.paths import data_dir
+
+DB_DIR = data_dir()
 DB_PATH = DB_DIR / "users.db"
 
 _SCHEMA = """
@@ -41,6 +43,7 @@ def get_db() -> sqlite3.Connection:
     """Return a connection to the users database."""
     DB_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH), timeout=5)
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

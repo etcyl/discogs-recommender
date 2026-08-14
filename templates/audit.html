@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% set active_page = 'audit' %}
+
+{% block title %}AI Audit Log - Discogs Recommender{% endblock %}
+
+{% block content %}
+<div class="audit-page">
+
+  <header class="audit-header">
+    <h2>AI audit log</h2>
+    <p class="audit-sub">
+      Every playlist this app generates is recorded here: which model produced it,
+      what settings it ran under, and how much of what it recommended could be
+      confirmed against public music catalogues.
+    </p>
+  </header>
+
+  <div class="audit-policy">
+    <div class="audit-policy-item">
+      <span class="audit-policy-label">Accuracy checking</span>
+      <span class="audit-policy-value audit-policy-{{ verification_policy }}">
+        {% if verification_policy == 'strict' %}Strict &mdash; unverifiable songs are dropped
+        {% elif verification_policy == 'flag' %}Flag &mdash; everything shown, unverified songs marked
+        {% else %}Off &mdash; recommendations are not checked
+        {% endif %}
+      </span>
+    </div>
+    <div class="audit-policy-item">
+      <span class="audit-policy-label">Audit log</span>
+      <span class="audit-policy-value">
+        {% if audit_enabled %}On &mdash; kept {{ retention_days }} days{% else %}Off{% endif %}
+      </span>
+    </div>
+    <div class="audit-policy-item">
+      <span class="audit-policy-label">Change it with</span>
+      <span class="audit-policy-value"><code>VERIFICATION_POLICY</code> in <code>.env</code></span>
+    </div>
+  </div>
+
+  {% if model_stats %}
+  <section class="audit-section">
+    <h3>Accuracy by model</h3>
+    <p class="audit-note">
+      Share of this model's recommendations that resolved to a real recording.
+      A song counts as unverified when no catalogue could confirm it &mdash; usually
+      because the model invented it, occasionally because it is too obscure to be indexed.
+    </p>
+    <div class="audit-table-wrap">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th class="num">Runs</th>
+            <th class="num">Songs</th>
+            <th class="num">Verified</th>
+            <th class="num">Corrected</th>
+            <th class="num">Unverified</th>
+            <th class="num">Dropped</th>
+            <th class="num">No match</th>
+            <th class="num">Confirmed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in model_stats %}
+          <tr>
+            <td>{{ m.ai_model }}</td>
+            <td class="num">{{ m.runs }}</td>
+            <td class="num">{{ m.generated or 0 }}</td>
+            <td class="num">{{ m.verified or 0 }}</td>
+            <td class="num">{{ m.corrected or 0 }}</td>
+            <td class="num">{{ m.unverified or 0 }}</td>
+            <td class="num">{{ m.dropped or 0 }}</td>
+            <td class="num">{{ m.unresolved or 0 }}</td>
+            <td class="num">
+              {% if m.verified_pct is not none %}
+              <span class="audit-pct {% if m.verified_pct >= 90 %}is-good{% elif m.verified_pct >= 70 %}is-mid{% else %}is-bad{% endif %}">
+                {{ m.verified_pct }}%
+              </span>
+              {% else %}&mdash;{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="audit-section">
+    <h3>Generations{% if scope_all %} &mdash; all users{% endif %}</h3>
+
+    {% if not runs %}
+    <p class="audit-empty">
+      No generations recorded yet. Play a radio channel and it will show up here.
+    </p>
+    {% else %}
+    <div class="audit-runs">
+      {% for r in runs %}
+      <details class="audit-run" data-run-id="{{ r.id }}">
+        <summary class="audit-run-summary">
+          <span class="audit-run-when">{{ r.created_at.replace('T', ' ')[:16] }}</span>
+          <span class="audit-run-channel">{{ r.channel_name or r.channel_id }}</span>
+          <span class="audit-run-model">{{ r.ai_model }}</span>
+          <span class="audit-run-counts">
+            {{ r.num_generated }} songs
+            {% if r.num_unverified %}
+            <span class="audit-chip is-bad">{{ r.num_unverified }} unverified</span>
+            {% endif %}
+            {% if r.num_dropped %}
+            <span class="audit-chip is-dropped">{{ r.num_dropped }} dropped</span>
+            {% endif %}
+            {% if r.num_unresolved %}
+            <span class="audit-chip is-muted">{{ r.num_unresolved }} no match</span>
+            {% endif %}
+          </span>
+          <span class="audit-run-time">{{ (r.duration_ms / 1000) | round(1) }}s</span>
+        </summary>
+        <div class="audit-run-body">
+          <dl class="audit-params">
+            <div><dt>Source</dt><dd>{{ r.source_type }}{% if r.mode %} / {{ r.mode }}{% endif %}</dd></div>
+            <div><dt>Discovery</dt><dd>{{ r.discovery if r.discovery is not none else '—' }}</dd></div>
+            <div><dt>Era</dt><dd>{% if r.era_from or r.era_to %}{{ r.era_from or '' }}–{{ r.era_to or '' }}{% else %}all{% endif %}</dd></div>
+            <div><dt>Deep cuts</dt><dd>{{ 'on' if r.deep_cuts else 'off' }}</dd></div>
+            <div><dt>Prompt tier</dt><dd>{{ r.prompt_tier }}</dd></div>
+            <div><dt>Policy</dt><dd>{{ r.verification_policy }}</dd></div>
+            <div><dt>App version</dt><dd>v{{ r.app_version }}</dd></div>
+          </dl>
+          {% if r.notes %}<p class="audit-flag">⚠ {{ r.notes }}</p>{% endif %}
+          <div class="audit-run-actions">
+            <button class="audit-load-btn" data-run-id="{{ r.id }}">Show songs</button>
+            <a class="audit-export" href="/api/audit/export/{{ r.id }}">Export JSON</a>
+          </div>
+          <div class="audit-items" id="audit-items-{{ r.id }}"></div>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/audit.js"></script>
+{% endblock %}

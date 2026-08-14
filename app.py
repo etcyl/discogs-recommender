@@ -8,13 +8,15 @@ import random
 import re
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx as _httpx
 from fastapi import FastAPI, Request, Query, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import (HTMLResponse, JSONResponse, StreamingResponse,
+                               RedirectResponse, Response)
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -25,8 +27,12 @@ from services.recommendation import CollectionAnalyzer
 from services.claude_recommender import ClaudeRecommender
 from services.radio_service import RadioService
 from services.llm_provider import LLMError, parse_llm_json
+from services import paths
 from services import thumbs
 from services import channel_service
+from services import verification
+from services import guardrails
+from services import audit
 from services.database import init_db
 from services import auth_service
 from services.scene_service import SceneService
@@ -36,7 +42,9 @@ from services.credit_service import CreditService
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
-APP_VERSION = (BASE_DIR / "VERSION").read_text().strip()
+# utf-8-sig, not utf-8: an editor (or PowerShell's Out-File) can leave a BOM
+# on this file, and the BOM then renders as mojibake in the page footer.
+APP_VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8-sig").strip()
 
 app = FastAPI(title="Discogs Recommender", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -87,6 +95,9 @@ youtube_playlist = YouTubePlaylistService()
 
 # Initialize database and bootstrap admin user
 init_db()
+audit.init_audit_db()
+if settings.audit_enabled:
+    audit.prune(settings.audit_retention_days)
 admin_user = auth_service.ensure_admin_exists()
 auth_service.migrate_admin_data()
 auth_service.cleanup_expired_sessions()
@@ -248,7 +259,7 @@ async def auth_middleware(request: Request, call_next):
 
     # Auto-login mode: when no Discogs credentials are configured,
     # automatically authenticate all visitors as the local admin (single-user mode)
-    if not settings.discogs_configured:
+    if settings.single_user_mode:
         admin = auth_service.get_admin_user()
         if admin:
             request.state.user = admin
@@ -340,7 +351,7 @@ def _sanitize_error(error: Exception) -> str:
 
 def _get_user_data_dir(user: dict) -> Path:
     """Return the per-user data directory, creating it if needed."""
-    user_dir = BASE_DIR / "data" / user["id"]
+    user_dir = paths.data_dir() / user["id"]
     user_dir.mkdir(parents=True, exist_ok=True)
     return user_dir
 
@@ -638,10 +649,13 @@ async def system_status():
     ollama_info = _check_ollama(settings.ollama_base_url)
     return {
         "discogs_configured": settings.discogs_configured,
+        "discogs_public_mode": settings.discogs_public_mode,
         "anthropic_configured": settings.anthropic_configured,
         "ollama_available": ollama_info["running"],
         "ollama_models": ollama_info["models"],
         "ollama_installed": ollama_info["installed"],
+        "verification_policy": settings.verification_policy,
+        "audit_enabled": settings.audit_enabled,
     }
 
 
@@ -651,6 +665,69 @@ async def system_hardware(request: Request):
     from services.hardware_service import get_hardware_info
     info = await asyncio.to_thread(get_hardware_info, settings.ollama_base_url)
     return info
+
+
+# ---------------------------------------------------------------------------
+# Transparency / audit
+#
+# Every AI generation is recorded. These routes make that record readable —
+# a listener can see which model produced a playlist, what it claimed, and
+# whether anything independently backed it up. Scoped to the owner of the
+# runs; admins see everything.
+# ---------------------------------------------------------------------------
+
+@app.get("/audit", response_class=HTMLResponse)
+async def audit_page(request: Request):
+    """Human-readable log of AI generations."""
+    user = request.state.user
+    scope_all = bool(user.get("is_admin")) and request.query_params.get("all") == "1"
+    runs = await asyncio.to_thread(
+        audit.list_runs, None if scope_all else user["id"], 100)
+    model_stats = await asyncio.to_thread(
+        audit.stats, None if scope_all else user["id"])
+    return templates.TemplateResponse(request, "audit.html", _template_context(
+        request, runs=runs, model_stats=model_stats["by_model"],
+        scope_all=scope_all,
+        verification_policy=settings.verification_policy,
+        audit_enabled=settings.audit_enabled,
+        retention_days=settings.audit_retention_days,
+        active_page="audit"))
+
+
+@app.get("/api/audit/runs")
+async def audit_runs(request: Request,
+                     limit: int = Query(50, ge=1, le=200),
+                     offset: int = Query(0, ge=0)):
+    user = request.state.user
+    scope_all = bool(user.get("is_admin")) and request.query_params.get("all") == "1"
+    runs = await asyncio.to_thread(
+        audit.list_runs, None if scope_all else user["id"], limit, offset)
+    return {"runs": runs}
+
+
+@app.get("/api/audit/runs/{run_id}")
+async def audit_run_detail(request: Request, run_id: int):
+    """One run with every song, including the ones the accuracy check removed."""
+    user = request.state.user
+    scope = None if user.get("is_admin") else user["id"]
+    run = await asyncio.to_thread(audit.get_run, run_id, scope)
+    if not run:
+        return JSONResponse(status_code=404, content={"error": "Run not found"})
+    return run
+
+
+@app.get("/api/audit/export/{run_id}")
+async def audit_export(request: Request, run_id: int):
+    """Download one run as JSON, for review outside this app."""
+    user = request.state.user
+    scope = None if user.get("is_admin") else user["id"]
+    payload = await asyncio.to_thread(audit.export_run, run_id, scope)
+    if payload == "{}":
+        return JSONResponse(status_code=404, content={"error": "Run not found"})
+    return Response(
+        content=payload, media_type="application/json",
+        headers={"Content-Disposition":
+                 f'attachment; filename="generation-run-{run_id}.json"'})
 
 
 # ---------------------------------------------------------------------------
@@ -1005,6 +1082,9 @@ async def radio_playlist_stream(request: Request,
             yield _sse("complete", {"cached": True, "ai_model": ""})
             return
 
+        _t_start = time.time()
+        guardrail_findings: list[str] = []
+
         try:
             channel = channel_service.get_channel(channel_id, data_dir=user_dir)
             if not channel:
@@ -1022,8 +1102,8 @@ async def radio_playlist_stream(request: Request,
                 return
 
             if source_type == "discogs":
-                if not settings.discogs_configured and not (user.get("discogs_username") and user.get("discogs_token")):
-                    yield _sse("error", {"message": "No Discogs account connected. Add DISCOGS_TOKEN and DISCOGS_USERNAME to your .env file, or create a Spotify/YouTube/themed channel instead."})
+                if not settings.discogs_configured and not user.get("discogs_username"):
+                    yield _sse("error", {"message": "No Discogs account connected. Set DISCOGS_USERNAME in your .env — a public collection needs no token — or create a Spotify/YouTube/themed channel instead."})
                     return
                 yield _sse("progress", {"message": "Loading your collection from Discogs...", "percent": 5})
                 _task = asyncio.ensure_future(asyncio.to_thread(_get_user_collection, user))
@@ -1047,7 +1127,12 @@ async def radio_playlist_stream(request: Request,
                 discovery = channel.get("discovery", 30)
                 era_from = channel.get("era_from")
                 era_to = channel.get("era_to")
-                theme = channel.get("source_data", {}).get("theme", "")
+                theme = guardrails.sanitize(
+                    channel.get("source_data", {}).get("theme", ""),
+                    guardrails.MAX_THEME)
+                for _f in guardrails.scan(theme):
+                    if _f not in guardrail_findings:
+                        guardrail_findings.append(_f)
                 prefer_deep_cuts = channel.get("prefer_deep_cuts", False)
 
                 # Build enrichment data (credit graph, scenes, labels, preferences)
@@ -1162,6 +1247,8 @@ async def radio_playlist_stream(request: Request,
                 async for _p in _keepalive_loop(_task):
                     yield _p
                 tracks = _task.result()
+                tracks, _f = guardrails.sanitize_tracks(tracks)
+                guardrail_findings.extend(x for x in _f if x not in guardrail_findings)
                 if not tracks:
                     yield _sse("error", {"message": "Spotify playlist is empty."})
                     return
@@ -1233,6 +1320,8 @@ async def radio_playlist_stream(request: Request,
 
             elif source_type == "upload":
                 tracks = channel.get("source_data", {}).get("tracks", [])
+                tracks, _f = guardrails.sanitize_tracks(tracks)
+                guardrail_findings.extend(x for x in _f if x not in guardrail_findings)
                 if not tracks:
                     yield _sse("error", {"message": "Upload channel has no tracks."})
                     return
@@ -1304,6 +1393,8 @@ async def radio_playlist_stream(request: Request,
 
             elif source_type == "youtube":
                 tracks = channel.get("source_data", {}).get("tracks", [])
+                tracks, _f = guardrails.sanitize_tracks(tracks)
+                guardrail_findings.extend(x for x in _f if x not in guardrail_findings)
                 if not tracks:
                     yield _sse("error", {"message": "YouTube channel has no tracks."})
                     return
@@ -1404,6 +1495,48 @@ async def radio_playlist_stream(request: Request,
                 yield _sse("error", {"message": "Unknown channel type."})
                 return
 
+            # ---- Accuracy check ------------------------------------------
+            # Models invent songs — measured at 44-100% real depending on the
+            # model (bench/verification.md). Resolve each pick against public
+            # catalogues before spending YouTube lookups on it, so a fabricated
+            # track is either labelled or dropped rather than presented as a
+            # real recommendation.
+            #
+            # Skipped when the tracks aren't model output: liked songs and
+            # "play this playlist" are the listener's own real tracks.
+            verification_summary = {}
+            dropped_songs: list[dict] = []
+            ai_generated = source_type != "liked" and channel.get("mode") != "play_playlist"
+            policy = settings.verification_policy
+
+            if ai_generated and policy != verification.Policy.OFF.value and playlist:
+                yield _sse("progress", {
+                    "message": f"Fact-checking {len(playlist)} recommendations...",
+                    "percent": 28,
+                })
+                _before = list(playlist)
+                _task = asyncio.ensure_future(asyncio.to_thread(
+                    verification.verify_songs, playlist, policy))
+                async for _p in _keepalive_loop(_task):
+                    yield _p
+                playlist, verification_summary = _task.result()
+
+                kept_ids = {id(s) for s in playlist}
+                dropped_songs = [s for s in _before if id(s) not in kept_ids]
+
+                if verification_summary.get("dropped"):
+                    yield _sse("progress", {
+                        "message": (f"Dropped {verification_summary['dropped']} "
+                                    "unverifiable songs"),
+                        "percent": 29,
+                    })
+                if not playlist:
+                    yield _sse("error", {
+                        "message": ("Every recommendation failed the accuracy check. "
+                                    "Try a different AI model, or set "
+                                    "VERIFICATION_POLICY=flag to see them anyway.")})
+                    return
+
             # Build exclude set for post-YouTube-resolution filtering
             # (YT title rewriting can change artist/title to match known songs)
             # For the "liked" channel, do NOT exclude liked songs (they ARE the playlist)
@@ -1430,6 +1563,12 @@ async def radio_playlist_stream(request: Request,
                     yield _p
                 batch_resolved = _task.result()
                 if batch_resolved:
+                    # The resolver rewrites artist/title from the YouTube video
+                    # title. Where a catalogue already confirmed the track, its
+                    # name wins over a video title that may belong to an
+                    # interview, a live upload, or an unrelated clip.
+                    if verification_summary:
+                        verification.reconcile(batch_resolved)
                     resolved.extend(batch_resolved)
                     yield _sse("song", {"songs": batch_resolved, "total_expected": total})
 
@@ -1438,8 +1577,55 @@ async def radio_playlist_stream(request: Request,
                 ttl = 1800 if source_type == "liked" else 28800
                 cache.set(cache_key, resolved, ttl=ttl)
 
+            # ---- Audit ---------------------------------------------------
+            # One row per generation, plus one per song including the ones the
+            # accuracy check removed, so a dropped recommendation stays on the
+            # record instead of disappearing.
+            # Songs that survived the accuracy check but had no playable match
+            # on YouTube. They never reach the listener either, so they belong
+            # in the record alongside the ones verification removed.
+            #
+            # Compared by object identity: resolve_youtube_ids rewrites
+            # artist/title in place from the video title, so comparing names
+            # here would miss exactly the songs that were rewritten.
+            _resolved_ids = {id(s) for s in resolved}
+            unresolved_songs = [s for s in playlist if id(s) not in _resolved_ids]
+
+            run_id = None
+            if settings.audit_enabled:
+                run_id = await asyncio.to_thread(
+                    audit.record_run,
+                    user_id=user["id"], channel_id=channel_id,
+                    channel_name=channel.get("name", ""),
+                    source_type=source_type, mode=channel.get("mode", ""),
+                    ai_model=ai_model, prompt_tier=settings.prompt_tier,
+                    discovery=channel.get("discovery"),
+                    era_from=channel.get("era_from"), era_to=channel.get("era_to"),
+                    deep_cuts=channel.get("prefer_deep_cuts", False),
+                    num_requested=num_songs,
+                    songs_kept=resolved, songs_dropped=dropped_songs,
+                    songs_unresolved=unresolved_songs,
+                    verification_summary=verification_summary,
+                    duration_ms=int((time.time() - _t_start) * 1000),
+                    app_version=APP_VERSION,
+                    notes=("guardrail findings: " + ",".join(guardrail_findings))
+                    if guardrail_findings else "")
+
             yield _sse("progress", {"message": "Ready!", "percent": 100})
-            yield _sse("complete", {"cached": False, "ai_model": model_label})
+            yield _sse("complete", {
+                "cached": False,
+                "ai_model": model_label,
+                # Provenance, so the UI can say where this playlist came from
+                # rather than presenting it as anonymous truth.
+                "provenance": {
+                    "ai_model": ai_model,
+                    "model_label": model_label,
+                    "prompt_tier": settings.prompt_tier,
+                    "verification": verification_summary or {"policy": "off"},
+                    "audit_run_id": run_id,
+                    "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                },
+            })
 
         except Exception as e:
             # This path used to yield str(e) straight to the browser, which

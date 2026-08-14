@@ -1,0 +1,741 @@
+{
+  "run_id": "20260813-202050_ollama-qwen3-30b-a3b_spotify",
+  "provider": "ollama:qwen3:30b-a3b",
+  "generated_at": "2026-08-14T03:22:17+00:00",
+  "seconds": 21.9,
+  "seed": {
+    "kind": "spotify",
+    "name": "Liked Songs Copy",
+    "size": 100,
+    "sample": [
+      "DJ Dan - That Zipper Track (Needle Damage)",
+      "Aazure - Love In A French Cafe",
+      "Kings Of Tomorrow - KOT Anthem - Soul Vision Remix",
+      "oOoOO - 3; 51 A.M.",
+      "DJ Ghoster - I Can't Explain Vs Cola - Remix",
+      "Pixies - All I Think About Now",
+      "Pixies - The Thing",
+      "Eyedress - Jealous",
+      "De La Soul - Oodles of O's",
+      "Milton Jackson - Breathe - David Labeij Remix"
+    ]
+  },
+  "args": {
+    "mode": "similar_songs",
+    "discovery": 45,
+    "num_songs": 25,
+    "prompt_tier": "auto",
+    "era_from": null,
+    "era_to": null,
+    "deep_cuts": false
+  },
+  "metrics": {
+    "count": 25,
+    "unique_artists": 23,
+    "artist_diversity": 0.92,
+    "max_per_artist": 2,
+    "unique_decades": 3,
+    "decade_spread": {
+      "1990s": 5,
+      "2000s": 7,
+      "2010s": 13
+    },
+    "missing_year": 0,
+    "seed_artist_reuse": 0.2,
+    "seed_track_leakage": 0,
+    "internal_duplicates": 0,
+    "mean_obscurity": 32.1,
+    "mean_match_score": 83.5,
+    "has_reason": 25,
+    "mean_reason_len": 135.0,
+    "field_completeness": 1.0
+  },
+  "songs": [
+    {
+      "artist": "Lone",
+      "title": "Canyon",
+      "year": 2012,
+      "reason": "Shares Lone's signature atmospheric synth work and intricate beat programming found in 'Coreshine Voodoo' and 'Blossom Quarter', but with a warmer, more organic tone",
+      "match_score": 87,
+      "match_attributes": [
+        "production style",
+        "instrumentation"
+      ],
+      "similar_to": [
+        "Lone - Coreshine Voodoo",
+        "Lone - Blossom Quarter"
+      ],
+      "obscurity_score": 45,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.95,
+        "matched_artist": "Lone Pigeon",
+        "matched_title": "Lovers Canyon",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Lone — Canyon"
+      }
+    },
+    {
+      "artist": "Hudson Mohawke",
+      "title": "Blast Beats",
+      "year": 2009,
+      "reason": "Offers a similarly hyperkinetic, glitchy electronic energy as 'Infected Mushroom - Saeed', but with more melodic depth and complex percussion",
+      "match_score": 82,
+      "match_attributes": [
+        "energy level",
+        "production style"
+      ],
+      "similar_to": [
+        "Infected Mushroom - Saeed"
+      ],
+      "obscurity_score": 23,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Hudson Mohawke — Blast Beats"
+      }
+    },
+    {
+      "artist": "Tune-Yards",
+      "title": "Bizness",
+      "year": 2010,
+      "reason": "Captures the playful, percussive energy and vocal experimentation of 'Eyedress - Jealous' with a similar indie-funk approach",
+      "match_score": 83,
+      "match_attributes": [
+        "vocal approach",
+        "rhythmic complexity"
+      ],
+      "similar_to": [
+        "Eyedress - Jealous"
+      ],
+      "obscurity_score": 37,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "tUnE-yArDs",
+        "matched_title": "Bizness",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Tune-Yards — Bizness"
+      }
+    },
+    {
+      "artist": "Flying Lotus",
+      "title": "Do the Astral Plane",
+      "year": 2008,
+      "reason": "Connects to 'Flying Lotus - Massage Situation' through the jazz-inflected electronic production and smooth, melodic flow",
+      "match_score": 85,
+      "match_attributes": [
+        "production style",
+        "jazz fusion elements"
+      ],
+      "similar_to": [
+        "Flying Lotus - Massage Situation"
+      ],
+      "obscurity_score": 32,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Flying Lotus",
+        "matched_title": "Do The Astral Plane",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Flying Lotus — Do the Astral Plane"
+      }
+    },
+    {
+      "artist": "Stereolab",
+      "title": "Jenny Ondioline",
+      "year": 1992,
+      "reason": "Offers a similar blend of electronic instrumentation and jangly guitar work found in 'Pixies - All I Think About Now' and 'Pixies - The Thing'",
+      "match_score": 86,
+      "match_attributes": [
+        "instrumentation",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Pixies - All I Think About Now",
+        "Pixies - The Thing"
+      ],
+      "obscurity_score": 19,
+      "verification": {
+        "status": "corrected",
+        "source": "deezer",
+        "confidence": 0.975,
+        "matched_artist": "Stereolab",
+        "matched_title": "Jenny Ondioline (Part One)",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Stereolab — Jenny Ondioline"
+      }
+    },
+    {
+      "artist": "The Avalanches",
+      "title": "Since I Left You",
+      "year": 2000,
+      "reason": "Shares the sample-heavy, genre-blending approach of 'De La Soul - Oodles of O's' with similarly intricate sonic layering",
+      "match_score": 88,
+      "match_attributes": [
+        "sample-based composition",
+        "genre blending"
+      ],
+      "similar_to": [
+        "De La Soul - Oodles of O's"
+      ],
+      "obscurity_score": 27,
+      "verification": {
+        "status": "verified",
+        "source": "itunes",
+        "confidence": 1.0,
+        "matched_artist": "The Avalanches",
+        "matched_title": "Since I Left You",
+        "checked_sources": [
+          "deezer",
+          "itunes"
+        ],
+        "claimed_as": "The Avalanches — Since I Left You"
+      }
+    },
+    {
+      "artist": "Cibo Matto",
+      "title": "Sack Lunch",
+      "year": 1995,
+      "reason": "Shares the quirky, sample-based electronic pop of 'Adina Howard - Freak Like Me' with a similar playful approach to vocal delivery and production",
+      "match_score": 81,
+      "match_attributes": [
+        "vocal delivery",
+        "production style"
+      ],
+      "similar_to": [
+        "Adina Howard - Freak Like Me"
+      ],
+      "obscurity_score": 41,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Cibo Matto — Sack Lunch"
+      }
+    },
+    {
+      "artist": "The Cinematic Orchestra",
+      "title": "Every Day",
+      "year": 2002,
+      "reason": "Shares the soulful, atmospheric electronic production of 'St Germain - Easy To Remember' with a similar smooth, melodic approach",
+      "match_score": 80,
+      "match_attributes": [
+        "mood/atmosphere",
+        "melodic approach"
+      ],
+      "similar_to": [
+        "St Germain - Easy To Remember"
+      ],
+      "obscurity_score": 29,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "The Cinematic Orchestra — Every Day"
+      }
+    },
+    {
+      "artist": "Tortoise",
+      "title": "The Loop",
+      "year": 1998,
+      "reason": "Shares the intricate, jazz-influenced electronic grooves of 'Mount Kimbie - Before I Move Off' and 'Mount Kimbie - Made To Stray' with a similarly complex rhythmic foundation",
+      "match_score": 84,
+      "match_attributes": [
+        "rhythmic complexity",
+        "jazz fusion elements"
+      ],
+      "similar_to": [
+        "Mount Kimbie - Before I Move Off",
+        "Mount Kimbie - Made To Stray"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Tortoise — The Loop"
+      }
+    },
+    {
+      "artist": "Battles",
+      "title": "Atlas",
+      "year": 2007,
+      "reason": "Shares the intricate, rhythmic electronic composition style of 'Lone - Rapid Racer' and 'Lone - Coreshine Voodoo' with complex, interlocking parts",
+      "match_score": 83,
+      "match_attributes": [
+        "rhythmic complexity",
+        "instrumentation"
+      ],
+      "similar_to": [
+        "Lone - Rapid Racer",
+        "Lone - Coreshine Voodoo"
+      ],
+      "obscurity_score": 26,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Battles",
+        "matched_title": "Atlas",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Battles — Atlas"
+      }
+    },
+    {
+      "artist": "M83",
+      "title": "Midnight City",
+      "year": 2011,
+      "reason": "Features the same lush, atmospheric synthscapes and driving drum patterns as Deftones' atmospheric tracks, with a similar emotional build.",
+      "match_score": 87,
+      "match_attributes": [
+        "instrumentation",
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Deftones - Around the Fur",
+        "Deftones - Change (In the House of Flies)"
+      ],
+      "obscurity_score": 10,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "M83",
+        "matched_title": "Midnight City",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "M83 — Midnight City"
+      }
+    },
+    {
+      "artist": "Björk",
+      "title": "Hyperballad",
+      "year": 1995,
+      "reason": "Shares the same avant-garde production techniques and emotional intensity as Milton Jackson's experimental remixes.",
+      "match_score": 82,
+      "match_attributes": [
+        "production style",
+        "mood/atmosphere",
+        "avant-garde"
+      ],
+      "similar_to": [
+        "Milton Jackson - Fade Runner",
+        "Milton Jackson - Breathe - David Labeij Remix"
+      ],
+      "obscurity_score": 35,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Björk",
+        "matched_title": "Hyperballad",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Björk — Hyperballad"
+      }
+    },
+    {
+      "artist": "Tame Impala",
+      "title": "Elephant",
+      "year": 2012,
+      "reason": "Another Tame Impala track with psychedelic rock influences and dreamy vocal effects, matching their live version from the playlist.",
+      "match_score": 88,
+      "match_attributes": [
+        "genre lineage",
+        "mood/atmosphere",
+        "vocal production"
+      ],
+      "similar_to": [
+        "Tame Impala - Why Won't You Make Up Your Mind? - Live"
+      ],
+      "obscurity_score": 22,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Tame Impala",
+        "matched_title": "Elephant",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Tame Impala — Elephant"
+      }
+    },
+    {
+      "artist": "Mogwai",
+      "title": "Mogwai Fear Satan",
+      "year": 1997,
+      "reason": "Shares the same post-rock intensity and dynamic builds as the Deftones' heavier tracks, with a focus on atmospheric guitar layers.",
+      "match_score": 84,
+      "match_attributes": [
+        "instrumentation",
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Deftones - Around the Fur",
+        "Deftones - Change (In the House of Flies)"
+      ],
+      "obscurity_score": 42,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Mogwai",
+        "matched_title": "Mogwai Fear Satan",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Mogwai — Mogwai Fear Satan"
+      }
+    },
+    {
+      "artist": "Porter Robinson",
+      "title": "Look at the Sky",
+      "year": 2016,
+      "reason": "Features similar electronic production with melodic, uplifting synths, but with a more modern, polished approach compared to Lone's work.",
+      "match_score": 85,
+      "match_attributes": [
+        "instrumentation",
+        "production style",
+        "mood/atmosphere"
+      ],
+      "similar_to": [
+        "Lone - Approaching Rainbow",
+        "Lone - Blossom Quarter"
+      ],
+      "obscurity_score": 28,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Porter Robinson",
+        "matched_title": "Look at the Sky",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Porter Robinson — Look at the Sky"
+      }
+    },
+    {
+      "artist": "The Knife",
+      "title": "We Share Our Mothers' Health",
+      "year": 2003,
+      "reason": "Shares the same electronic experimentation and ethereal vocals as Air's more atmospheric tracks.",
+      "match_score": 86,
+      "match_attributes": [
+        "vocal production",
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Air - You Can Tell It to Everybody"
+      ],
+      "obscurity_score": 45,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "The Knife",
+        "matched_title": "We Share Our Mothers' Health",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "The Knife — We Share Our Mothers' Health"
+      }
+    },
+    {
+      "artist": "Nils Frahm",
+      "title": "Says",
+      "year": 2012,
+      "reason": "Features a similar ambient, piano-driven production style with emotional depth, aligning with the more reflective tracks in the playlist.",
+      "match_score": 80,
+      "match_attributes": [
+        "instrumentation",
+        "mood/atmosphere",
+        "production style"
+      ],
+      "similar_to": [
+        "Pixies - The Thing",
+        "De La Soul - Oodles of O's"
+      ],
+      "obscurity_score": 55,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Nils Frahm",
+        "matched_title": "Says",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Nils Frahm — Says"
+      }
+    },
+    {
+      "artist": "Sufjan Stevens",
+      "title": "Fourth of July",
+      "year": 2005,
+      "reason": "Shared intricate song structures and poetic lyricism with 'Convenient Parking' by Modest Mouse, both featuring complex arrangements and introspective themes.",
+      "match_score": 79,
+      "match_attributes": [
+        "intricate song structures",
+        "poetic lyricism"
+      ],
+      "similar_to": [
+        "Modest Mouse - Convenient Parking"
+      ],
+      "obscurity_score": 52,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Sufjan Stevens",
+        "matched_title": "Fourth of July",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Sufjan Stevens — Fourth of July"
+      }
+    },
+    {
+      "artist": "FKA twigs",
+      "title": "Two Weeks",
+      "year": 2014,
+      "reason": "Shares the same experimental R&B production and intimate, breathy vocals as Shlohmo's more emotive tracks.",
+      "match_score": 83,
+      "match_attributes": [
+        "vocal production",
+        "mood/atmosphere",
+        "genre lineage"
+      ],
+      "similar_to": [
+        "Shlohmo - Emerge From Smoke",
+        "Shlohmo - Apathy"
+      ],
+      "obscurity_score": 30,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "FKA twigs",
+        "matched_title": "Two Weeks",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "FKA twigs — Two Weeks"
+      }
+    },
+    {
+      "artist": "Kendrick Lamar",
+      "title": "mortal man",
+      "year": 2015,
+      "reason": "Shared introspective lyricism and spiritual themes with 'The Thing' by Pixies, both exploring internal conflict through layered production.",
+      "match_score": 82,
+      "match_attributes": [
+        "lyrical depth",
+        "spiritual themes"
+      ],
+      "similar_to": [
+        "Pixies - The Thing"
+      ],
+      "obscurity_score": 42,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Kendrick Lamar",
+        "matched_title": "Mortal Man",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Kendrick Lamar — mortal man"
+      }
+    },
+    {
+      "artist": "Björk",
+      "title": "Pagan Poetry",
+      "year": 2017,
+      "reason": "Shared experimental electronic textures and vocal layering with 'Jealous' by Eyedress, both utilizing avant-garde production techniques.",
+      "match_score": 84,
+      "match_attributes": [
+        "avant-garde production",
+        "vocal layering"
+      ],
+      "similar_to": [
+        "Eyedress - Jealous"
+      ],
+      "obscurity_score": 28,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Björk",
+        "matched_title": "Pagan Poetry",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Björk — Pagan Poetry"
+      }
+    },
+    {
+      "artist": "The Internet",
+      "title": "Little Dark",
+      "year": 2015,
+      "reason": "Shared smooth, hypnotic R&B grooves with 'Shug' by Shuggie Otis, both utilizing warm basslines and soulful production.",
+      "match_score": 76,
+      "match_attributes": [
+        "smooth R&B groove",
+        "warm basslines"
+      ],
+      "similar_to": [
+        "Shuggie Otis - Island Letter"
+      ],
+      "obscurity_score": 33,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "The Internet — Little Dark"
+      }
+    },
+    {
+      "artist": "Bomba Estéreo",
+      "title": "Soy Yo",
+      "year": 2015,
+      "reason": "Shared vibrant Latin electronic fusion with 'Infected Mushroom - Saeed', blending traditional rhythms with modern electronic production.",
+      "match_score": 81,
+      "match_attributes": [
+        "Latin electronic fusion",
+        "traditional rhythms"
+      ],
+      "similar_to": [
+        "Infected Mushroom - Saeed"
+      ],
+      "obscurity_score": 29,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Bomba Estéreo",
+        "matched_title": "Soy Yo",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Bomba Estéreo — Soy Yo"
+      }
+    },
+    {
+      "artist": "Mura Masa",
+      "title": "100% (feat. Saba)",
+      "year": 2017,
+      "reason": "Shared genre-blending electronic production style with 'Lone - Coreshine Voodoo', both combining electronic elements with organic instrumentation.",
+      "match_score": 86,
+      "match_attributes": [
+        "genre-blending production",
+        "organic instrumentation"
+      ],
+      "similar_to": [
+        "Lone - Coreshine Voodoo"
+      ],
+      "obscurity_score": 26,
+      "verification": {
+        "status": "unverified",
+        "source": "",
+        "confidence": 0.0,
+        "matched_artist": "",
+        "matched_title": "",
+        "checked_sources": [
+          "deezer",
+          "itunes",
+          "musicbrainz"
+        ],
+        "claimed_as": "Mura Masa — 100% (feat. Saba)"
+      }
+    },
+    {
+      "artist": "Tame Impala",
+      "title": "Let It Happen",
+      "year": 2015,
+      "reason": "Shared psychedelic pop production with 'Why Won't You Make Up Your Mind?' by Tame Impala, but this track offers a more extended, experimental take.",
+      "match_score": 85,
+      "match_attributes": [
+        "psychedelic pop",
+        "experimental take"
+      ],
+      "similar_to": [
+        "Tame Impala - Why Won't You Make Up Your Mind? - Live"
+      ],
+      "obscurity_score": 12,
+      "verification": {
+        "status": "verified",
+        "source": "deezer",
+        "confidence": 1.0,
+        "matched_artist": "Tame Impala",
+        "matched_title": "Let It Happen",
+        "checked_sources": [
+          "deezer"
+        ],
+        "claimed_as": "Tame Impala — Let It Happen"
+      }
+    }
+  ],
+  "verification": {
+    "confirmed": 19,
+    "unconfirmed": 6,
+    "confirmed_pct": 76.0
+  }
+}

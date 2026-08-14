@@ -7,11 +7,32 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-# Set environment variables BEFORE importing anything that reads config
+# Set environment variables BEFORE importing anything that reads config.
 os.environ["TESTING"] = "1"
+
+# Redirect *all* on-disk state to a throwaway directory, before any module
+# that resolves a data path gets imported. Importing `app` bootstraps an admin
+# user and writes it to the database; without this, a test run writes the
+# fixture credentials below straight into the developer's real data/users.db,
+# and the running app then tries to authenticate to Discogs with them.
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="discogs-recommender-tests-")
+os.environ["DISCOGS_DATA_DIR"] = _TEST_DATA_DIR
+
 os.environ.setdefault("DISCOGS_TOKEN", "test_token_1234567890")
 os.environ.setdefault("DISCOGS_USERNAME", "testuser")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-for-unit-tests")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Remove the throwaway data directory when the run ends."""
+    import shutil
+    shutil.rmtree(_TEST_DATA_DIR, ignore_errors=True)
+
+
+@pytest.fixture
+def test_data_dir():
+    """The session-wide throwaway data directory."""
+    return Path(_TEST_DATA_DIR)
 
 
 @pytest.fixture

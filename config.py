@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     # auto | compact | rich — "rich" gives local models the full curator prompt.
     # Worth setting for 24B+ local models; leave on auto for 8B-class models.
     prompt_tier: str = "auto"
+    # off | flag | strict — how hard to fact-check AI recommendations against
+    # public music catalogues before showing them. "flag" annotates and shows
+    # everything; "strict" drops anything no catalogue can confirm.
+    verification_policy: str = "flag"
+    # Keep the generation audit log (which model produced what, and whether it
+    # checked out). Disable only if you have a reason to.
+    audit_enabled: bool = True
+    audit_retention_days: int = 90
     app_name: str = "DiscogsRecommender/1.0"
     cache_ttl_seconds: int = 3600
     max_thumbs_entries: int = 500
@@ -64,9 +72,50 @@ class Settings(BaseSettings):
             )
         return v
 
+    @field_validator("verification_policy")
+    @classmethod
+    def validate_verification_policy(cls, v: str) -> str:
+        allowed = {"off", "flag", "strict"}
+        v = (v or "flag").strip().lower()
+        if v not in allowed:
+            raise ValueError(f"verification_policy must be one of {sorted(allowed)}")
+        return v
+
+    @field_validator("prompt_tier")
+    @classmethod
+    def validate_prompt_tier(cls, v: str) -> str:
+        allowed = {"auto", "compact", "rich"}
+        v = (v or "auto").strip().lower()
+        if v not in allowed:
+            raise ValueError(f"prompt_tier must be one of {sorted(allowed)}")
+        return v
+
     @property
     def discogs_configured(self) -> bool:
-        return bool(self.discogs_token and self.discogs_username)
+        """True when collection features can work at all.
+
+        A username alone is enough: a public Discogs collection is readable
+        over the REST API without a token. Database search still needs one —
+        see DiscogsService.public_mode.
+        """
+        return bool(self.discogs_username)
+
+    @property
+    def discogs_public_mode(self) -> bool:
+        """Collection readable, but no token — so no catalogue search."""
+        return bool(self.discogs_username and not self.discogs_token)
+
+    @property
+    def single_user_mode(self) -> bool:
+        """Whether to auto-authenticate every visitor as the local admin.
+
+        This is about whether there are real accounts to log into, which is a
+        different question from whether collection features work. Naming a
+        public Discogs username enables the collection but introduces no
+        credentials, so it must not start demanding a login that the operator
+        has no way to satisfy.
+        """
+        return not bool(self.discogs_token and self.discogs_username)
 
     @property
     def anthropic_configured(self) -> bool:

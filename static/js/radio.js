@@ -884,12 +884,70 @@ function getMatchScoreLabel(score) {
     return 'Wildcard';
 }
 
+// Provenance strip under the track title.
+//
+// Two separate honesty problems are being solved here. First, the app cannot
+// tell the listener a song is real just because a model named it — so the
+// badge reports what an independent catalogue actually found. Second, the
+// "reason" text below is model-written prose about producers, labels and
+// scene connections, none of which is checked by anything; presenting it in
+// the same voice as verified metadata would be misleading, so it is labelled
+// as a claim.
+const VERIFY_BADGES = {
+    verified: {
+        label: 'Confirmed',
+        title: 'An independent music catalogue lists this exact recording.',
+    },
+    corrected: {
+        label: 'Confirmed · name differs',
+        title: 'A catalogue has this recording under a slightly different name.',
+    },
+    unverified: {
+        label: 'Unconfirmed',
+        title: 'No music catalogue could confirm this recording exists. '
+             + 'It may be invented, or simply too obscure to be indexed.',
+    },
+    skipped: {
+        label: 'Not checked',
+        title: 'Accuracy checking is off for this playlist.',
+    },
+};
+
+function renderProvenance(track) {
+    const host = document.getElementById('track-provenance');
+    if (!host) return;
+    host.replaceChildren();
+
+    const v = track.verification;
+    if (!v || !v.status || v.status === 'skipped') return;
+
+    const spec = VERIFY_BADGES[v.status] || VERIFY_BADGES.skipped;
+    const badge = document.createElement('span');
+    badge.className = 'verify-badge is-' + v.status;
+    badge.textContent = spec.label;
+    badge.title = v.source
+        ? `${spec.title} (source: ${v.source})`
+        : spec.title;
+    host.appendChild(badge);
+
+    if (v.status === 'corrected' && v.matched_artist && v.matched_title) {
+        const note = document.createElement('span');
+        note.className = 'verify-matched';
+        note.textContent = `catalogue: ${v.matched_artist} — ${v.matched_title}`;
+        host.appendChild(note);
+    }
+}
+
 function updateTrackInfo(track) {
     document.getElementById('track-title').textContent = track.title || '—';
     document.getElementById('track-artist').textContent = track.artist || '—';
     document.getElementById('track-album').textContent = track.album
         ? `${track.album}${track.year ? ' (' + track.year + ')' : ''}`
         : '';
+    renderProvenance(track);
+
+    // The reason is model-written and nothing has checked it, so it is
+    // presented as a claim rather than as fact. See renderProvenance.
     document.getElementById('track-reason').textContent = track.reason || '';
 
     // Match score + attributes section
