@@ -453,11 +453,18 @@ def _get_user_collection(user: dict) -> list[dict]:
 
 
 def _get_user_username(user: dict) -> str:
-    """Get the effective Discogs username for display."""
-    username = user.get("discogs_username") or settings.discogs_username
+    """The name to greet this user by.
+
+    Only the admin falls back to the server-configured Discogs username.
+    Without that restriction a second account with no Discogs of its own was
+    greeted by the owner's name — Bee signing in and being welcomed as etcyl.
+    """
+    username = user.get("discogs_username")
+    if not username and user.get("is_admin"):
+        username = settings.discogs_username
     if username and username != "local":
         return username
-    return user.get("display_name", "User")
+    return user.get("display_name") or user.get("login_name") or "there"
 
 
 def _user_has_discogs(user: dict) -> bool:
@@ -1424,10 +1431,35 @@ async def radio_playlist_stream(request: Request,
             num_songs = channel.get("num_songs", 50)
             model_label = AI_MODEL_LABELS.get(ai_model, ai_model)
 
-            allowed = auth_service.get_allowed_models(user)
-            if ai_model not in allowed:
-                yield _sse("error", {"message": f"You don't have access to {model_label}. Change the channel's AI model."})
-                return
+            # A channel that plays a fixed list never calls a model, so model
+            # access is not a question worth asking. It used to be asked
+            # anyway, which made every playlist an account had unplayable if
+            # the channel's stored ai_model happened to be one they weren't
+            # allowed — the model it would never have used.
+            needs_model = not _is_fixed_playlist
+
+            if needs_model:
+                allowed = auth_service.get_allowed_models(user)
+                if ai_model not in allowed:
+                    # Fall back to a model they can use rather than leaving a
+                    # dead channel. The substitution is announced here and
+                    # recorded in the audit log, so it isn't a silent swap.
+                    fallback = next(
+                        (m for m in ("ollama", "claude-haiku", "claude-sonnet")
+                         if m in allowed), None)
+                    if not fallback:
+                        yield _sse("error", {"message":
+                            "No AI model is available to your account. Ask the "
+                            "owner to enable one, or use a playlist channel."})
+                        return
+                    logger.info("Channel %s asks for %s which %s cannot use; "
+                                "using %s instead", channel_id, ai_model,
+                                user.get("login_name") or user["id"], fallback)
+                    ai_model = fallback
+                    model_label = AI_MODEL_LABELS.get(ai_model, ai_model)
+                    yield _sse("progress", {
+                        "message": f"Using {model_label} for this channel.",
+                        "percent": 3})
 
             if source_type == "discogs":
                 if not settings.discogs_configured and not user.get("discogs_username"):
