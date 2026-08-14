@@ -183,9 +183,16 @@ def main() -> int:
     payload = [{
         "artist": s.get("artist", ""),
         "title": s.get("title", ""),
+        # Where this track sits in the playlist's shape. Shown under the track
+        # in the player, in place of the old generic "From your uploaded file".
+        "reason": s.get("section", ""),
         "album": s.get("album", ""),
         "year": s.get("year", ""),
         "videoId": s.get("videoId", ""),
+        # Keep the runner-up videos. YouTube returns error 150 for tracks the
+        # rights holder has blocked from embedding, and without alternatives
+        # the player can only skip them.
+        "altVideoIds": s.get("altVideoIds", [])[:4],
         "thumbnail": s.get("thumbnail", ""),
         "albumArt": s.get("albumArt", ""),
         "duration": s.get("duration", ""),

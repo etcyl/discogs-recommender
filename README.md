@@ -74,8 +74,10 @@ See [Docker setup](#docker) for details.
 
 ### Radio
 
-Channel list with per-channel settings tucked into a drawer, so the list stays
-scannable however many channels you have.
+Three columns: channels, player, queue. Per-channel settings live in a drawer so
+the channel list stays scannable, and the queue is a full-height rail rather than
+a short scroll box under the player. Playback position is remembered per channel,
+so reloading picks up where you left off.
 
 ![Radio](docs/after/radio.png)
 

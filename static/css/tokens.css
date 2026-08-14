@@ -573,6 +573,172 @@ main.container {
 }
 
 /* ---------------------------------------------------------------------------
+   Radio layout
+
+   Was: a 1180px reading column holding a 260px sidebar and everything else
+   stacked underneath, with the queue in a 450px scroll box below the player.
+   On a wide screen that left roughly half the viewport empty while the queue —
+   the thing you actually navigate with — was the most cramped element on the
+   page.
+
+   Now: three columns. Channels | player | queue, the arrangement every desktop
+   music player converges on, because the queue is a destination rather than a
+   footnote. Below 1200px the queue drops under the player, and below 900px the
+   sidebar becomes the existing off-canvas drawer.
+   ------------------------------------------------------------------------ */
+
+main.container.page-wide {
+    max-width: 1560px;
+}
+
+@media (min-width: 1200px) {
+    .radio-page-layout {
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 0;
+    }
+
+    /* The player and the queue share the main column as a two-track grid.
+       The queue spans both rows so it runs the full height of the player. */
+    /* Safe as a plain rule: while hidden, JS sets an inline display:none that
+       wins; when shown it removes the property entirely and this applies. */
+    .radio-player {
+        display: grid;
+        grid-template-columns: minmax(420px, 1fr) clamp(300px, 26vw, 400px);
+        grid-template-rows: auto 1fr;
+        gap: 0 var(--space-6);
+        align-items: start;
+        padding: 0 var(--space-5);
+    }
+
+    .inline-progress { grid-column: 1 / -1; grid-row: 1; }
+    .player-layout   { grid-column: 1; grid-row: 2; padding-top: 0; }
+
+    .queue-section {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        margin-top: 0;
+        padding: 0 0 0 var(--space-5);
+        border-top: none;
+        border-left: 1px solid var(--line);
+        /* Sized to the viewport rather than a fixed 450px, so a tall window
+           shows more of the queue instead of more empty space. */
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 8rem);
+        position: sticky;
+        top: var(--space-5);
+    }
+
+    .queue-list {
+        flex: 1;
+        max-height: none;
+        min-height: 0;
+    }
+}
+
+/* Stop the artwork column collapsing to a sliver next to the info column. */
+@media (min-width: 1200px) {
+    .player-layout {
+        grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
+        gap: var(--space-6);
+    }
+    .artwork-wrapper { max-width: 340px; }
+}
+
+/* The queue heading earns a count — "Up Next 96" answers "how much is left"
+   without scrolling to the bottom. */
+.queue-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+.queue-count {
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: var(--text-xs);
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar that doesn't look like a system artifact inside a dark panel. */
+.queue-list::-webkit-scrollbar { width: 8px; }
+.queue-list::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--radius-pill);
+}
+.queue-list::-webkit-scrollbar-track { background: transparent; }
+
+/* Sidebar: the New Channel button sat pinned to the bottom of a mostly empty
+   column, a long way from the list it adds to. */
+.channel-sidebar { padding: var(--space-5) 0; }
+.channel-list { flex: 0 0 auto; }
+.new-channel-btn {
+    margin: var(--space-3) var(--space-4) 0;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    transition: background var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.new-channel-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.resume-note {
+    font-size: var(--text-xs);
+    color: var(--text-3);
+    font-style: italic;
+}
+
+/* Secondary controls: eight items on one line only fit at the old full-page
+   width. With a queue rail beside them they were squeezing to slivers — the
+   toggle buttons collapsed to 4px and the volume slider to a dot. Let the row
+   wrap, and stop the flexible children from shrinking below a usable size. */
+.secondary-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3) var(--space-4);
+    row-gap: var(--space-3);
+}
+.secondary-controls > * { flex: 0 0 auto; }
+.thumb-btn,
+.mindmap-toggle-btn { flex: none; }
+
+.volume-control {
+    flex: 0 1 auto;
+    min-width: 120px;
+    gap: var(--space-2);
+}
+.volume-slider { min-width: 80px; }
+
+.radio-nav-group {
+    flex: 0 0 auto;
+    gap: var(--space-3);
+}
+
+/* Queue rows: titles were truncating early because the duration column and
+   index reserved fixed width. Give the text the slack instead. */
+.queue-item { gap: var(--space-3); }
+.queue-item-info { min-width: 0; }
+.queue-duration {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-3);
+}
+
+/* The player column ran out of content well before the queue did, leaving a
+   tall empty block underneath. Pull the content up rather than centring it in
+   dead space. */
+@media (min-width: 1200px) {
+    .player-layout { align-content: start; }
+    .radio-container { padding-bottom: var(--space-6); }
+}
+
+/* ---------------------------------------------------------------------------
    Verification badges
 
    Shown next to recommendations so the listener can tell a confirmed track

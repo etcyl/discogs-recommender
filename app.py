@@ -1353,12 +1353,13 @@ async def radio_playlist_stream(request: Request,
                             "title": t["title"],
                             "album": t.get("album", ""),
                             "year": t.get("year", ""),
-                            "reason": t.get("reason", "From your uploaded file"),
+                            "reason": t.get("reason", ""),
                             "similar_to": [],
                             # Carry through anything already resolved, so a
                             # pre-built playlist starts playing immediately
                             # instead of re-searching YouTube for every track.
                             "videoId": t.get("videoId", ""),
+                            "altVideoIds": t.get("altVideoIds", []),
                             "thumbnail": t.get("thumbnail", ""),
                             "albumArt": t.get("albumArt", ""),
                             "duration": t.get("duration", ""),

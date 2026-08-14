@@ -19,9 +19,19 @@
             } catch (e) { /* private mode — keep the default */ }
         })();
     </script>
+    {#
+      Load order is the cascade order, and these three are deliberately layered:
+        pico      — third-party defaults
+        style.css — the app's original component CSS
+        tokens.css — the design-system layer: tokens, platform fixes, and the
+                     layout corrections that supersede the older rules
+      tokens.css goes last so it can override style.css without every rule
+      needing an arms race of selector specificity. Custom properties resolve
+      at use time, so style.css still reads the tokens defined here.
+    #}
     <link rel="stylesheet" href="/static/css/vendor/pico.min.css">
-    <link rel="stylesheet" href="/static/css/tokens.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/tokens.css">
 </head>
 <body>
     <nav class="site-nav">
@@ -48,7 +58,7 @@
         {% endif %}
     </nav>
 
-    <main class="container">
+    <main class="container {% block main_class %}{% endblock %}">
         <div id="system-alerts" class="setup-notice"></div>
 
         {% if error %}

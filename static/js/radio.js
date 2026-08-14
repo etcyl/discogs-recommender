@@ -49,6 +49,78 @@ let activeChannelId = pickInitialChannel();
 let menuTargetChannelId = null;
 let activeEventSource = null;
 
+// ---- Resume position -------------------------------------------------------
+// Reloading the page used to drop you back to track 1. For a hundred-track
+// playlist that is the difference between a reload being free and being
+// something you avoid. Position is stored per channel, so switching between
+// channels and back also picks up where each left off.
+const RESUME_KEY = 'radio:resume';
+let pendingResume = null;      // {index, time} waiting for the queue to reach it
+let lastResumeSave = 0;
+
+function readResume(channelId) {
+    try {
+        const all = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+        const entry = all[channelId];
+        // Anything older than a day is stale — start the playlist fresh.
+        if (!entry || Date.now() - (entry.at || 0) > 86400000) return null;
+        return entry;
+    } catch (e) {
+        return null;
+    }
+}
+
+function saveResume(force = false) {
+    if (currentIndex < 0) return;
+    const now = Date.now();
+    if (!force && now - lastResumeSave < 5000) return;
+    lastResumeSave = now;
+    let time = 0;
+    try { time = Math.floor(player?.getCurrentTime?.() || 0); } catch (e) { /* not ready */ }
+    try {
+        const all = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+        all[activeChannelId] = { index: currentIndex, time, at: now };
+        localStorage.setItem(RESUME_KEY, JSON.stringify(all));
+    } catch (e) { /* private mode or quota */ }
+}
+
+function clearResume(channelId) {
+    try {
+        const all = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+        delete all[channelId];
+        localStorage.setItem(RESUME_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore */ }
+}
+
+/** Jump to a saved position once the queue has streamed far enough. */
+function tryApplyResume() {
+    if (!pendingResume) return false;
+    const { index, time } = pendingResume;
+    if (index >= queue.length) return false;   // not streamed in yet — wait
+    pendingResume = null;
+    currentIndex = index;
+    // Cue rather than autoplay: picking up mid-track without warning is
+    // startling, and browsers block unsolicited audio anyway.
+    loadTrack(queue[index], false);
+    if (time > 5) {
+        const seek = () => { try { player.seekTo(time, true); player.pauseVideo(); } catch (e) {} };
+        setTimeout(seek, 800);
+    }
+    showResumeNotice(queue[index], time);
+    return true;
+}
+
+function showResumeNotice(track, time) {
+    const host = document.getElementById('track-provenance');
+    if (!host || !track) return;
+    const mins = Math.floor(time / 60), secs = String(time % 60).padStart(2, '0');
+    const note = document.createElement('span');
+    note.className = 'resume-note';
+    note.textContent = time > 5 ? `resumed at ${mins}:${secs}` : 'resumed';
+    host.appendChild(note);
+    setTimeout(() => note.remove(), 6000);
+}
+
 // Reflect the opening choice in the sidebar — the server marks the first
 // channel active, which is not necessarily the one we are about to play.
 document.querySelectorAll('.channel-item').forEach((el) => {
@@ -59,6 +131,14 @@ document.querySelectorAll('.channel-item').forEach((el) => {
 let shuffleMode = false;
 let playedIndices = new Set();
 let playHistory = [];
+
+/** True for channels that play an explicit list rather than generating one. */
+function isFixedPlaylist(channelId = activeChannelId) {
+    if (channelId === 'liked-songs') return true;
+    const el = document.querySelector(
+        `.channel-item[data-channel-id="${CSS.escape(channelId)}"]`);
+    return el ? el.dataset.mode === 'play_playlist' : false;
+}
 
 function getActiveAiModel() {
     const sel = document.querySelector(`.channel-ai-model[data-channel-id="${activeChannelId}"] .channel-ai-model-select`);
@@ -156,6 +236,10 @@ function loadPlaylistSSE(isRefreshMode = false) {
     const isFirstLoad = queue.length === 0 && !isRefreshMode;
 
     if (isFirstLoad) {
+        pendingResume = readResume(activeChannelId);
+    }
+
+    if (isFirstLoad) {
         // First time: show full-screen overlay
         showLoading(true);
     } else {
@@ -204,8 +288,11 @@ function loadPlaylistSSE(isRefreshMode = false) {
                 const key = `${s.artist}-${s.title}`.toLowerCase();
                 likedSet.add(key);
             });
-        } else {
-            // Filter out liked songs from non-liked channels
+        } else if (!isFixedPlaylist()) {
+            // Drop already-liked songs from a channel that generates
+            // recommendations — you have them, no need to suggest them again.
+            // A fixed playlist is exempt: liking a track in a playlist you
+            // chose must not remove it from that playlist.
             songs = songs.filter(s => {
                 const key = `${s.artist}-${s.title}`.toLowerCase();
                 return !likedSet.has(key);
@@ -221,12 +308,18 @@ function loadPlaylistSSE(isRefreshMode = false) {
         // Start playback if this is the first batch
         if (isFirstLoad && currentIndex === -1) {
             showLoading(false);
-            // Show first song without auto-playing — let user press Play or Next
-            currentIndex = 0;
-            loadTrack(queue[0], false);
+            if (!tryApplyResume()) {
+                // Show first song without auto-playing — let user press Play or Next
+                currentIndex = 0;
+                loadTrack(queue[0], false);
+            }
         } else if (isRefreshMode && currentIndex === -1) {
             currentIndex = -1;
             playNext();
+        } else if (pendingResume) {
+            // The saved position was further into the playlist than the first
+            // batch reached; retry now that more tracks have arrived.
+            tryApplyResume();
         }
     });
 
@@ -364,6 +457,8 @@ function getStepHint(percent) {
 // ---- Channel Switching ----
 function switchChannel(channelId) {
     if (channelId === activeChannelId) return;
+    saveResume(true);          // remember where we left the channel we're leaving
+    pendingResume = null;
     activeChannelId = channelId;
     try { localStorage.setItem(CHANNEL_MEMORY_KEY, channelId); } catch (e) { /* private mode */ }
 
@@ -601,6 +696,7 @@ function addChannelToSidebar(channel) {
     item.className = 'channel-item';
     item.dataset.channelId = channel.id;
     item.dataset.sourceType = channel.source_type;
+    item.dataset.mode = channel.mode || '';
     const iconSvg = channel.source_type === 'spotify'
         ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>'
         : channel.source_type === 'youtube'
@@ -743,7 +839,7 @@ function playNext() {
     }
     // Helper: check if a track index is a liked song on a non-liked channel
     const _isLikedOnRecommendedChannel = (idx) => {
-        if (activeChannelId === 'liked-songs') return false;
+        if (isFixedPlaylist()) return false;
         const t = queue[idx];
         if (!t) return false;
         const k = `${t.artist}-${t.title}`.toLowerCase();
@@ -835,6 +931,7 @@ function loadTrack(track, autoplay = true) {
 
     // Record start time for skip detection
     trackStartTime = Date.now();
+    saveResume(true);
 
     // Always update UI even if YouTube player hasn't loaded yet
     updateTrackInfo(track);
@@ -1100,6 +1197,7 @@ function stopProgressUpdates() {
 
 function updateProgress() {
     if (!player || isSeeking) return;
+    saveResume();   // throttled to once every 5s
     try {
         const current = player.getCurrentTime() || 0;
         const total = player.getDuration() || 0;
@@ -1291,6 +1389,10 @@ function boostSimilarSongs(likedTrack) {
 }
 
 function scheduleFeedbackGeneration(removedCount = 0) {
+    // A fixed playlist is a list you chose. Quietly regenerating parts of it
+    // because you skipped a track would be the app overruling that choice —
+    // and it was firing an "Adjusting your playlist…" toast to say so.
+    if (isFixedPlaylist()) return;
     if (isGeneratingReplacements) return;
     clearTimeout(feedbackDebounceTimer);
     feedbackDebounceTimer = setTimeout(() => {
@@ -1358,6 +1460,14 @@ function renderQueue() {
     const start = Math.max(currentIndex, 0);
     const upcoming = queue.slice(start);
 
+    // "how much is left" without scrolling to the bottom
+    const countEl = document.getElementById('queue-count');
+    if (countEl) {
+        const remaining = Math.max(upcoming.length - 1, 0);
+        countEl.textContent = remaining;
+        countEl.hidden = remaining === 0;
+    }
+
     upcoming.forEach((track, i) => {
         const idx = start + i;
         const item = document.createElement('div');
@@ -1407,7 +1517,15 @@ function showPauseIcon() {
 
 function showLoading(show) {
     document.getElementById('radio-loading').style.display = show ? 'flex' : 'none';
-    document.getElementById('radio-player').style.display = show ? 'none' : 'block';
+    // Clear the inline display rather than setting 'block': the player's
+    // layout is a grid at desktop widths, and an inline display would win
+    // over the stylesheet and flatten it back into a single column.
+    const playerEl = document.getElementById('radio-player');
+    if (show) {
+        playerEl.style.display = 'none';
+    } else {
+        playerEl.style.removeProperty('display');
+    }
 }
 
 function showError(msg) {
