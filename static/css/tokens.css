@@ -523,6 +523,56 @@ main.container {
 }
 
 /* ---------------------------------------------------------------------------
+   Dark surfaces
+
+   The radio player is a dark surface in both themes, the way media players
+   generally are — artwork and a canvas visualiser read better against it, and
+   it is the only page you sit and look at rather than scan.
+
+   This is also honest about the stylesheet: style.css was written against a
+   permanently dark page and carries ~180 hardcoded white-on-dark colours.
+   Scoping the dark palette to this container makes the player correct in both
+   themes today, rather than half-migrating those declarations and shipping a
+   light theme with invisible text in it. The rest of the app is fully themed.
+   ------------------------------------------------------------------------ */
+
+[data-surface="dark"] {
+    color-scheme: dark;
+    --surface-0: #0f1117;
+    --surface-1: #161923;
+    --surface-2: #1e2230;
+    --surface-3: #272c3d;
+    --text-1: #e7e9ee;
+    --text-2: #a8aec0;
+    --text-3: #767c8f;
+    --line: rgba(255, 255, 255, 0.09);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --accent: #e8a03e;
+    --accent-strong: #f2b45c;
+    --accent-dim: rgba(232, 160, 62, 0.16);
+    --accent-color: #e8a03e;
+    --info: #6aa9e0;
+    --info-bg: rgba(106, 169, 224, 0.12);
+    --warn: #e0b055;
+    --warn-bg: rgba(224, 176, 85, 0.12);
+    --danger: #e07070;
+    --danger-bg: rgba(224, 112, 112, 0.12);
+    --success: #6cc08a;
+    --success-bg: rgba(108, 192, 138, 0.12);
+
+    background: var(--surface-0);
+    color: var(--text-1);
+    border-radius: var(--radius-lg);
+}
+
+/* Cover art has no src until a track loads; without this the browser shows
+   the alt text in a broken-image box. */
+.artwork-img:not([src]),
+.artwork-img[src=""] {
+    visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------------
    Verification badges
 
    Shown next to recommendations so the listener can tell a confirmed track

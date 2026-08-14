@@ -212,7 +212,11 @@ async def security_headers(request: Request, call_next):
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net https://www.youtube.com; "
         "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
-        "img-src 'self' data: https://i.discogs.com https://i.ytimg.com https://*.ytimg.com; "
+        # Album art is enriched from iTunes and Deezer (see
+        # RadioService._fetch_song_metadata), so their CDNs have to be allowed
+        # or every cover silently fails to load and leaves a broken image box.
+        "img-src 'self' data: https://i.discogs.com https://i.ytimg.com "
+        "https://*.ytimg.com https://*.mzstatic.com https://*.dzcdn.net; "
         "media-src 'self' https://*.googlevideo.com https://*.youtube.com; "
         "frame-src https://www.youtube.com https://www.youtube-nocookie.com; "
         "connect-src 'self' https://www.youtube.com https://*.googlevideo.com"
@@ -971,7 +975,10 @@ async def radio_playlist(request: Request,
     user = request.state.user
     user_dir = _get_user_data_dir(user)
     _ch = channel_service.get_channel(channel_id, data_dir=user_dir)
-    _is_liked = _ch and _ch.get("source_type") == "liked"
+    # A fixed playlist (liked songs, or any play_playlist channel) is an
+    # explicit "play these tracks" and is not filtered against history.
+    _is_liked = bool(_ch) and (_ch.get("source_type") == "liked"
+                               or _ch.get("mode") == "play_playlist")
 
     cache_key = f"radio_playlist:{user['id']}:{channel_id}"
     playlist = cache.get(cache_key)
@@ -1057,17 +1064,27 @@ async def radio_playlist_stream(request: Request,
             yield _sse("error", {"message": "Invalid channel ID"})
             return
 
-        # Look up channel source_type early for filtering decisions
+        # Look up the channel early: whether history filtering applies at all
+        # depends on what kind of channel this is.
+        #
+        # "Don't replay what you've heard recently" is right for a channel that
+        # generates recommendations. It is wrong for one that plays a fixed
+        # playlist — a liked-songs channel, or any channel in play_playlist
+        # mode. Those are an explicit "play exactly these tracks", and filtering
+        # them against listening history empties the channel the second time
+        # you open it.
         _ch_for_cache = channel_service.get_channel(channel_id, data_dir=user_dir)
-        _is_liked_channel = _ch_for_cache and _ch_for_cache.get("source_type") == "liked"
+        _is_fixed_playlist = bool(_ch_for_cache) and (
+            _ch_for_cache.get("source_type") == "liked"
+            or _ch_for_cache.get("mode") == "play_playlist")
 
         cache_key = f"radio_playlist:{user['id']}:{channel_id}"
         playlist = cache.get(cache_key)
         if playlist:
-            # Post-cache filter: remove songs disliked/played since cache was set
-            # For non-liked channels, also remove liked songs
+            # Disliked songs are always removed — that preference holds even
+            # for a hand-picked playlist.
             filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
-            if not _is_liked_channel:
+            if not _is_fixed_playlist:
                 filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
                 filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
                 filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
@@ -1336,8 +1353,16 @@ async def radio_playlist_stream(request: Request,
                             "title": t["title"],
                             "album": t.get("album", ""),
                             "year": t.get("year", ""),
-                            "reason": "From your uploaded file",
+                            "reason": t.get("reason", "From your uploaded file"),
                             "similar_to": [],
+                            # Carry through anything already resolved, so a
+                            # pre-built playlist starts playing immediately
+                            # instead of re-searching YouTube for every track.
+                            "videoId": t.get("videoId", ""),
+                            "thumbnail": t.get("thumbnail", ""),
+                            "albumArt": t.get("albumArt", ""),
+                            "duration": t.get("duration", ""),
+                            "verification": t.get("verification", {}),
                         }
                         for t in tracks
                     ]
@@ -1538,10 +1563,10 @@ async def radio_playlist_stream(request: Request,
                     return
 
             # Build exclude set for post-YouTube-resolution filtering
-            # (YT title rewriting can change artist/title to match known songs)
-            # For the "liked" channel, do NOT exclude liked songs (they ARE the playlist)
+            # (YT title rewriting can change artist/title to match known songs).
+            # A fixed playlist is exempt — see _is_fixed_playlist above.
             yt_filter_set = thumbs.get_dislikes_set(data_dir=user_dir)
-            if source_type != "liked":
+            if not _is_fixed_playlist:
                 yt_filter_set.update(thumbs.get_rec_history_set(max_entries=500, data_dir=user_dir))
                 yt_filter_set.update(thumbs.get_thumbs_set(data_dir=user_dir))
                 yt_filter_set.update(thumbs.get_history_set(max_entries=300, data_dir=user_dir))
@@ -1614,12 +1639,16 @@ async def radio_playlist_stream(request: Request,
             yield _sse("progress", {"message": "Ready!", "percent": 100})
             yield _sse("complete", {
                 "cached": False,
-                "ai_model": model_label,
+                # A fixed playlist was not curated by a model, so don't claim
+                # one. The channel still carries an ai_model setting for when
+                # it is switched out of play_playlist mode.
+                "ai_model": "" if _is_fixed_playlist else model_label,
                 # Provenance, so the UI can say where this playlist came from
                 # rather than presenting it as anonymous truth.
                 "provenance": {
-                    "ai_model": ai_model,
-                    "model_label": model_label,
+                    "ai_model": "" if _is_fixed_playlist else ai_model,
+                    "model_label": "" if _is_fixed_playlist else model_label,
+                    "source": "fixed playlist" if _is_fixed_playlist else "generated",
                     "prompt_tier": settings.prompt_tier,
                     "verification": verification_summary or {"policy": "off"},
                     "audit_run_id": run_id,

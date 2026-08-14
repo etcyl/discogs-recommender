@@ -1,0 +1,137 @@
+# 100-song playlist curated for etcyl, blending the Discogs vinyl collection
+# (indie rock, classic rock, new wave, disco) with the Spotify playlist
+# (deep house, LA beat scene, vaporwave, alt-metal, golden-age hip hop).
+# No artist already in either source. Format: Artist - Title
+
+# --- Indie rock, Matador/Merge orbit -----------------------------------
+Pavement - Gold Soundz
+Guided by Voices - Game of Pricks
+Yo La Tengo - Sugarcube
+Sebadoh - Ocean
+Superchunk - Slack Motherfucker
+Archers of Loaf - Web in Front
+The Dismemberment Plan - The City
+Silver Jews - Random Rules
+Wilco - I Am Trying to Break Your Heart
+Broken Social Scene - Cause = Time
+The Shins - New Slang
+Grandaddy - A.M. 180
+Elliott Smith - Between the Bars
+Interpol - Obstacle 1
+The Walkmen - The Rat
+Ted Leo and the Pharmacists - Where Have All the Rude Boys Gone?
+
+# --- Neo-psych ---------------------------------------------------------
+Melody's Echo Chamber - Some Time Alone, Alone
+Temples - Shelter Song
+King Gizzard & The Lizard Wizard - Rattlesnake
+Connan Mockasin - Forever Dolphin Love
+Jacco Gardner - Clear the Air
+Khruangbin - White Gloves
+Allah-Las - Catamaran
+
+# --- Post-punk, new wave, synth-pop ------------------------------------
+Talking Heads - Crosseyed and Painless
+Wire - Map Ref. 41°N 93°W
+Gang of Four - Damaged Goods
+The Chameleons - Swamp Thing
+Simple Minds - Theme for Great Cities
+Orchestral Manoeuvres in the Dark - Souvenir
+Ultravox - Vienna
+Japan - Ghosts
+Echo & the Bunnymen - The Killing Moon
+New Order - Temptation
+
+# --- Classic rock, prog, blue-eyed soul --------------------------------
+Donald Fagen - I.G.Y.
+The Doobie Brothers - What a Fool Believes
+Boz Scaggs - Lowdown
+Todd Rundgren - I Saw the Light
+10cc - I'm Not in Love
+Yes - Roundabout
+Genesis - Turn It On Again
+The Alan Parsons Project - Eye in the Sky
+Little Feat - Dixie Chicken
+Steve Miller Band - Fly Like an Eagle
+
+# --- Deep house, tech house, cosmic disco ------------------------------
+Mr. Fingers - Can You Feel It
+Moodymann - Shades of Jae
+Theo Parrish - Falling Up
+Ron Trent - Altered States
+DJ Sneak - You Can't Hide From Your Bud
+Pépé Bradock - Deep Burnt
+Recloose - Can't Take It
+DJ Koze - Pick Up
+Floating Points - Silhouettes (I, II & III)
+Todd Terje - Inspector Norse
+Lindstrøm - I Feel Space
+Roman Flügel - Geht's Noch?
+
+# --- LA beat scene, IDM, wonky -----------------------------------------
+Madlib - Slim's Return
+J Dilla - Waves
+Dorian Concept - Draft Culture
+Kaytranada - At All
+Bibio - Lovers' Carvings
+Boards of Canada - Dayvan Cowboy
+Four Tet - Angel Echoes
+Squarepusher - My Red Hot Car
+Prefuse 73 - The Color of Tempo
+Gold Panda - Quitters Raga
+Jon Hopkins - Open Eye Signal
+Rustie - Slasherr
+
+# --- Downtempo, trip-hop, nu-jazz --------------------------------------
+Bomb the Bass - Bug Powder Dust
+Nightmares On Wax - Les Nuits
+Zero 7 - In the Waiting Line
+Morcheeba - The Sea
+The Cinematic Orchestra - To Build a Home
+RJD2 - Ghostwriter
+DJ Shadow - Midnight in a Perfect World
+Emancipator - Anthem
+
+# --- Chillwave, dream pop ----------------------------------------------
+Washed Out - Feel It All Around
+Neon Indian - Deadbeat Summer
+Toro y Moi - Blessa
+Beach House - Zebra
+Youth Lagoon - July
+Tycho - A Walk
+
+# --- Post-hardcore, alt-metal ------------------------------------------
+Helmet - Unsung
+Failure - Stuck on You
+Hum - Stars
+Cave In - Anchor
+Thrice - Deadbolt
+Refused - New Noise
+At the Drive-In - One Armed Scissor
+Sunny Day Real Estate - Seven
+
+# --- Golden-age and alternative hip hop --------------------------------
+Gang Starr - Mass Appeal
+Pete Rock & C.L. Smooth - They Reminisce Over You (T.R.O.Y.)
+Company Flow - 8 Steps to Perfection
+Jurassic 5 - Concrete Schoolyard
+Blackalicious - Alphabet Aerobics
+Madvillain - Accordion
+Mos Def - Ms. Fat Booty
+Common - I Used to Love H.E.R.
+Wu-Tang Clan - C.R.E.A.M.
+People Under the Stairs - Acid Raindrops
+
+# --- Disco, boogie, funk-soul ------------------------------------------
+Chic - I Want Your Love
+Loose Ends - Hangin' on a String
+Roy Ayers - Everybody Loves the Sunshine
+Cerrone - Supernature
+Change - A Lover's Holiday
+Leon Ware - Why I Came to California
+
+# --- Jazz --------------------------------------------------------------
+Herbie Hancock - Chameleon
+Bill Evans Trio - Waltz for Debby
+Cannonball Adderley - Mercy, Mercy, Mercy
+Ahmad Jamal - Poinciana

@@ -636,6 +636,15 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
         def _resolve_one(song):
             artist = song.get("artist", "")
             title = song.get("title", "")
+
+            # A track imported from a YouTube playlist already names the exact
+            # video the listener picked. Searching for it again is both wasted
+            # work and a chance to land on a worse match — a live upload, a
+            # cover, or the wrong song entirely.
+            if song.get("videoId"):
+                song.setdefault("altVideoIds", [])
+                return song
+
             video_info = self._find_youtube_video(artist, title)
             if video_info:
                 song["videoId"] = video_info["videoId"]
@@ -644,7 +653,15 @@ DISCOVERY LEVEL: {discovery}/100 (0 = stick to what I know, 100 = surprise me co
                 song["altVideoIds"] = video_info.get("altVideoIds", [])
                 song["ytTitle"] = video_info.get("ytTitle", "")
 
-                # Parse YouTube title as source of truth for artist/song name
+                # The YouTube title is normally the better name — it corrects
+                # model typos. But once a track has been confirmed against a
+                # music catalogue, the catalogue outranks whatever an uploader
+                # typed: otherwise a confirmed track picks up "(vinyl rip)",
+                # "(432hz)", or the uploader's channel name as its artist.
+                if (song.get("verification") or {}).get("status") in (
+                        "verified", "corrected"):
+                    return song
+
                 yt_artist, yt_song = self._parse_youtube_title(
                     video_info.get("ytTitle", ""),
                     video_info.get("ytChannel", ""),

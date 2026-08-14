@@ -23,9 +23,37 @@ let feedbackDebounceTimer = null;
 let trackStartTime = null;
 
 // ---- Channel State ----
-let activeChannelId = 'my-collection';
+// Which channel to open with, in order of preference:
+//   1. ?channel=<id> in the URL, so a channel can be linked or bookmarked
+//   2. the last one played on this device
+//   3. the first channel in the sidebar
+const CHANNEL_MEMORY_KEY = 'radio:lastChannel';
+
+function pickInitialChannel() {
+    const exists = (id) =>
+        id && document.querySelector(`.channel-item[data-channel-id="${CSS.escape(id)}"]`);
+
+    const requested = new URLSearchParams(location.search).get('channel');
+    if (exists(requested)) return requested;
+
+    try {
+        const remembered = localStorage.getItem(CHANNEL_MEMORY_KEY);
+        if (exists(remembered)) return remembered;
+    } catch (e) { /* private mode */ }
+
+    const first = document.querySelector('.channel-item');
+    return first ? first.dataset.channelId : 'my-collection';
+}
+
+let activeChannelId = pickInitialChannel();
 let menuTargetChannelId = null;
 let activeEventSource = null;
+
+// Reflect the opening choice in the sidebar — the server marks the first
+// channel active, which is not necessarily the one we are about to play.
+document.querySelectorAll('.channel-item').forEach((el) => {
+    el.classList.toggle('channel-active', el.dataset.channelId === activeChannelId);
+});
 
 // ---- Shuffle State ----
 let shuffleMode = false;
@@ -337,6 +365,7 @@ function getStepHint(percent) {
 function switchChannel(channelId) {
     if (channelId === activeChannelId) return;
     activeChannelId = channelId;
+    try { localStorage.setItem(CHANNEL_MEMORY_KEY, channelId); } catch (e) { /* private mode */ }
 
     // Reset session feedback
     sessionFeedback = { liked: [], disliked: [], skipped: [] };
@@ -1042,9 +1071,12 @@ function updateTrackInfo(track) {
     const artwork = document.getElementById('track-artwork');
     const artSrc = track.albumArt || track.thumbnail;
     if (artSrc) {
+        // Hide rather than show a broken-image box if the CDN doesn't serve it.
+        artwork.onerror = () => { artwork.style.display = 'none'; };
         artwork.src = artSrc;
         artwork.style.display = 'block';
     } else {
+        artwork.removeAttribute('src');
         artwork.style.display = 'none';
     }
 

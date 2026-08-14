@@ -107,6 +107,57 @@ class TestResolveYoutubeIds:
     @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
     @patch("services.radio_service.VideosSearch")
     @patch("services.radio_service.cache")
+    def test_reuses_an_existing_video_id(self, mock_cache, mock_search_cls,
+                                         _mock_meta, radio_svc):
+        """A YouTube-imported track already names the exact video."""
+        mock_cache.get.return_value = None
+        playlist = [{"artist": "A", "title": "B", "videoId": "already-known"}]
+        result = radio_svc.resolve_youtube_ids(playlist)
+        assert result[0]["videoId"] == "already-known"
+        mock_search_cls.assert_not_called()
+
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
+    def test_confirmed_names_survive_the_video_title(self, mock_cache,
+                                                     mock_search_cls, _mock_meta,
+                                                     radio_svc):
+        """A catalogue-confirmed name outranks whatever an uploader typed."""
+        mock_cache.get.return_value = None
+        instance = MagicMock()
+        instance.result.return_value = {"result": [
+            {"id": "v1", "thumbnails": [{"url": "t.jpg"}], "duration": "3:13",
+             "title": "Washed Out- Feel It All Around (432hz) [vinyl rip]"}]}
+        mock_search_cls.return_value = instance
+
+        playlist = [{"artist": "Washed Out", "title": "Feel It All Around",
+                     "verification": {"status": "verified"}}]
+        result = radio_svc.resolve_youtube_ids(playlist)
+        assert result[0]["artist"] == "Washed Out"
+        assert result[0]["title"] == "Feel It All Around"
+        assert result[0]["videoId"] == "v1"
+
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
+    def test_unconfirmed_names_still_take_the_video_title(self, mock_cache,
+                                                          mock_search_cls,
+                                                          _mock_meta, radio_svc):
+        """Without a confirmation, the video title is still the better guess."""
+        mock_cache.get.return_value = None
+        instance = MagicMock()
+        instance.result.return_value = {"result": [
+            {"id": "v1", "thumbnails": [{"url": "t.jpg"}], "duration": "3:13",
+             "title": "Washed Out - Feel It All Around"}]}
+        mock_search_cls.return_value = instance
+
+        playlist = [{"artist": "Washed Out", "title": "Feel It All Arround"}]
+        result = radio_svc.resolve_youtube_ids(playlist)
+        assert result[0]["title"] == "Feel It All Around"
+
+    @patch("services.radio_service.RadioService._fetch_song_metadata", return_value={})
+    @patch("services.radio_service.VideosSearch")
+    @patch("services.radio_service.cache")
     def test_resolves_successfully(self, mock_cache, mock_search_cls, _mock_meta, radio_svc):
         mock_cache.get.return_value = None
         mock_search_instance = MagicMock()
