@@ -35,3 +35,10 @@ bench/.verify_cache.json
 # (bench/seeds/demo_playlist.txt) is committed; your own exports are not.
 bench/seeds/*.json
 !bench/seeds/demo_*.json
+
+# Other household members' data. Publishing your own listening is your call to
+# make; publishing someone else's is not. Anything belonging to another
+# account on this install stays local.
+bench/seeds/bee_*
+bench/channel_18427c38.json
+bench/channel_a143ea7d.json

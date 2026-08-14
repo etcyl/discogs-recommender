@@ -38,10 +38,25 @@ def artist_key(name: str) -> str:
     return n[4:] if n.startswith("the ") else n
 
 
-def collect_exclusions() -> tuple[set[str], dict[str, str]]:
-    """Every artist the listener already has, and where each came from."""
+def collect_exclusions(seed_names: list[str] | None = None,
+                       user_ids: list[str] | None = None
+                       ) -> tuple[set[str], dict[str, str]]:
+    """Every artist a listener already has, and where each came from.
+
+    Scoped, because on a shared install "already in the library" is a
+    per-person question. Recommending Bee something she doesn't own is not
+    affected by what's in someone else's collection.
+
+    seed_names: substrings matching files in bench/seeds to read. None means
+                all of them (single-user default).
+    user_ids:   which accounts' channels to treat as already-recommended.
+                None means all.
+    """
     excluded: set[str] = set()
     origin: dict[str, str] = {}
+
+    def wanted_seed(path: Path) -> bool:
+        return not seed_names or any(n in path.stem for n in seed_names)
 
     def add(name: str, source: str):
         k = artist_key(name)
@@ -51,6 +66,8 @@ def collect_exclusions() -> tuple[set[str], dict[str, str]]:
 
     # Saved seeds: Discogs collections and imported playlists.
     for path in SEEDS.glob("*.json"):
+        if not wanted_seed(path):
+            continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
@@ -66,6 +83,8 @@ def collect_exclusions() -> tuple[set[str], dict[str, str]]:
     root = paths.data_dir()
     if root.exists():
         for cf in root.glob("*/channels.json"):
+            if user_ids and cf.parent.name not in user_ids:
+                continue
             try:
                 channels = json.loads(cf.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
@@ -77,6 +96,8 @@ def collect_exclusions() -> tuple[set[str], dict[str, str]]:
 
     # Plain-text seed lists.
     for path in SEEDS.glob("*.txt"):
+        if not wanted_seed(path):
+            continue
         for t in load_sectioned(path):
             if t.get("artist"):
                 add(t["artist"], path.stem)
@@ -91,12 +112,20 @@ def main() -> int:
     p.add_argument("--no-verify", action="store_true")
     p.add_argument("--allow", action="append", default=[],
                    help="artist to permit despite being excluded (repeatable)")
+    p.add_argument("--seeds", action="append", default=[], metavar="NAME",
+                   help="only exclude against seed files matching NAME "
+                        "(repeatable). Use on a shared install so one person's "
+                        "library doesn't filter another's recommendations.")
+    p.add_argument("--exclude-user", action="append", default=[], metavar="ID",
+                   help="only exclude against these accounts' channels")
     args = p.parse_args()
 
     tracks = load_sectioned(args.candidates)
     print(f"{len(tracks)} candidates from {args.candidates.name}")
 
-    excluded, origin = collect_exclusions()
+    excluded, origin = collect_exclusions(
+        seed_names=args.seeds or None,
+        user_ids=args.exclude_user or None)
     for a in args.allow:
         excluded.discard(artist_key(a))
     # The file being screened is itself in seeds/ — don't exclude against itself.
