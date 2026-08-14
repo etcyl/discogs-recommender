@@ -382,6 +382,26 @@ class TestCWE601_OpenRedirect:
 # CWE-693: Protection Mechanism Failure
 # ===========================================================================
 
+class TestCaching:
+    """Stale assets and cached authenticated pages are both real problems."""
+
+    def test_static_assets_must_revalidate(self, client):
+        """Without this a browser invents its own expiry and serves stale JS."""
+        r = client.get("/static/css/tokens.css")
+        assert "no-cache" in r.headers.get("cache-control", "")
+        assert r.headers.get("etag")
+
+    def test_authenticated_pages_are_not_stored(self, client):
+        """A shared cache must never hand one account another's page."""
+        r = client.get("/radio")
+        cc = r.headers.get("cache-control", "")
+        assert "no-store" in cc and "private" in cc
+
+    def test_api_responses_are_not_stored(self, client):
+        cc = client.get("/api/system/status").headers.get("cache-control", "")
+        assert "no-store" in cc
+
+
 class TestCWE693_ProtectionMechanisms:
     """Verify security headers and protections are active."""
 

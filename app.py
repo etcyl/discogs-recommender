@@ -222,6 +222,25 @@ class SpotifyPreviewRequest(BaseModel):
 async def security_headers(request: Request, call_next):
     """Add security headers to all responses (CWE-693)."""
     response = await call_next(request)
+
+    # Caching.
+    #
+    # Static files already carry an ETag but had no Cache-Control at all, and
+    # a browser with no directive falls back to *heuristic* caching — roughly
+    # a tenth of the file's age, so an hour-old script can be served stale for
+    # six minutes and a week-old one for most of a day. That turns "reload the
+    # page" into "hold ctrl and shift while you reload the page", which is not
+    # something to ask a household. `no-cache` still caches; it just requires
+    # a revalidation, which the ETag answers with a cheap 304.
+    #
+    # Everything else is per-user and authenticated, so it must not be stored
+    # by any shared cache that might hand one person another's page.
+    path = request.url.path
+    if path.startswith("/static/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    else:
+        response.headers.setdefault("Cache-Control", "no-store, private")
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
